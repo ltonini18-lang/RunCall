@@ -61,33 +61,43 @@ a {
 /* HERO */
 
 .hero {
-  background: #e3f1ff; /* bleu très clair */
-  padding: 100px 0 140px; /* augmente l'espace haut et bas */
-  text-align: left;
+  background: #e3f1ff;
+  padding: 120px 0 160px;
+  text-align: center; /* 💥 Centre tout le texte */
 }
 
 .hero-inner {
-  max-width: 700px; /* élargit le bloc */
+  max-width: 800px; /* un peu plus large */
+  margin: 0 auto;   /* 💥 Centre tout le bloc horizontalement */
+}
+
+.hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 💥 Centre les éléments (titre, texte, bouton) */
 }
 
 .hero-text h1 {
-  font-size: 2.8rem; /* plus grand */
-  line-height: 1.2;  
-  margin-bottom: 25px; /* plus d'espace sous le titre */
+  font-size: 2.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 28px;
 }
 
 .hero-subtitle {
   font-size: 1.25rem;
-  line-height: 1.6;
-  margin-bottom: 35px; /* espace sous le paragraphe */
+  line-height: 1.7;
+  margin-bottom: 45px;
+  max-width: 650px; /* Pour un texte centré plus lisible */
   color: #333;
 }
 
 /* BUTTONS */
 
 .btn.btn-primary {
-  padding: 14px 28px;
-  font-size: 1.1rem;
+  padding: 15px 32px;
+  font-size: 1.15rem;
+  border-radius: 10px;
 }
 
 .btn {
