@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunCall – Parlez à un expert running</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="logo">RunCall</div>
+      <nav class="nav">
+        <a href="#experts">Experts</a>
+        <a href="#how">Comment ça marche</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-text">
+        <h1>Parlez à un expert running en 20&nbsp;minutes.</h1>
+        <p class="hero-subtitle">
+          Coachs, YouTubeurs, athlètes élites. Posez vos questions, obtenez une réponse personnalisée,
+          en direct, par visio.
+        </p>
+        <a href="#experts" class="btn btn-primary">Voir les experts</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMENT ÇA MARCHE -->
+  <section id="how" class="section">
+    <div class="container">
+      <h2>Comment ça marche&nbsp;?</h2>
+      <div class="steps">
+        <div class="step-card">
+          <span class="step-number">1</span>
+          <h3>Choisissez un expert</h3>
+          <p>Coach, YouTubeur, athlète élite selon votre besoin.</p>
+        </div>
+        <div class="step-card">
+          <span class="step-number">2</span>
+          <h3>Paiement sécurisé</h3>
+          <p>Paiement via Stripe avant la réservation, prix clair et affiché.</p>
+        </div>
+        <div class="step-card">
+          <span class="step-number">3</span>
+          <h3>Réservation automatique</h3>
+          <p>Vous choisissez le créneau dans Calendly, le lien Google Meet est généré.</p>
+        </div>
+        <div class="step-card">
+          <span class="step-number">4</span>
+          <h3>Visio de 20&nbsp;minutes</h3>
+          <p>Échange direct avec l’expert, en visio, sur votre situation.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXPERTS -->
+  <section id="experts" class="section section-alt">
+    <div class="container">
+      <h2>Nos premiers experts</h2>
+      <p class="section-subtitle">MVP – exemple de trois profils types</p>
+
+      <div class="expert-grid">
+        <!-- Expert 1 -->
+        <article class="expert-card">
+          <h3>Coach certifié</h3>
+          <p class="expert-specialty">Marathon, seuil, structuration de prépa.</p>
+          <p class="expert-price">40&nbsp;€ / séance de 20&nbsp;min</p>
+          <button class="btn btn-outline" data-modal-target="#modal-coach">
+            En savoir plus & réserver
+          </button>
+        </article>
+
+        <!-- Expert 2 -->
+        <article class="expert-card">
+          <h3>YouTubeur running</h3>
+          <p class="expert-specialty">Chaussures, stratégie, motivation, nutrition.</p>
+          <p class="expert-price">35&nbsp;€ / séance de 20&nbsp;min</p>
+          <button class="btn btn-outline" data-modal-target="#modal-youtubeur">
+            En savoir plus & réserver
+          </button>
+        </article>
+
+        <!-- Expert 3 -->
+        <article class="expert-card">
+          <h3>Athlète élite</h3>
+          <p class="expert-specialty">Tactique, mental, gestion de course, haut niveau.</p>
+          <p class="expert-price">50&nbsp;€ / séance de 20&nbsp;min</p>
+          <button class="btn btn-outline" data-modal-target="#modal-elite">
+            En savoir plus & réserver
+          </button>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- POURQUOI RUNCALL -->
+  <section class="section">
+    <div class="container">
+      <h2>Pourquoi RunCall&nbsp;?</h2>
+      <ul class="why-list">
+        <li>Accès direct à des experts que vous suivez déjà.</li>
+        <li>Des réponses vraiment personnalisées à votre situation.</li>
+        <li>20&nbsp;minutes qui peuvent changer votre préparation.</li>
+        <li>Visio Google Meet intégrée, aucune installation compliquée.</li>
+        <li>Prix clairs, paiement sécurisé par Stripe.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CONTACT / FORMULAIRE INFO -->
+  <section id="contact" class="section section-alt">
+    <div class="container">
+      <h2>Vous avez une question avant de réserver&nbsp;?</h2>
+      <p>Envoyez-nous un message et nous vous répondrons rapidement.</p>
+
+      <!-- Formulaire simple – tu peux brancher ça sur Formspree ou autre -->
+      <form class="contact-form" action="https://formspree.io/f/VOTRE_ID" method="POST">
+        <div class="form-row">
+          <label>Nom</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-row">
+          <label>Email</label>
+          <input type="email" name="email" required />
+        </div>
+        <div class="form-row">
+          <label>Expert souhaité</label>
+          <select name="expert">
+            <option value="coach">Coach certifié</option>
+            <option value="youtubeur">YouTubeur running</option>
+            <option value="elite">Athlète élite</option>
+            <option value="indecis">Je ne sais pas encore</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Votre objectif / question</label>
+          <textarea name="message" rows="4" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Envoyer</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>© RunCall – 2025</span>
+      <span>Made with 🏃‍♂️ & ☕</span>
+    </div>
+  </footer>
+
+  <!-- MODALES RÉSERVATION -->
+
+  <!-- COACH -->
+  <div class="modal" id="modal-coach">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <button class="modal-close" data-close-modal>&times;</button>
+      <h3>Réserver avec le Coach certifié</h3>
+      <p>Spécialités : marathon, seuil, structuration de plan, gestion de charge.</p>
+      <p><strong>Tarif&nbsp;: 40&nbsp;€ / 20&nbsp;minutes</strong></p>
+
+      <ol class="modal-steps">
+        <li><strong>Étape 1 :</strong> Payer la séance via Stripe.</li>
+        <li><strong>Étape 2 :</strong> Choisir votre créneau dans Calendly.</li>
+      </ol>
+
+      <div class="modal-actions">
+        <!-- TODO: remplace l’URL par ton Payment Link Stripe -->
+        <a href="https://buy.stripe.com/VOTRE_LIEN_COACH" target="_blank" class="btn btn-primary">
+          Payer la séance (Stripe)
+        </a>
+
+        <!-- TODO: remplace l’URL Calendly par celle de l’événement du coach -->
+        <a href="https://calendly.com/VOTRE_COACH" target="_blank" class="btn btn-outline">
+          Choisir un créneau (Calendly)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- YOUTUBEUR -->
+  <div class="modal" id="modal-youtubeur">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <button class="modal-close" data-close-modal>&times;</button>
+      <h3>Réserver avec le YouTubeur running</h3>
+      <p>Spécialités : choix de chaussures, stratégie, motivation, récupération.</p>
+      <p><strong>Tarif&nbsp;: 35&nbsp;€ / 20&nbsp;minutes</strong></p>
+
+      <ol class="modal-steps">
+        <li><strong>Étape 1 :</strong> Payer la séance via Stripe.</li>
+        <li><strong>Étape 2 :</strong> Choisir votre créneau dans Calendly.</li>
+      </ol>
+
+      <div class="modal-actions">
+        <a href="https://buy.stripe.com/VOTRE_LIEN_YOUTUBEUR" target="_blank" class="btn btn-primary">
+          Payer la séance (Stripe)
+        </a>
+        <a href="https://calendly.com/VOTRE_YOUTUBEUR" target="_blank" class="btn btn-outline">
+          Choisir un créneau (Calendly)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ELITE -->
+  <div class="modal" id="modal-elite">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <button class="modal-close" data-close-modal>&times;</button>
+      <h3>Réserver avec l’athlète élite</h3>
+      <p>Spécialités : tactique, mental, gestion de course, haut niveau.</p>
+      <p><strong>Tarif&nbsp;: 50&nbsp;€ / 20&nbsp;minutes</strong></p>
+
+      <ol class="modal-steps">
+        <li><strong>Étape 1 :</strong> Payer la séance via Stripe.</li>
+        <li><strong>Étape 2 :</strong> Choisir votre créneau dans Calendly.</li>
+      </ol>
+
+      <div class="modal-actions">
+        <a href="https://buy.stripe.com/VOTRE_LIEN_ELITE" target="_blank" class="btn btn-primary">
+          Payer la séance (Stripe)
+        </a>
+        <a href="https://calendly.com/VOTRE_ELITE" target="_blank" class="btn btn-outline">
+          Choisir un créneau (Calendly)
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
