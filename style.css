@@ -333,3 +333,9 @@ a {
     align-items: flex-start;
   }
 }
+.experts-thanks {
+  font-size: 0.6em;
+  font-weight: 400;
+  color: #555;
+  margin-left: 6px;
+}
