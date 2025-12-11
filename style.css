@@ -147,10 +147,12 @@ a {
 }
 
 .step-card {
-  background: #fff;
-  border-radius: var(--radius);
-  padding: 18px 16px;
-  border: 1px solid #eef2ff;
+  background: #eef6ff; /* bleu très léger */
+  border: 1px solid #dbe9ff; /* fin contour bleu */
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05); /* ombre douce */
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .step-number {
