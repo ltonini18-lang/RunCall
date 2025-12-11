@@ -61,30 +61,34 @@ a {
 /* HERO */
 
 .hero {
-  background: var(--blue-light);
-  padding: 80px 0 70px;
+  background: #e3f1ff; /* bleu très clair */
+  padding: 100px 0 140px; /* augmente l'espace haut et bas */
+  text-align: left;
 }
 
 .hero-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  max-width: 700px; /* élargit le bloc */
 }
 
-.hero h1 {
-  font-size: 2.3rem;
-  margin: 0 0 12px;
+.hero-text h1 {
+  font-size: 2.8rem; /* plus grand */
+  line-height: 1.2;  
+  margin-bottom: 25px; /* plus d'espace sous le titre */
 }
 
 .hero-subtitle {
-  font-size: 1.1rem;
-  color: #555;
-  max-width: 550px;
-  margin: 0 auto;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  margin-bottom: 35px; /* espace sous le paragraphe */
+  color: #333;
 }
 
 /* BUTTONS */
+
+.btn.btn-primary {
+  padding: 14px 28px;
+  font-size: 1.1rem;
+}
 
 .btn {
   display: inline-block;
