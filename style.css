@@ -436,3 +436,15 @@ a {
     margin-top: 50px;
   }
 }
+/* CTA DEVENEZ EXPERT - SECTION COMMENT ÇA MARCHE */
+
+.expert-cta {
+  margin-top: 60px;
+  text-align: center;
+}
+
+.expert-cta-text {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+  color: #333;
+}
