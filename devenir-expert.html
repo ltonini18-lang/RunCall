@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Devenir expert RunCall</title>
+  <title>RunCall – Devenir expert</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -17,129 +17,222 @@
 <section class="section">
   <div class="container">
 
-    <h1>Devenir expert RunCall</h1>
-    <p class="section-subtitle">
-      Propose ton expertise à des coureurs motivés via des échanges individuels en visio.
-      Chaque profil est étudié et validé manuellement avant mise en ligne.
-    </p>
+    <h1
+      data-fr="Devenir expert RunCall"
+      data-en="Become a RunCall expert"
+    ></h1>
 
-    <form 
+    <p class="section-subtitle"
+      data-fr="Partage ton expertise avec des coureurs motivés via des échanges individuels en visio. Chaque profil est étudié et validé manuellement."
+      data-en="Share your expertise with motivated runners through one-on-one video calls. Every profile is manually reviewed and approved."
+    ></p>
+
+    <form
       class="contact-form"
       action="https://formspree.io/f/VOTRE_FORM_ID"
       method="POST"
       enctype="multipart/form-data"
     >
 
-      <!-- 1. Profil & identité -->
-      <h2>Profil & identité</h2>
+      <!-- PROFIL -->
+      <h2
+        data-fr="Profil & identité"
+        data-en="Profile & identity"
+      ></h2>
 
       <div class="form-row">
-        <label>Prénom et nom *</label>
+        <label
+          data-fr="Prénom et nom"
+          data-en="Full name"
+        ></label>
         <input type="text" name="name" required />
       </div>
 
       <div class="form-row">
-        <label>Email *</label>
+        <label>Email</label>
         <input type="email" name="email" required />
       </div>
 
       <div class="form-row">
-        <label>Photo de profil *</label>
+        <label
+          data-fr="Photo de profil"
+          data-en="Profile photo"
+        ></label>
         <input type="file" name="photo" accept="image/*" required />
-        <small>Cette image sera affichée sur ta page expert RunCall.</small>
+        <small
+          data-fr="Cette image sera affichée sur ta page expert."
+          data-en="This image will be displayed on your expert page."
+        ></small>
       </div>
 
-      <!-- 2. Présentation -->
-      <h2>Présentation (visible sur ta page expert)</h2>
+      <!-- PRÉSENTATION -->
+      <h2
+        data-fr="Présentation (visible sur ta page expert)"
+        data-en="Presentation (visible on your expert page)"
+      ></h2>
 
       <div class="form-row">
-        <label>Présente-toi en quelques lignes *</label>
-        <textarea name="presentation" rows="4" required
-          placeholder="Explique qui tu es, ton expérience, et ce que les personnes peuvent attendre d’un échange avec toi."></textarea>
-        <small>Ce texte sera affiché tel quel sur ta page expert RunCall.</small>
+        <label
+          data-fr="Présente-toi en quelques lignes"
+          data-en="Introduce yourself in a few lines"
+        ></label>
+        <textarea
+          name="presentation"
+          rows="4"
+          required
+          data-fr-placeholder="Explique qui tu es, ton parcours et ce que les gens peuvent attendre d’un échange avec toi."
+          data-en-placeholder="Explain who you are, your background, and what people can expect from a call with you."
+        ></textarea>
       </div>
 
       <div class="form-row">
-        <label>Spécialités principales (max. 3) *</label>
+        <label
+          data-fr="Spécialités principales (max. 3)"
+          data-en="Main specialties (max. 3)"
+        ></label>
         <select name="specialties[]" multiple required>
-          <option>Marathon / semi-marathon</option>
-          <option>Entraînement & planification</option>
-          <option>Chaussures & matériel</option>
-          <option>Nutrition</option>
-          <option>Mental & stratégie de course</option>
-          <option>Reprise après blessure</option>
-          <option>Débutants / reprise</option>
+          <option data-fr="Marathon / semi-marathon" data-en="Marathon / half-marathon"></option>
+          <option data-fr="Entraînement & planification" data-en="Training & planning"></option>
+          <option data-fr="Chaussures & matériel" data-en="Shoes & gear"></option>
+          <option data-fr="Nutrition" data-en="Nutrition"></option>
+          <option data-fr="Mental & stratégie de course" data-en="Mental & race strategy"></option>
+          <option data-fr="Reprise après blessure" data-en="Return from injury"></option>
+          <option data-fr="Débutants / reprise" data-en="Beginners / comeback"></option>
         </select>
       </div>
 
-      <!-- 3. Formats & tarification -->
-      <h2>Formats & tarification</h2>
+      <!-- FORMATS -->
+      <h2
+        data-fr="Formats & tarification"
+        data-en="Formats & pricing"
+      ></h2>
 
       <div class="form-row">
-        <label>Formats proposés *</label>
-        <label><input type="checkbox" name="format_20" /> 20 minutes</label>
-        <label><input type="checkbox" name="format_30" /> 30 minutes</label>
+        <label
+          data-fr="Formats proposés"
+          data-en="Available formats"
+        ></label>
+        <label><input type="checkbox" name="format_20" /> 20 min</label>
+        <label><input type="checkbox" name="format_30" /> 30 min</label>
       </div>
 
       <div class="form-row">
-        <label>Préférence de tarification *</label>
+        <label
+          data-fr="Préférence de tarification"
+          data-en="Pricing preference"
+        ></label>
         <label>
           <input type="radio" name="pricing_pref" value="runcall" checked />
-          Je préfère que RunCall propose un tarif adapté à mon profil
+          <span
+            data-fr="Je préfère que RunCall propose un tarif adapté à mon profil"
+            data-en="I prefer RunCall to suggest a price based on my profile"
+          ></span>
         </label>
         <label>
           <input type="radio" name="pricing_pref" value="expert" />
-          Je souhaite proposer moi-même un tarif
+          <span
+            data-fr="Je souhaite proposer moi-même un tarif"
+            data-en="I want to set my own price"
+          ></span>
         </label>
       </div>
 
       <div class="form-row">
-        <label>Tarif souhaité – 20 min (optionnel)</label>
-        <input type="number" name="price_20" placeholder="€" />
+        <label
+          data-fr="Tarif souhaité – 20 min (optionnel)"
+          data-en="Desired price – 20 min (optional)"
+        ></label>
+        <input type="number" name="price_20" />
       </div>
 
       <div class="form-row">
-        <label>Tarif souhaité – 30 min (optionnel)</label>
-        <input type="number" name="price_30" placeholder="€" />
-        <small>RunCall se réserve le droit de proposer un ajustement si nécessaire.</small>
+        <label
+          data-fr="Tarif souhaité – 30 min (optionnel)"
+          data-en="Desired price – 30 min (optional)"
+        ></label>
+        <input type="number" name="price_30" />
       </div>
 
-      <!-- 4. Disponibilités -->
-      <h2>Disponibilités</h2>
+      <!-- DISPONIBILITÉS -->
+      <h2
+        data-fr="Disponibilités"
+        data-en="Availability"
+      ></h2>
 
       <div class="form-row">
-        <label>Ville de résidence *</label>
+        <label
+          data-fr="Ville de résidence"
+          data-en="City of residence"
+        ></label>
         <input type="text" name="city" required />
-        <small>(Cela nous permet de déterminer le fuseau horaire.)</small>
+        <small
+          data-fr="Utilisé pour déterminer ton fuseau horaire."
+          data-en="Used to determine your time zone."
+        ></small>
       </div>
 
       <div class="form-row">
-        <label>Disponibilités habituelles *</label>
-        <textarea name="availability" rows="3" required
-          placeholder="Ex : Lundi & mercredi : 18h–21h | Samedi : 9h–12h"></textarea>
+        <label
+          data-fr="Disponibilités habituelles"
+          data-en="Usual availability"
+        ></label>
+        <textarea
+          name="availability"
+          rows="3"
+          required
+          data-fr-placeholder="Ex : Lundi & mercredi : 18h–21h | Samedi : 9h–12h"
+          data-en-placeholder="Example: Monday & Wednesday: 6–9pm | Saturday: 9am–12pm"
+        ></textarea>
       </div>
 
       <div class="form-row">
-        <label>Contraintes particulières (optionnel)</label>
+        <label
+          data-fr="Contraintes particulières (optionnel)"
+          data-en="Specific constraints (optional)"
+        ></label>
         <textarea name="constraints" rows="2"></textarea>
       </div>
 
-      <!-- 5. Validation -->
+      <!-- VALIDATION -->
       <div class="form-row">
         <label>
           <input type="checkbox" required />
-          J’ai compris que RunCall sélectionne les experts et valide chaque profil avant mise en ligne.
+          <span
+            data-fr="J’ai compris que RunCall valide manuellement chaque profil avant mise en ligne."
+            data-en="I understand that RunCall manually reviews and approves each profile."
+          ></span>
         </label>
       </div>
 
-      <button type="submit" class="btn btn-primary">
-        Envoyer ma demande
-      </button>
+      <button
+        type="submit"
+        class="btn btn-primary"
+        data-fr="Envoyer ma demande"
+        data-en="Submit my application"
+      ></button>
 
     </form>
 
   </div>
 </section>
+
+<!-- SCRIPT BILINGUE -->
+<script>
+  (function () {
+    const lang = navigator.language || navigator.userLanguage;
+    const isFrench = lang.toLowerCase().startsWith('fr');
+
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = isFrench ? el.dataset.fr : el.dataset.en;
+    });
+
+    document.querySelectorAll('[data-fr-placeholder][data-en-placeholder]').forEach(el => {
+      el.placeholder = isFrench
+        ? el.dataset.frPlaceholder
+        : el.dataset.enPlaceholder;
+    });
+  })();
+</script>
 
 </body>
 </html>
