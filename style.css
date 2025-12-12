@@ -448,3 +448,7 @@ a {
   margin-bottom: 20px;
   color: #333;
 }
+/* Titres de sections centrés */
+.section h2 {
+  text-align: center;
+}
