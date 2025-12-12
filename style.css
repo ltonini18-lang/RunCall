@@ -448,7 +448,27 @@ a {
   margin-bottom: 20px;
   color: #333;
 }
-/* Titres de sections centrés */
-.section h2 {
-  text-align: center;
+/* LANGUAGE SWITCH */
+
+.lang-switch {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 20px;
 }
+
+.lang-switch button {
+  background: transparent;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  border-radius: 4px;
+}
+
+.lang-switch button.active {
+  background-color: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
