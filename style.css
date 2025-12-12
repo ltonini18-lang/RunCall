@@ -394,3 +394,45 @@ a {
   padding-bottom: 40px;
   font-size: 0.95rem;
 }
+/* CONTACT SPLIT SECTION */
+
+.contact-split {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+.contact-divider {
+  background-color: #ddd;
+  width: 1px;
+}
+
+.contact-right {
+  text-align: center;
+}
+
+.contact-right p {
+  max-width: 420px;
+  margin: 0 auto 30px auto;
+}
+
+.btn-center {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+/* Responsive mobile */
+@media (max-width: 900px) {
+  .contact-split {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-divider {
+    display: none;
+  }
+
+  .contact-right {
+    margin-top: 50px;
+  }
+}

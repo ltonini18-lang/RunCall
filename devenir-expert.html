@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Devenir expert RunCall</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <div class="logo">RunCall</div>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+
+    <h1>Devenir expert RunCall</h1>
+    <p class="section-subtitle">
+      Propose ton expertise à des coureurs motivés via des échanges individuels en visio.
+      Chaque profil est étudié et validé manuellement avant mise en ligne.
+    </p>
+
+    <form 
+      class="contact-form"
+      action="https://formspree.io/f/VOTRE_FORM_ID"
+      method="POST"
+      enctype="multipart/form-data"
+    >
+
+      <!-- 1. Profil & identité -->
+      <h2>Profil & identité</h2>
+
+      <div class="form-row">
+        <label>Prénom et nom *</label>
+        <input type="text" name="name" required />
+      </div>
+
+      <div class="form-row">
+        <label>Email *</label>
+        <input type="email" name="email" required />
+      </div>
+
+      <div class="form-row">
+        <label>Photo de profil *</label>
+        <input type="file" name="photo" accept="image/*" required />
+        <small>Cette image sera affichée sur ta page expert RunCall.</small>
+      </div>
+
+      <!-- 2. Présentation -->
+      <h2>Présentation (visible sur ta page expert)</h2>
+
+      <div class="form-row">
+        <label>Présente-toi en quelques lignes *</label>
+        <textarea name="presentation" rows="4" required
+          placeholder="Explique qui tu es, ton expérience, et ce que les personnes peuvent attendre d’un échange avec toi."></textarea>
+        <small>Ce texte sera affiché tel quel sur ta page expert RunCall.</small>
+      </div>
+
+      <div class="form-row">
+        <label>Spécialités principales (max. 3) *</label>
+        <select name="specialties[]" multiple required>
+          <option>Marathon / semi-marathon</option>
+          <option>Entraînement & planification</option>
+          <option>Chaussures & matériel</option>
+          <option>Nutrition</option>
+          <option>Mental & stratégie de course</option>
+          <option>Reprise après blessure</option>
+          <option>Débutants / reprise</option>
+        </select>
+      </div>
+
+      <!-- 3. Formats & tarification -->
+      <h2>Formats & tarification</h2>
+
+      <div class="form-row">
+        <label>Formats proposés *</label>
+        <label><input type="checkbox" name="format_20" /> 20 minutes</label>
+        <label><input type="checkbox" name="format_30" /> 30 minutes</label>
+      </div>
+
+      <div class="form-row">
+        <label>Préférence de tarification *</label>
+        <label>
+          <input type="radio" name="pricing_pref" value="runcall" checked />
+          Je préfère que RunCall propose un tarif adapté à mon profil
+        </label>
+        <label>
+          <input type="radio" name="pricing_pref" value="expert" />
+          Je souhaite proposer moi-même un tarif
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>Tarif souhaité – 20 min (optionnel)</label>
+        <input type="number" name="price_20" placeholder="€" />
+      </div>
+
+      <div class="form-row">
+        <label>Tarif souhaité – 30 min (optionnel)</label>
+        <input type="number" name="price_30" placeholder="€" />
+        <small>RunCall se réserve le droit de proposer un ajustement si nécessaire.</small>
+      </div>
+
+      <!-- 4. Disponibilités -->
+      <h2>Disponibilités</h2>
+
+      <div class="form-row">
+        <label>Ville de résidence *</label>
+        <input type="text" name="city" required />
+        <small>(Cela nous permet de déterminer le fuseau horaire.)</small>
+      </div>
+
+      <div class="form-row">
+        <label>Disponibilités habituelles *</label>
+        <textarea name="availability" rows="3" required
+          placeholder="Ex : Lundi & mercredi : 18h–21h | Samedi : 9h–12h"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label>Contraintes particulières (optionnel)</label>
+        <textarea name="constraints" rows="2"></textarea>
+      </div>
+
+      <!-- 5. Validation -->
+      <div class="form-row">
+        <label>
+          <input type="checkbox" required />
+          J’ai compris que RunCall sélectionne les experts et valide chaque profil avant mise en ligne.
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        Envoyer ma demande
+      </button>
+
+    </form>
+
+  </div>
+</section>
+
+</body>
+</html>
