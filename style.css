@@ -472,3 +472,11 @@ a {
   border-color: #2563eb;
 }
 
+.logo-link {
+  text-decoration: none;
+}
+
+.logo-link .logo {
+  cursor: pointer;
+}
+
