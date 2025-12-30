@@ -83,57 +83,76 @@
         ></textarea>
       </div>
 
-      <!-- FORMATS -->
-      <h2
-        data-fr="Formats & tarification"
-        data-en="Formats & pricing"
-      ></h2>
+  <!-- PRICING -->
+<h2
+  data-fr="Tarification"
+  data-en="Pricing"
+></h2>
 
-      <div class="form-row">
-        <label
-          data-fr="Formats proposés"
-          data-en="Available formats"
-        ></label>
-        <label><input type="checkbox" name="format_20" /> 20 min</label>
-        <label><input type="checkbox" name="format_30" /> 30 min</label>
-      </div>
+<div class="form-row">
+  <label
+    data-fr="Mode de tarification"
+    data-en="Pricing mode"
+  ></label>
 
-      <div class="form-row">
-        <label
-          data-fr="Préférence de tarification"
-          data-en="Pricing preference"
-        ></label>
-        <label>
-          <input type="radio" name="pricing_pref" value="runcall" checked />
-          <span
-            data-fr="Je préfère que RunCall propose un tarif adapté à mon profil (c’est toujours toi qui valides à la fin)"
-            data-en="I prefer RunCall to suggest a price based on my profile (you always have the final say)"
-          ></span>
-        </label>
-        <label>
-          <input type="radio" name="pricing_pref" value="expert" />
-          <span
-            data-fr="Je souhaite proposer moi-même un tarif"
-            data-en="I want to set my own price"
-          ></span>
-        </label>
-      </div>
+  <label>
+    <input type="radio" name="pricing_mode" value="runcall" checked />
+    <span
+      data-fr="Laisser RunCall proposer trois niveaux de soutien standards (29 $, 49 $, 79 $)"
+      data-en="Let RunCall offer three standard support levels ($29, $49, $79)"
+    ></span>
+  </label>
 
-      <div class="form-row">
-        <label
-          data-fr="Tarif souhaité – 20 min (optionnel)"
-          data-en="Desired price – 20 min (optional)"
-        ></label>
-        <input type="number" name="price_20" />
-      </div>
+  <label>
+    <input type="radio" name="pricing_mode" value="custom" />
+    <span
+      data-fr="Je préfère proposer moi-même un prix unique"
+      data-en="I prefer to set my own single price"
+    ></span>
+  </label>
+</div>
 
-      <div class="form-row">
-        <label
-          data-fr="Tarif souhaité – 30 min (optionnel)"
-          data-en="Desired price – 30 min (optional)"
-        ></label>
-        <input type="number" name="price_30" />
-      </div>
+<div
+  class="helper-text"
+  data-fr="Tous les niveaux de soutien donnent accès à la même conversation. L’utilisateur choisit simplement comment te soutenir."
+  data-en="All support levels give access to the same conversation. Users simply choose how much they want to support you."
+></div>
+
+<div class="form-row" id="custom-price-row" style="display:none;">
+  <label
+    data-fr="Prix proposé (optionnel)"
+    data-en="Your price (optional)"
+  ></label>
+  <input
+    type="number"
+    name="custom_price"
+    placeholder="ex : 49"
+    min="0"
+    step="1"
+  />
+</div>
+
+<div
+  class="helper-text"
+  data-fr="RunCall correspond à une conversation ponctuelle. Il ne s’agit ni de coaching ni de suivi."
+  data-en="RunCall is a one-time conversation. This is not coaching or ongoing support."
+></div>
+
+<script>
+  (function () {
+    const radios = document.querySelectorAll('input[name="pricing_mode"]');
+    const customRow = document.getElementById('custom-price-row');
+
+    function updatePricingModeUI() {
+      const selected = document.querySelector('input[name="pricing_mode"]:checked')?.value;
+      const isCustom = selected === "custom";
+      customRow.style.display = isCustom ? "block" : "none";
+    }
+
+    radios.forEach(r => r.addEventListener("change", updatePricingModeUI));
+    updatePricingModeUI();
+  })();
+</script>
 
       <!-- DISPONIBILITÉS -->
       <h2
