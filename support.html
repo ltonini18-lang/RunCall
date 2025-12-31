@@ -1,175 +1,120 @@
-<style>
-  :root{
-    --rc-blue: #1677ff;
-    --rc-blue-soft: rgba(22,119,255,0.08);
-    --rc-text: #0f172a;        /* slate-900 */
-    --rc-muted: #475569;       /* slate-600 */
-    --rc-border: #e5e7eb;      /* gray-200 */
-    --rc-card: #ffffff;
-    --rc-bg: #f8fafc;          /* slate-50 */
-    --rc-shadow: 0 18px 40px rgba(15,23,42,0.08);
-    --rc-radius: 18px;
+<!-- support.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Finaliser la réservation – RunCall</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="support.css">
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<!-- LANGUAGE SWITCH -->
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section support-page">
+  <div class="container checkout-wrap">
+
+    <div class="checkout-card">
+
+      <div class="checkout-hero">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          <span data-fr="Étape finale" data-en="Final step"></span>
+        </div>
+
+        <h1 class="checkout-title"
+            data-fr="Finaliser la réservation"
+            data-en="Finalize your booking"></h1>
+
+        <p class="checkout-subtitle"
+           data-fr="Tu y es presque. Choisis une option ci-dessous pour terminer et accéder au paiement."
+           data-en="You’re almost there. Choose an option below to finish and proceed to payment."></p>
+      </div>
+
+      <div class="checkout-body">
+        <p class="support-note"
+           data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
+           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."></p>
+
+        <div class="support-grid">
+          <!-- Remplace ces liens par tes Stripe Payment Links -->
+          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX29">
+            <span class="price" data-fr="29 €" data-en="€29"></span>
+            <span class="hint" data-fr="Option simple" data-en="Simple option"></span>
+          </a>
+
+          <a class="support-btn featured" href="https://buy.stripe.com/XXXXXXXX49">
+            <span class="price" data-fr="49 €" data-en="€49"></span>
+            <span class="hint" data-fr="Le plus choisi" data-en="Most chosen"></span>
+          </a>
+
+          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX79">
+            <span class="price" data-fr="79 €" data-en="€79"></span>
+            <span class="hint" data-fr="Soutien premium" data-en="Premium support"></span>
+          </a>
+        </div>
+
+        <div class="checkout-footer">
+          <div class="secure">
+            <div class="lock">✓</div>
+            <span data-fr="Paiement sécurisé"
+                  data-en="Secure payment"></span>
+          </div>
+
+          <a class="tiny-link" href="/" data-fr="Retour à RunCall" data-en="Back to RunCall"></a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- LANGUAGE SCRIPT -->
+<script>
+(function () {
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
   }
 
-  body{
-    background: var(--rc-bg);
+  function applyLanguage(lang) {
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    localStorage.setItem('runcall_lang', lang);
   }
 
-  .checkout-wrap{
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 18px 0 36px;
-  }
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
+  });
 
-  .checkout-card{
-    background: var(--rc-card);
-    border: 1px solid var(--rc-border);
-    border-radius: var(--rc-radius);
-    box-shadow: var(--rc-shadow);
-    overflow: hidden;
-  }
+  applyLanguage(lang);
+})();
+</script>
 
-  .checkout-hero{
-    padding: 26px 24px 18px;
-    border-bottom: 1px solid var(--rc-border);
-    background:
-      radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.10), transparent 55%);
-  }
-
-  .badge{
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--rc-border);
-    background: #ffffff;
-    color: var(--rc-muted);
-    font-size: 0.9rem;
-  }
-
-  .badge-dot{
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--rc-blue);
-  }
-
-  .checkout-title{
-    margin: 14px 0 6px;
-    font-size: 1.7rem;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-    color: var(--rc-text);
-  }
-
-  .checkout-subtitle{
-    margin: 0;
-    color: var(--rc-muted);
-    line-height: 1.5;
-    font-size: 1.02rem;
-    max-width: 60ch;
-  }
-
-  .checkout-body{
-    padding: 20px 24px 24px;
-  }
-
-  .support-note{
-    margin: 0 0 16px;
-    color: var(--rc-muted);
-    line-height: 1.6;
-    font-size: 1rem;
-  }
-
-  /* OPTIONS */
-  .support-grid{
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 10px;
-  }
-
-  .support-btn{
-    display: block;
-    text-decoration: none;
-    color: var(--rc-text);
-    border: 1px solid var(--rc-border);
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 16px;
-    text-align: center;
-    transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-  }
-
-  .support-btn .price{
-    font-size: 1.15rem;
-    font-weight: 700;
-  }
-
-  .support-btn .hint{
-    display: block;
-    margin-top: 6px;
-    font-size: 0.9rem;
-    color: var(--rc-muted);
-  }
-
-  .support-btn:hover{
-    transform: translateY(-2px);
-    border-color: var(--rc-blue);
-    background: var(--rc-blue-soft);
-    box-shadow: 0 10px 24px rgba(22,119,255,0.12);
-  }
-
-  .support-btn.featured{
-    border-color: var(--rc-blue);
-    background: rgba(22,119,255,0.06);
-  }
-
-  .checkout-footer{
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--rc-border);
-    color: var(--rc-muted);
-    font-size: 0.9rem;
-  }
-
-  .secure{
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .lock{
-    width: 28px;
-    height: 28px;
-    border-radius: 10px;
-    border: 1px solid var(--rc-border);
-    background: #ffffff;
-    display: grid;
-    place-items: center;
-    color: var(--rc-blue);
-    font-weight: 700;
-  }
-
-  .tiny-link{
-    color: var(--rc-muted);
-    text-decoration: none;
-    border-bottom: 1px dashed #cbd5f5;
-    padding-bottom: 2px;
-  }
-
-  .tiny-link:hover{
-    color: var(--rc-text);
-  }
-
-  @media (max-width: 720px){
-    .checkout-title{ font-size: 1.45rem; }
-    .support-grid{ grid-template-columns: 1fr; }
-    .support-btn{ text-align: left; }
-  }
-</style>
+</body>
+</html>
