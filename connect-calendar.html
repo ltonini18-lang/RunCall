@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunCall – Connecter Google Calendar</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section">
+  <div class="container">
+    <h1 data-fr="Connecter Google Calendar" data-en="Connect Google Calendar"></h1>
+
+    <p class="section-subtitle"
+      data-fr="Cette étape permettra de générer tes créneaux et de créer automatiquement un lien Google Meet après paiement."
+      data-en="This step will generate your available slots and automatically create a Google Meet link after payment."
+    ></p>
+
+    <div class="contact-form" style="padding:16px;">
+      <p
+        data-fr="(Bientôt disponible) Pour l’instant, nous finalisons la V2 du système de réservation."
+        data-en="(Coming soon) We’re currently finalizing the V2 booking system."
+      ></p>
+
+      <a class="btn btn-primary" href="index.html"
+        data-fr="Retour à RunCall"
+        data-en="Back to RunCall"></a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+
+  function applyLanguage(lang) {
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+  }
+
+  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+})();
+</script>
+
+</body>
+</html>
