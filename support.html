@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Support – RunCall</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<!-- LANGUAGE SWITCH -->
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section">
+  <div class="container" style="max-width: 520px;">
+
+    <h1
+      data-fr="Merci pour ta réservation"
+      data-en="Thanks for booking"
+    ></h1>
+
+    <p class="section-subtitle"
+      data-fr="Ton échange est réservé. Il ne reste plus qu’à choisir ton niveau de soutien."
+      data-en="Your conversation is booked. You can now choose your level of support."
+    ></p>
+
+    <p
+      data-fr="Tous les niveaux donnent accès à la même conversation. Tu choisis simplement comment soutenir l’expert."
+      data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the expert."
+    ></p>
+
+    <!-- SUPPORT OPTIONS -->
+    <div style="margin-top: 30px; display: grid; gap: 12px;">
+
+      <!-- À remplacer par tes vrais liens de paiement (Stripe Payment Links) -->
+      <a href="https://buy.stripe.com/XXXXXXXX29"
+         class="btn"
+         style="width:100%; text-align:center;"
+         data-fr="Soutenir à hauteur de 29 €"
+         data-en="Support at €29">
+      </a>
+
+      <a href="https://buy.stripe.com/XXXXXXXX49"
+         class="btn btn-primary"
+         style="width:100%; text-align:center;"
+         data-fr="Soutenir à hauteur de 49 €"
+         data-en="Support at €49">
+      </a>
+
+      <a href="https://buy.stripe.com/XXXXXXXX79"
+         class="btn"
+         style="width:100%; text-align:center;"
+         data-fr="Soutenir à hauteur de 79 €"
+         data-en="Support at €79">
+      </a>
+
+    </div>
+
+    <small style="display:block; margin-top:18px;"
+      data-fr="Il ne s’agit ni de coaching ni de suivi. RunCall correspond à une conversation ponctuelle."
+      data-en="This is not coaching or ongoing support. RunCall is a one-time conversation."
+    ></small>
+
+  </div>
+</section>
+
+<!-- LANGUAGE SCRIPT -->
+<script>
+(function () {
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+
+  function applyLanguage(lang) {
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    localStorage.setItem('runcall_lang', lang);
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
+  });
+
+  applyLanguage(lang);
+})();
+</script>
+
+</body>
+</html>
