@@ -1,317 +1,175 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <title>Finaliser la réservation – RunCall</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css">
-
-  <style>
-    :root{
-      --rc-blue: #1677ff;
-      --rc-blue-2: #0b5cff;
-      --rc-text: rgba(255,255,255,0.92);
-      --rc-muted: rgba(255,255,255,0.68);
-      --rc-border: rgba(255,255,255,0.12);
-      --rc-card: rgba(255,255,255,0.06);
-      --rc-shadow: 0 18px 55px rgba(0,0,0,0.45);
-      --rc-radius: 18px;
-    }
-
-    /* Page container plus “checkout” */
-    .checkout-wrap{
-      max-width: 760px;
-      margin: 0 auto;
-      padding: 18px 0 36px;
-    }
-
-    .checkout-card{
-      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
-      border: 1px solid var(--rc-border);
-      border-radius: var(--rc-radius);
-      box-shadow: var(--rc-shadow);
-      overflow: hidden;
-    }
-
-    .checkout-hero{
-      padding: 26px 22px 18px;
-      border-bottom: 1px solid var(--rc-border);
-      background:
-        radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.28), transparent 55%),
-        radial-gradient(700px 260px at 85% 10%, rgba(22,119,255,0.18), transparent 50%);
-    }
-
-    .badge{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--rc-border);
-      background: rgba(255,255,255,0.05);
-      color: var(--rc-muted);
-      font-size: 0.9rem;
-    }
-
-    .badge-dot{
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: var(--rc-blue);
-      box-shadow: 0 0 0 4px rgba(22,119,255,0.18);
-    }
-
-    .checkout-title{
-      margin: 14px 0 8px;
-      font-size: 1.7rem;
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-    }
-
-    .checkout-subtitle{
-      margin: 0;
-      color: var(--rc-muted);
-      line-height: 1.5;
-      font-size: 1.02rem;
-      max-width: 60ch;
-    }
-
-    .checkout-body{
-      padding: 18px 22px 22px;
-    }
-
-    .support-note{
-      margin: 0 0 14px;
-      color: var(--rc-muted);
-      line-height: 1.6;
-      font-size: 1rem;
-    }
-
-    /* 3 options */
-    .support-grid{
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 14px;
-    }
-
-    .support-btn{
-      display: block;
-      text-decoration: none;
-      color: var(--rc-text);
-      border: 1px solid var(--rc-border);
-      background: rgba(255,255,255,0.04);
-      border-radius: 16px;
-      padding: 14px 14px;
-      text-align: center;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      box-shadow: 0 0 0 rgba(0,0,0,0);
-      position: relative;
-      overflow: hidden;
-      user-select: none;
-    }
-
-    .support-btn .price{
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-
-    .support-btn .hint{
-      display: block;
-      margin-top: 6px;
-      font-size: 0.9rem;
-      color: var(--rc-muted);
-    }
-
-    .support-btn:hover{
-      transform: translateY(-2px);
-      border-color: rgba(22,119,255,0.45);
-      background: rgba(22,119,255,0.12);
-      box-shadow: 0 10px 26px rgba(22,119,255,0.18);
-    }
-
-    .support-btn:active{
-      transform: translateY(-1px);
-    }
-
-    /* Option “mise en avant” sans être agressif */
-    .support-btn.featured{
-      border-color: rgba(22,119,255,0.55);
-      background: linear-gradient(180deg, rgba(22,119,255,0.18), rgba(255,255,255,0.04));
-    }
-
-    .support-btn.featured::before{
-      content: "";
-      position: absolute;
-      inset: -40px -60px auto auto;
-      width: 180px;
-      height: 180px;
-      background: radial-gradient(circle at 30% 30%, rgba(22,119,255,0.38), transparent 60%);
-      transform: rotate(25deg);
-      pointer-events: none;
-    }
-
-    /* Footer checkout */
-    .checkout-footer{
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 18px;
-      padding-top: 16px;
-      border-top: 1px solid var(--rc-border);
-      color: var(--rc-muted);
-      font-size: 0.9rem;
-    }
-
-    .secure{
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .lock{
-      width: 28px;
-      height: 28px;
-      border-radius: 10px;
-      border: 1px solid var(--rc-border);
-      background: rgba(255,255,255,0.04);
-      display: grid;
-      place-items: center;
-      color: var(--rc-muted);
-      font-weight: 700;
-    }
-
-    .tiny-link{
-      color: var(--rc-muted);
-      text-decoration: none;
-      border-bottom: 1px dashed rgba(255,255,255,0.18);
-      padding-bottom: 2px;
-      transition: color 160ms ease, border-color 160ms ease;
-    }
-    .tiny-link:hover{
-      color: var(--rc-text);
-      border-color: rgba(255,255,255,0.35);
-    }
-
-    /* Mobile */
-    @media (max-width: 720px){
-      .checkout-wrap{ padding: 10px 0 26px; }
-      .checkout-title{ font-size: 1.45rem; }
-      .support-grid{ grid-template-columns: 1fr; }
-      .support-btn{ text-align: left; padding: 14px 16px; }
-      .support-btn .hint{ margin-top: 4px; }
-    }
-  </style>
-</head>
-
-<body>
-
-<!-- HEADER -->
-<header class="site-header">
-  <div class="container header-inner">
-    <a href="/" class="logo-link">
-      <div class="logo">RunCall</div>
-    </a>
-  </div>
-</header>
-
-<!-- LANGUAGE SWITCH -->
-<div class="lang-switch">
-  <button type="button" data-lang="fr">FR</button>
-  <button type="button" data-lang="en">EN</button>
-</div>
-
-<section class="section">
-  <div class="container checkout-wrap">
-
-    <div class="checkout-card">
-
-      <div class="checkout-hero">
-        <div class="badge">
-          <span class="badge-dot"></span>
-          <span data-fr="Étape finale" data-en="Final step"></span>
-        </div>
-
-        <h1 class="checkout-title"
-            data-fr="Finaliser la réservation"
-            data-en="Finalize your booking"></h1>
-
-        <p class="checkout-subtitle"
-           data-fr="Choisis une option ci-dessous pour terminer et accéder au paiement."
-           data-en="Choose an option below to finish and proceed to payment."></p>
-      </div>
-
-      <div class="checkout-body">
-        <p class="support-note"
-           data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
-           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."></p>
-
-        <div class="support-grid">
-          <!-- Remplace ces liens par tes Stripe Payment Links -->
-          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX29">
-            <span class="price" data-fr="29 €" data-en="€29"></span>
-            <span class="hint" data-fr="Option simple" data-en="Simple option"></span>
-          </a>
-
-          <a class="support-btn featured" href="https://buy.stripe.com/XXXXXXXX49">
-            <span class="price" data-fr="49 €" data-en="€49"></span>
-            <span class="hint" data-fr="Le plus choisi" data-en="Most chosen"></span>
-          </a>
-
-          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX79">
-            <span class="price" data-fr="79 €" data-en="€79"></span>
-            <span class="hint" data-fr="Soutien premium" data-en="Premium support"></span>
-          </a>
-        </div>
-
-        <div class="checkout-footer">
-          <div class="secure">
-            <div class="lock">✓</div>
-            <span data-fr="Paiement sécurisé via Stripe"
-                  data-en="Secure payment via Stripe"></span>
-          </div>
-
-          <a class="tiny-link" href="/" data-fr="Retour à RunCall" data-en="Back to RunCall"></a>
-        </div>
-      </div>
-
-    </div>
-
-  </div>
-</section>
-
-<!-- LANGUAGE SCRIPT -->
-<script>
-(function () {
-  const buttons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-
-  if (!lang) {
-    const browserLang = navigator.language || navigator.userLanguage;
-    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+<style>
+  :root{
+    --rc-blue: #1677ff;
+    --rc-blue-soft: rgba(22,119,255,0.08);
+    --rc-text: #0f172a;        /* slate-900 */
+    --rc-muted: #475569;       /* slate-600 */
+    --rc-border: #e5e7eb;      /* gray-200 */
+    --rc-card: #ffffff;
+    --rc-bg: #f8fafc;          /* slate-50 */
+    --rc-shadow: 0 18px 40px rgba(15,23,42,0.08);
+    --rc-radius: 18px;
   }
 
-  function applyLanguage(lang) {
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
-    localStorage.setItem('runcall_lang', lang);
+  body{
+    background: var(--rc-bg);
   }
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
-  });
+  .checkout-wrap{
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 18px 0 36px;
+  }
 
-  applyLanguage(lang);
-})();
-</script>
+  .checkout-card{
+    background: var(--rc-card);
+    border: 1px solid var(--rc-border);
+    border-radius: var(--rc-radius);
+    box-shadow: var(--rc-shadow);
+    overflow: hidden;
+  }
 
-</body>
-</html>
+  .checkout-hero{
+    padding: 26px 24px 18px;
+    border-bottom: 1px solid var(--rc-border);
+    background:
+      radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.10), transparent 55%);
+  }
+
+  .badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--rc-border);
+    background: #ffffff;
+    color: var(--rc-muted);
+    font-size: 0.9rem;
+  }
+
+  .badge-dot{
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--rc-blue);
+  }
+
+  .checkout-title{
+    margin: 14px 0 6px;
+    font-size: 1.7rem;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--rc-text);
+  }
+
+  .checkout-subtitle{
+    margin: 0;
+    color: var(--rc-muted);
+    line-height: 1.5;
+    font-size: 1.02rem;
+    max-width: 60ch;
+  }
+
+  .checkout-body{
+    padding: 20px 24px 24px;
+  }
+
+  .support-note{
+    margin: 0 0 16px;
+    color: var(--rc-muted);
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+
+  /* OPTIONS */
+  .support-grid{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .support-btn{
+    display: block;
+    text-decoration: none;
+    color: var(--rc-text);
+    border: 1px solid var(--rc-border);
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .support-btn .price{
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .support-btn .hint{
+    display: block;
+    margin-top: 6px;
+    font-size: 0.9rem;
+    color: var(--rc-muted);
+  }
+
+  .support-btn:hover{
+    transform: translateY(-2px);
+    border-color: var(--rc-blue);
+    background: var(--rc-blue-soft);
+    box-shadow: 0 10px 24px rgba(22,119,255,0.12);
+  }
+
+  .support-btn.featured{
+    border-color: var(--rc-blue);
+    background: rgba(22,119,255,0.06);
+  }
+
+  .checkout-footer{
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rc-border);
+    color: var(--rc-muted);
+    font-size: 0.9rem;
+  }
+
+  .secure{
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .lock{
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    border: 1px solid var(--rc-border);
+    background: #ffffff;
+    display: grid;
+    place-items: center;
+    color: var(--rc-blue);
+    font-weight: 700;
+  }
+
+  .tiny-link{
+    color: var(--rc-muted);
+    text-decoration: none;
+    border-bottom: 1px dashed #cbd5f5;
+    padding-bottom: 2px;
+  }
+
+  .tiny-link:hover{
+    color: var(--rc-text);
+  }
+
+  @media (max-width: 720px){
+    .checkout-title{ font-size: 1.45rem; }
+    .support-grid{ grid-template-columns: 1fr; }
+    .support-btn{ text-align: left; }
+  }
+</style>
