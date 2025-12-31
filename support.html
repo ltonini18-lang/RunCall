@@ -174,4 +174,144 @@
     .lock{
       width: 28px;
       height: 28px;
-      border-radius:
+      border-radius: 10px;
+      border: 1px solid var(--rc-border);
+      background: rgba(255,255,255,0.04);
+      display: grid;
+      place-items: center;
+      color: var(--rc-muted);
+      font-weight: 700;
+    }
+
+    .tiny-link{
+      color: var(--rc-muted);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,0.18);
+      padding-bottom: 2px;
+      transition: color 160ms ease, border-color 160ms ease;
+    }
+    .tiny-link:hover{
+      color: var(--rc-text);
+      border-color: rgba(255,255,255,0.35);
+    }
+
+    /* Mobile */
+    @media (max-width: 720px){
+      .checkout-wrap{ padding: 10px 0 26px; }
+      .checkout-title{ font-size: 1.45rem; }
+      .support-grid{ grid-template-columns: 1fr; }
+      .support-btn{ text-align: left; padding: 14px 16px; }
+      .support-btn .hint{ margin-top: 4px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<!-- LANGUAGE SWITCH -->
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section">
+  <div class="container checkout-wrap">
+
+    <div class="checkout-card">
+
+      <div class="checkout-hero">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          <span data-fr="Étape finale" data-en="Final step"></span>
+        </div>
+
+        <h1 class="checkout-title"
+            data-fr="Finaliser la réservation"
+            data-en="Finalize your booking"></h1>
+
+        <p class="checkout-subtitle"
+           data-fr="Choisis une option ci-dessous pour terminer et accéder au paiement."
+           data-en="Choose an option below to finish and proceed to payment."></p>
+      </div>
+
+      <div class="checkout-body">
+        <p class="support-note"
+           data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
+           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."></p>
+
+        <div class="support-grid">
+          <!-- Remplace ces liens par tes Stripe Payment Links -->
+          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX29">
+            <span class="price" data-fr="29 €" data-en="€29"></span>
+            <span class="hint" data-fr="Option simple" data-en="Simple option"></span>
+          </a>
+
+          <a class="support-btn featured" href="https://buy.stripe.com/XXXXXXXX49">
+            <span class="price" data-fr="49 €" data-en="€49"></span>
+            <span class="hint" data-fr="Le plus choisi" data-en="Most chosen"></span>
+          </a>
+
+          <a class="support-btn" href="https://buy.stripe.com/XXXXXXXX79">
+            <span class="price" data-fr="79 €" data-en="€79"></span>
+            <span class="hint" data-fr="Soutien premium" data-en="Premium support"></span>
+          </a>
+        </div>
+
+        <div class="checkout-footer">
+          <div class="secure">
+            <div class="lock">✓</div>
+            <span data-fr="Paiement sécurisé via Stripe"
+                  data-en="Secure payment via Stripe"></span>
+          </div>
+
+          <a class="tiny-link" href="/" data-fr="Retour à RunCall" data-en="Back to RunCall"></a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- LANGUAGE SCRIPT -->
+<script>
+(function () {
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+
+  function applyLanguage(lang) {
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    localStorage.setItem('runcall_lang', lang);
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
+  });
+
+  applyLanguage(lang);
+})();
+</script>
+
+</body>
+</html>
