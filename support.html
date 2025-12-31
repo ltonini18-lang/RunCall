@@ -2,9 +2,41 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Support – RunCall</title>
+  <title>Finaliser la réservation – RunCall</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* Layout des 3 boutons */
+    .support-grid {
+      display: flex;
+      gap: 12px;
+      margin-top: 22px;
+      flex-wrap: wrap;
+    }
+
+    .support-grid a.btn {
+      flex: 1 1 140px;        /* responsive */
+      min-width: 120px;
+      text-align: center;
+      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+    }
+
+    /* Hover bleu (sans dépendre de tes classes existantes) */
+    .support-grid a.btn:hover {
+      background-color: #1677ff;
+      border-color: #1677ff;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    /* petit confort : sur mobile, ça prend toute la largeur */
+    @media (max-width: 520px) {
+      .support-grid a.btn {
+        flex: 1 1 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -25,54 +57,46 @@
 </div>
 
 <section class="section">
-  <div class="container" style="max-width: 520px;">
+  <div class="container" style="max-width: 560px;">
 
     <h1
-      data-fr="Merci pour ta réservation"
-      data-en="Thanks for booking"
+      data-fr="Finaliser la réservation"
+      data-en="Finalize your booking"
     ></h1>
 
     <p class="section-subtitle"
-      data-fr="Ton échange est réservé. Il ne reste plus qu’à choisir ton niveau de soutien."
-      data-en="Your conversation is booked. You can now choose your level of support."
+      data-fr="Tu y es presque. Choisis simplement une option pour terminer."
+      data-en="You’re almost there. Just choose an option to finish."
     ></p>
 
     <p
-      data-fr="Tous les niveaux donnent accès à la même conversation. Tu choisis simplement comment soutenir l’expert."
-      data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the expert."
+      data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
+      data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."
     ></p>
 
-    <!-- SUPPORT OPTIONS -->
-    <div style="margin-top: 30px; display: grid; gap: 12px;">
+    <!-- OPTIONS -->
+    <div class="support-grid">
 
-      <!-- À remplacer par tes vrais liens de paiement (Stripe Payment Links) -->
+      <!-- À remplacer par tes vrais liens Stripe Payment Links -->
       <a href="https://buy.stripe.com/XXXXXXXX29"
          class="btn"
-         style="width:100%; text-align:center;"
-         data-fr="Soutenir à hauteur de 29 €"
-         data-en="Support at €29">
+         data-fr="29 €"
+         data-en="€29">
       </a>
 
       <a href="https://buy.stripe.com/XXXXXXXX49"
          class="btn btn-primary"
-         style="width:100%; text-align:center;"
-         data-fr="Soutenir à hauteur de 49 €"
-         data-en="Support at €49">
+         data-fr="49 €"
+         data-en="€49">
       </a>
 
       <a href="https://buy.stripe.com/XXXXXXXX79"
          class="btn"
-         style="width:100%; text-align:center;"
-         data-fr="Soutenir à hauteur de 79 €"
-         data-en="Support at €79">
+         data-fr="79 €"
+         data-en="€79">
       </a>
 
     </div>
-
-    <small style="display:block; margin-top:18px;"
-      data-fr="Il ne s’agit ni de coaching ni de suivi. RunCall correspond à une conversation ponctuelle."
-      data-en="This is not coaching or ongoing support. RunCall is a one-time conversation."
-    ></small>
 
   </div>
 </section>
