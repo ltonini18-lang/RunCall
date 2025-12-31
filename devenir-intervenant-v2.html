@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunCall – Devenir intervenant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section">
+  <div class="container">
+
+    <h1
+      data-fr="Partager ton expérience sur RunCall"
+      data-en="Share your experience on RunCall"
+    ></h1>
+
+    <p class="section-subtitle"
+      data-fr="RunCall te permet d’échanger en visio avec des sportifs motivés. Tu choisis quand tu es disponible, et chaque réservation est confirmée uniquement après paiement."
+      data-en="RunCall lets you have one-on-one video conversations with motivated athletes. You choose when you're available, and bookings are confirmed only after payment."
+    ></p>
+
+    <form
+      class="contact-form"
+      action="https://formspree.io/f/mjknjlze"
+      method="POST"
+      enctype="application/x-www-form-urlencoded"
+    >
+
+      <!-- IDENTITÉ -->
+      <h2 data-fr="Profil" data-en="Profile"></h2>
+
+      <div class="form-row">
+        <label data-fr="Prénom et nom" data-en="Full name"></label>
+        <input type="text" name="name" required />
+      </div>
+
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" name="email" required />
+      </div>
+
+      <!-- PHOTO (V2) -->
+      <h2 data-fr="Photo" data-en="Photo"></h2>
+
+      <div class="form-row">
+        <label data-fr="Photo de profil (bientôt obligatoire)" data-en="Profile photo (will be required soon)"></label>
+        <!-- IMPORTANT: Formspree free may not accept file uploads.
+             Leave this optional for now; we’ll switch to multipart/form-data + required at launch. -->
+        <input type="file" name="photo" accept="image/*" />
+        <small
+          data-fr="Pour le moment, tu peux laisser vide. Au lancement de la V2, ce champ sera obligatoire."
+          data-en="For now, you can leave this empty. At V2 launch, this field will be required."
+        ></small>
+      </div>
+
+      <!-- PRÉSENTATION -->
+      <h2
+        data-fr="Présentation (visible sur ton profil RunCall)"
+        data-en="Presentation (visible on your RunCall profile)"
+      ></h2>
+
+      <div class="form-row">
+        <label data-fr="Présente-toi en quelques lignes" data-en="Introduce yourself in a few lines"></label>
+        <textarea
+          name="presentation"
+          rows="4"
+          required
+          data-fr-placeholder="Explique qui tu es, ton parcours, et ce que les sportifs peuvent attendre d’un échange avec toi."
+          data-en-placeholder="Explain who you are, your background, and what athletes can expect from a conversation with you."
+        ></textarea>
+      </div>
+
+      <!-- THÉMATIQUES -->
+      <h2 data-fr="Thématiques" data-en="Topics"></h2>
+
+      <div class="form-row">
+        <label
+          data-fr="Sujets que tu peux couvrir (optionnel)"
+          data-en="Topics you can cover (optional)"
+        ></label>
+        <input
+          type="text"
+          name="topics"
+          data-fr-placeholder="Ex : marathon, seuil, prévention blessures, nutrition, mental..."
+          data-en-placeholder="Example: marathon, threshold, injury prevention, nutrition, mindset..."
+        />
+        <small
+          data-fr="Quelques mots-clés suffisent."
+          data-en="A few keywords are enough."
+        ></small>
+      </div>
+
+      <!-- LOCALISATION -->
+      <h2 data-fr="Localisation" data-en="Location"></h2>
+
+      <div class="form-row">
+        <label data-fr="Ville de résidence" data-en="City of residence"></label>
+        <input type="text" name="city" required />
+        <small
+          data-fr="Utilisé pour déterminer ton fuseau horaire."
+          data-en="Used to determine your time zone."
+        ></small>
+      </div>
+
+      <!-- DISPOS (pour l’instant : texte) -->
+      <h2 data-fr="Disponibilités" data-en="Availability"></h2>
+
+      <div class="form-row">
+        <label data-fr="Disponibilités habituelles (indicatif)" data-en="Usual availability (indicative)"></label>
+        <textarea
+          name="availability"
+          rows="3"
+          required
+          data-fr-placeholder="Ex : Lun–Ven : 18h–21h | Sam : 9h–12h"
+          data-en-placeholder="Example: Mon–Fri: 6–9pm | Sat: 9am–12pm"
+        ></textarea>
+        <small
+          data-fr="Ensuite, tu connecteras ton Google Calendar pour gérer tout ça automatiquement."
+          data-en="Next, you’ll connect Google Calendar to manage this automatically."
+        ></small>
+      </div>
+
+      <!-- ÉTAPE SUIVANTE -->
+      <h2 data-fr="Étape suivante" data-en="Next step"></h2>
+
+      <div class="form-row">
+        <small
+          data-fr="Après envoi, tu passeras à la configuration : connexion Google Calendar + création de tes créneaux."
+          data-en="After submitting, you’ll move to setup: connect Google Calendar + create your available slots."
+        ></small>
+      </div>
+
+      <!-- SUBMIT -->
+      <button
+        type="submit"
+        class="btn btn-primary"
+        data-fr="Continuer"
+        data-en="Continue"
+      ></button>
+
+      <!-- Hidden field for easy filtering in inbox -->
+      <input type="hidden" name="form_version" value="v2_intervenant" />
+    </form>
+
+    <!-- Soft redirect after submit (works if Formspree shows a success page in same tab).
+         When we switch to a real backend, we’ll do a proper redirect server-side. -->
+    <div id="post-submit-hint" style="display:none; margin-top:14px;">
+      <small
+        data-fr="Merci ! Prochaine étape : connecter ton Google Calendar."
+        data-en="Thanks! Next step: connect your Google Calendar."
+      ></small>
+      <div style="margin-top:10px;">
+        <a class="btn btn-primary" href="connect-calendar.html"
+          data-fr="Connecter mon agenda"
+          data-en="Connect my calendar"></a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  (function () {
+    const buttons = document.querySelectorAll('.lang-switch button');
+
+    let lang = localStorage.getItem('runcall_lang');
+    if (!lang) {
+      const browserLang = navigator.language || navigator.userLanguage;
+      lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
+    }
+
+    function applyLanguage(lang) {
+      document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+        el.textContent = el.dataset[lang];
+      });
+
+      document
+        .querySelectorAll('[data-fr-placeholder][data-en-placeholder]')
+        .forEach(el => {
+          el.placeholder = lang === 'fr' ? el.dataset.frPlaceholder : el.dataset.enPlaceholder;
+        });
+
+      buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+      localStorage.setItem('runcall_lang', lang);
+    }
+
+    buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+    applyLanguage(lang);
+  })();
+</script>
+
+</body>
+</html>
