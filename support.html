@@ -7,130 +7,171 @@
   <link rel="stylesheet" href="style.css">
 
   <style>
-    /* Layout des 3 boutons */
-    .support-grid {
-      display: flex;
+    :root{
+      --rc-blue: #1677ff;
+      --rc-blue-2: #0b5cff;
+      --rc-text: rgba(255,255,255,0.92);
+      --rc-muted: rgba(255,255,255,0.68);
+      --rc-border: rgba(255,255,255,0.12);
+      --rc-card: rgba(255,255,255,0.06);
+      --rc-shadow: 0 18px 55px rgba(0,0,0,0.45);
+      --rc-radius: 18px;
+    }
+
+    /* Page container plus “checkout” */
+    .checkout-wrap{
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 18px 0 36px;
+    }
+
+    .checkout-card{
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+      border: 1px solid var(--rc-border);
+      border-radius: var(--rc-radius);
+      box-shadow: var(--rc-shadow);
+      overflow: hidden;
+    }
+
+    .checkout-hero{
+      padding: 26px 22px 18px;
+      border-bottom: 1px solid var(--rc-border);
+      background:
+        radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.28), transparent 55%),
+        radial-gradient(700px 260px at 85% 10%, rgba(22,119,255,0.18), transparent 50%);
+    }
+
+    .badge{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--rc-border);
+      background: rgba(255,255,255,0.05);
+      color: var(--rc-muted);
+      font-size: 0.9rem;
+    }
+
+    .badge-dot{
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--rc-blue);
+      box-shadow: 0 0 0 4px rgba(22,119,255,0.18);
+    }
+
+    .checkout-title{
+      margin: 14px 0 8px;
+      font-size: 1.7rem;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    .checkout-subtitle{
+      margin: 0;
+      color: var(--rc-muted);
+      line-height: 1.5;
+      font-size: 1.02rem;
+      max-width: 60ch;
+    }
+
+    .checkout-body{
+      padding: 18px 22px 22px;
+    }
+
+    .support-note{
+      margin: 0 0 14px;
+      color: var(--rc-muted);
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    /* 3 options */
+    .support-grid{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
-      margin-top: 22px;
-      flex-wrap: wrap;
+      margin-top: 14px;
     }
 
-    .support-grid a.btn {
-      flex: 1 1 140px;        /* responsive */
-      min-width: 120px;
+    .support-btn{
+      display: block;
+      text-decoration: none;
+      color: var(--rc-text);
+      border: 1px solid var(--rc-border);
+      background: rgba(255,255,255,0.04);
+      border-radius: 16px;
+      padding: 14px 14px;
       text-align: center;
-      transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms ease;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      position: relative;
+      overflow: hidden;
+      user-select: none;
     }
 
-    /* Hover bleu (sans dépendre de tes classes existantes) */
-    .support-grid a.btn:hover {
-      background-color: #1677ff;
-      border-color: #1677ff;
-      color: #ffffff;
+    .support-btn .price{
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .support-btn .hint{
+      display: block;
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: var(--rc-muted);
+    }
+
+    .support-btn:hover{
+      transform: translateY(-2px);
+      border-color: rgba(22,119,255,0.45);
+      background: rgba(22,119,255,0.12);
+      box-shadow: 0 10px 26px rgba(22,119,255,0.18);
+    }
+
+    .support-btn:active{
       transform: translateY(-1px);
     }
 
-    /* petit confort : sur mobile, ça prend toute la largeur */
-    @media (max-width: 520px) {
-      .support-grid a.btn {
-        flex: 1 1 100%;
-      }
+    /* Option “mise en avant” sans être agressif */
+    .support-btn.featured{
+      border-color: rgba(22,119,255,0.55);
+      background: linear-gradient(180deg, rgba(22,119,255,0.18), rgba(255,255,255,0.04));
     }
-  </style>
-</head>
 
-<body>
+    .support-btn.featured::before{
+      content: "";
+      position: absolute;
+      inset: -40px -60px auto auto;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle at 30% 30%, rgba(22,119,255,0.38), transparent 60%);
+      transform: rotate(25deg);
+      pointer-events: none;
+    }
 
-<!-- HEADER -->
-<header class="site-header">
-  <div class="container header-inner">
-    <a href="/" class="logo-link">
-      <div class="logo">RunCall</div>
-    </a>
-  </div>
-</header>
+    /* Footer checkout */
+    .checkout-footer{
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--rc-border);
+      color: var(--rc-muted);
+      font-size: 0.9rem;
+    }
 
-<!-- LANGUAGE SWITCH -->
-<div class="lang-switch">
-  <button type="button" data-lang="fr">FR</button>
-  <button type="button" data-lang="en">EN</button>
-</div>
+    .secure{
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-<section class="section">
-  <div class="container" style="max-width: 560px;">
-
-    <h1
-      data-fr="Finaliser la réservation"
-      data-en="Finalize your booking"
-    ></h1>
-
-    <p class="section-subtitle"
-      data-fr="Tu y es presque. Choisis simplement une option pour terminer."
-      data-en="You’re almost there. Just choose an option to finish."
-    ></p>
-
-    <p
-      data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
-      data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."
-    ></p>
-
-    <!-- OPTIONS -->
-    <div class="support-grid">
-
-      <!-- À remplacer par tes vrais liens Stripe Payment Links -->
-      <a href="https://buy.stripe.com/XXXXXXXX29"
-         class="btn"
-         data-fr="29 €"
-         data-en="€29">
-      </a>
-
-      <a href="https://buy.stripe.com/XXXXXXXX49"
-         class="btn btn-primary"
-         data-fr="49 €"
-         data-en="€49">
-      </a>
-
-      <a href="https://buy.stripe.com/XXXXXXXX79"
-         class="btn"
-         data-fr="79 €"
-         data-en="€79">
-      </a>
-
-    </div>
-
-  </div>
-</section>
-
-<!-- LANGUAGE SCRIPT -->
-<script>
-(function () {
-  const buttons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-
-  if (!lang) {
-    const browserLang = navigator.language || navigator.userLanguage;
-    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
-  }
-
-  function applyLanguage(lang) {
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
-    localStorage.setItem('runcall_lang', lang);
-  }
-
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
-  });
-
-  applyLanguage(lang);
-})();
-</script>
-
-</body>
-</html>
+    .lock{
+      width: 28px;
+      height: 28px;
+      border-radius:
