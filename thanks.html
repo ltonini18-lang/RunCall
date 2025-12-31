@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Merci – RunCall</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* Scoped to this page */
+    .thanks-page{
+      background: #f8fafc;
+    }
+    .thanks-wrap{
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 18px 0 42px;
+    }
+    .thanks-card{
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    .thanks-hero{
+      padding: 26px 24px 18px;
+      border-bottom: 1px solid #e5e7eb;
+      background: radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.10), transparent 55%);
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#475569;
+      font-size:.9rem;
+    }
+    .badge-dot{
+      width:8px;height:8px;border-radius:999px;background:#1677ff;
+    }
+    .thanks-title{
+      margin: 14px 0 6px;
+      font-size: 1.7rem;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+    }
+    .thanks-subtitle{
+      margin: 0;
+      color: #475569;
+      line-height: 1.5;
+      font-size: 1.02rem;
+      max-width: 60ch;
+    }
+    .thanks-body{
+      padding: 20px 24px 24px;
+      color: #0f172a;
+    }
+    .steps{
+      margin: 14px 0 0;
+      padding-left: 18px;
+      color: #475569;
+      line-height: 1.7;
+    }
+    .steps li{
+      margin: 6px 0;
+    }
+    .note{
+      margin-top: 16px;
+      color: #64748b;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .actions{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top: 18px;
+    }
+    .actions a{
+      text-decoration:none;
+    }
+    .btn-clean{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      background:#fff;
+      color:#0f172a;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+    }
+    .btn-clean:hover{
+      transform: translateY(-1px);
+      border-color:#1677ff;
+      background: rgba(22,119,255,0.06);
+      box-shadow: 0 10px 24px rgba(22,119,255,0.10);
+    }
+    .btn-primary-clean{
+      border-color:#1677ff;
+      background: rgba(22,119,255,0.08);
+    }
+    @media (max-width: 720px){
+      .thanks-title{ font-size: 1.45rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="/" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<!-- LANGUAGE SWITCH -->
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section thanks-page">
+  <div class="container thanks-wrap">
+
+    <div class="thanks-card">
+      <div class="thanks-hero">
+        <div class="badge">
+          <span class="badge-dot"></span>
+          <span data-fr="Paiement reçu" data-en="Payment received"></span>
+        </div>
+
+        <h1 class="thanks-title"
+            data-fr="Merci — ta réservation est finalisée"
+            data-en="Thank you — your booking is finalized"></h1>
+
+        <p class="thanks-subtitle"
+           data-fr="Tu vas recevoir les informations nécessaires par email."
+           data-en="You’ll receive the details you need by email."></p>
+      </div>
+
+      <div class="thanks-body">
+        <ol class="steps">
+          <li
+            data-fr="Tu recevras un email de Calendly avec les détails du créneau (vérifie aussi tes spams)."
+            data-en="You’ll receive a Calendly email with the scheduled details (also check spam)."
+          ></li>
+          <li
+            data-fr="Le lien de visio sera inclus dans l’invitation."
+            data-en="The video link will be included in the invite."
+          ></li>
+          <li
+            data-fr="Si tu ne reçois rien d’ici quelques minutes, écris-nous et on règle ça rapidement."
+            data-en="If you don’t receive anything within a few minutes, contact us and we’ll fix it quickly."
+          ></li>
+        </ol>
+
+        <p class="note"
+           data-fr="En cas de souci : reply au reçu Stripe ou contacte-nous via RunCall."
+           data-en="If anything goes wrong: reply to your Stripe receipt or contact us via RunCall."></p>
+
+        <div class="actions">
+          <a class="btn-clean btn-primary-clean" href="/" data-fr="Retour à RunCall" data-en="Back to RunCall"></a>
+          <a class="btn-clean" href="/#experts" data-fr="Voir d’autres profils" data-en="Browse other profiles"></a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- LANGUAGE SCRIPT -->
+<script>
+(function () {
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+
+  function applyLanguage(lang) {
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+
+    localStorage.setItem('runcall_lang', lang);
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
+  });
+
+  applyLanguage(lang);
+})();
+</script>
+
+</body>
+</html>
