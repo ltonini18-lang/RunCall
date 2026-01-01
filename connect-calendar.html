@@ -173,12 +173,12 @@
         </div>
 
         <h1 class="cc-title"
-            data-fr="Connecter ton Google Calendar"
+            data-fr="Connecte ton Google Calendar"
             data-en="Connect your Google Calendar"></h1>
 
         <p class="cc-subtitle"
-           data-fr="Cette étape permet à RunCall de générer tes créneaux, d’éviter les conflits, et de créer automatiquement un lien Google Meet après paiement."
-           data-en="This step lets RunCall generate your available slots, avoid conflicts, and automatically create a Google Meet link after payment."></p>
+           data-fr="Cette étape permet à RunCall d’identifier tes disponibilités, d’éviter les conflits, et de créer automatiquement un lien Google Meet lorsqu’un créneau est réservé."
+           data-en="This step allows RunCall to identify your availability, avoid conflicts, and automatically create a Google Meet link when a slot is booked."></p>
       </div>
 
       <div class="cc-body">
@@ -186,21 +186,36 @@
 
           <div class="cc-panel">
             <ol class="cc-steps">
-              <li data-fr="Clique sur “Connect Google Calendar”." data-en="Click “Connect Google Calendar”."></li>
-              <li data-fr="Choisis ton compte Google." data-en="Choose your Google account."></li>
-              <li data-fr="Autorise RunCall à créer les invitations (Google Meet inclus)." data-en="Allow RunCall to create invites (Google Meet included)."></li>
-              <li data-fr="Ensuite, tu définiras tes créneaux disponibles." data-en="Then you’ll set your available slots."></li>
+              <li
+                data-fr="Clique sur « Connect Google Calendar » et autorise RunCall à accéder à ton agenda."
+                data-en="Click “Connect Google Calendar” and allow RunCall to access your calendar.">
+              </li>
+
+              <li
+                data-fr="Une fois connecté, ouvre Google Calendar et crée tes disponibilités."
+                data-en="Once connected, open Google Calendar and create your availability.">
+              </li>
+
+              <li
+                data-fr="Ajoute simplement « RunCall » ou « Run-Call » dans le titre de l’événement pour le rendre disponible."
+                data-en="Simply add “RunCall” or “Run-Call” in the event title to make it available.">
+              </li>
+
+              <li
+                data-fr="Lorsqu’un créneau est réservé, tu es automatiquement informé."
+                data-en="When a slot is booked, you are automatically notified.">
+              </li>
             </ol>
 
             <p class="cc-note"
-               data-fr="RunCall n’affichera que les créneaux que tu ouvres. Si tu es en vacances, il suffit de bloquer ces dates dans ton agenda."
-               data-en="RunCall will only show the slots you open. If you’re on vacation, just block those dates in your calendar."></p>
+               data-fr="RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé."
+               data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another calendar event, it will not be offered."></p>
 
             <div class="cc-alert">
               <strong data-fr="Note :" data-en="Note:"></strong>
               <span
-                data-fr="La connexion automatique est en cours d’intégration. Le bouton ci-dessous est déjà au bon endroit pour la V2."
-                data-en="Automatic connection is being integrated. The button below is already in the right place for V2."
+                data-fr="Pour fermer des disponibilités (vacances, imprévus), il suffit de supprimer ou modifier l’événement RunCall dans Google Calendar."
+                data-en="To close availability (vacation, conflicts), simply delete or edit the RunCall event in Google Calendar."
               ></span>
             </div>
           </div>
