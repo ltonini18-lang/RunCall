@@ -253,10 +253,18 @@
                   data-fr-placeholder="Explique qui tu es, ton parcours, et ce que les sportifs peuvent attendre d’un échange avec toi."
                   data-en-placeholder="Explain who you are, your background, and what athletes can expect from a conversation with you."
                 ></textarea>
-                <small class="join-small"
-                  data-fr="Ajoute une photo pour inspirer confiance. Tu pourras la changer plus tard."
-                  data-en="Add a photo to build trust. You can change it later."
-                ></small>
+              <label class="join-secondary" style="cursor:pointer; margin-top:10px;"
+  data-fr="Ajouter une photo de profil"
+  data-en="Add a profile photo">
+  Ajouter une photo de profil
+  <input id="photo" type="file" accept="image/*" style="display:none;" />
+</label>
+
+<small class="join-small"
+  data-fr="(JPG ou PNG. Tu pourras la changer plus tard.)"
+  data-en="(JPG or PNG. You can change it later.)"
+>(JPG ou PNG. Tu pourras la changer plus tard.)</small>
+
               </div>
 
               <div class="join-alert">
