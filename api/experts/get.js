@@ -28,7 +28,7 @@ if (!expertId) {
 
     const url =
       `${SUPABASE_URL}/rest/v1/experts?` +
-      `select=id,name,presentation,photo_url&` +
+      `select=id,name,presentation&` +
       `id=eq.${encodeURIComponent(expertId)}&limit=1`;
 
     const r = await fetch(url, {
@@ -51,7 +51,7 @@ if (!expertId) {
     return res.status(200).json({
       name: row.name,
       presentation: row.presentation,
-      photo_url: row.photo_url || null
+      photo_url: null
     });
   } catch (e) {
     console.error(e);
