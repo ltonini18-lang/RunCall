@@ -221,10 +221,11 @@
 
           <div class="cc-cta">
             <!-- V2 endpoint (placeholder). When ready, this will start OAuth. -->
-            <a id="googleConnectBtn" class="cc-btn" href="/api/google/connect"
-              <span class="icon">G</span>
-              <span data-fr="Connect Google Calendar" data-en="Connect Google Calendar"></span>
-            </a>
+            <a id="googleConnectBtn" class="cc-btn" href="#">
+  <span class="icon">G</span>
+  <span data-fr="Connect Google Calendar" data-en="Connect Google Calendar"></span>
+</a>
+
 
             <a class="cc-secondary" href="index.html"
                data-fr="Retour à RunCall"
@@ -267,19 +268,33 @@
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
 })();
+
+  // ----- Google connect (must include expert_id) -----
+  const params = new URLSearchParams(window.location.search);
+  const expertId = params.get("expert_id");
+  const googleBtn = document.getElementById("googleConnectBtn");
+
+  if (!expertId) {
+    console.error("Missing expert_id in URL:", window.location.href);
+  }
+
+  if (googleBtn) {
+    googleBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      if (!expertId) {
+        alert(lang === "fr"
+          ? "Erreur : identifiant manquant. Retourne à l’étape précédente."
+          : "Error: missing id. Please go back to the previous step.");
+        return;
+      }
+
+      window.location.href = `/api/google/connect?expert_id=${encodeURIComponent(expertId)}`;
+    });
+  }
+
+  
 </script>
 
 </body>
 </html>
-  // ----- Inject expert_id into Google connect URL -----
-  const params = new URLSearchParams(window.location.search);
-  const expertId = params.get("expert_id");
-
-  if (expertId) {
-    const btn = document.getElementById("googleConnectBtn");
-    if (btn) {
-      btn.href = `/api/google/connect?expert_id=${encodeURIComponent(expertId)}`;
-    }
-  } else {
-    console.error("Missing expert_id in URL on connect-calendar.html");
-  }
