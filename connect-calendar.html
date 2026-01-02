@@ -271,3 +271,15 @@
 
 </body>
 </html>
+  // ----- Inject expert_id into Google connect URL -----
+  const params = new URLSearchParams(window.location.search);
+  const expertId = params.get("expert_id");
+
+  if (expertId) {
+    const btn = document.getElementById("googleConnectBtn");
+    if (btn) {
+      btn.href = `/api/google/connect?expert_id=${encodeURIComponent(expertId)}`;
+    }
+  } else {
+    console.error("Missing expert_id in URL on connect-calendar.html");
+  }
