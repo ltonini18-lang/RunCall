@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunCall – Profil</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Scoped to this page only */
+    .p-page{ background:#f8fafc; }
+    .p-wrap{ max-width: 980px; margin: 0 auto; padding: 18px 0 46px; }
+    .p-card{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      box-shadow:0 18px 40px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .p-hero{
+      padding: 26px 24px 18px;
+      border-bottom:1px solid #e5e7eb;
+      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
+      display:flex; gap:16px; align-items:flex-start;
+    }
+    .p-avatar{
+      width:78px; height:78px; border-radius:18px;
+      border:1px solid #e5e7eb; background:#fff; overflow:hidden;
+      flex:0 0 auto;
+    }
+    .p-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .p-badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid #e5e7eb; background:#fff;
+      color:#475569; font-size:.9rem;
+    }
+    .p-dot{ width:8px; height:8px; border-radius:999px; background:#1677ff; }
+    .p-title{ margin: 10px 0 6px; font-size: 1.7rem; line-height:1.2; letter-spacing:-.02em; color:#0f172a; }
+    .p-subtitle{ margin:0; color:#475569; line-height:1.55; font-size:1.02rem; max-width: 75ch; }
+
+    .p-body{ padding: 20px 24px 24px; }
+
+    .p-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+      align-items:start;
+      margin-top: 14px;
+    }
+    .p-panel{
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      padding:16px;
+      background:#fff;
+    }
+
+    .p-cal-head{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      margin-bottom: 12px;
+    }
+    .p-cal-title{ font-weight:800; color:#0f172a; letter-spacing:-.01em; }
+    .p-cal-nav{ display:flex; gap:8px; }
+    .p-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#0f172a;
+      text-decoration:none;
+      cursor:pointer;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+      user-select:none;
+      font-weight:700;
+    }
+    .p-btn:hover{ transform: translateY(-1px); border-color:#1677ff; background: rgba(22,119,255,.06); }
+    .p-btn:active{ transform: translateY(0); }
+    .p-btn.primary{
+      border:1px solid #1677ff;
+      background: rgba(22,119,255,.10);
+    }
+    .p-btn.primary:hover{ background: rgba(22,119,255,.14); box-shadow: 0 12px 26px rgba(22,119,255,.12); }
+
+    .p-days{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; }
+    .p-day{
+      border:1px solid #e5e7eb; border-radius:14px; padding:10px;
+      background:#fff;
+      min-height: 120px;
+    }
+    .p-day h4{ margin:0 0 8px; font-size:.92rem; color:#334155; }
+    .p-slots{ display:flex; flex-direction:column; gap:8px; }
+    .p-slot{
+      display:flex; justify-content:center; align-items:center;
+      padding:8px 10px;
+      border-radius: 12px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      cursor:pointer;
+      transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease;
+      font-weight:800;
+      color:#0f172a;
+      text-decoration:none;
+      user-select:none;
+    }
+    .p-slot:hover{ transform: translateY(-1px); border-color:#1677ff; background: rgba(22,119,255,.06); }
+    .p-slot:active{ transform: translateY(0); }
+    .p-slot[aria-disabled="true"]{ opacity:.5; cursor:not-allowed; transform:none; }
+
+    .p-muted{ color:#64748b; font-size:.95rem; line-height:1.55; margin-top:10px; }
+    .p-error{ display:none; margin-top: 10px; border-radius: 14px; border:1px solid #fecaca; background:#fff1f2; padding: 12px; color:#881337; font-size:.95rem; line-height:1.55; }
+
+    /* Modal */
+    .p-modal-backdrop{
+      position: fixed; inset:0;
+      background: rgba(15,23,42,.45);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .p-modal{
+      width: 100%;
+      max-width: 520px;
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius: 18px;
+      box-shadow:0 18px 50px rgba(15,23,42,.20);
+      overflow:hidden;
+    }
+    .p-modal-head{
+      padding:16px;
+      border-bottom:1px solid #e5e7eb;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .p-modal-title{ font-weight:900; color:#0f172a; }
+    .p-modal-body{ padding:16px; }
+    .p-form-row{ margin: 0 0 12px; }
+    .p-form-row label{ display:block; font-weight:800; color:#0f172a; margin-bottom:6px; }
+    .p-form-row input, .p-form-row textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid #e5e7eb;
+      outline:none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .p-form-row input:focus, .p-form-row textarea:focus{
+      border-color:#1677ff;
+      box-shadow: 0 0 0 4px rgba(22,119,255,.10);
+    }
+    .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
+
+    @media (max-width: 920px){
+      .p-grid{ grid-template-columns: 1fr; }
+      .p-title{ font-size: 1.45rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section p-page">
+  <div class="container p-wrap">
+
+    <div class="p-card">
+      <div class="p-hero">
+        <div class="p-avatar">
+          <img id="expertPhoto" alt="Profile photo" />
+        </div>
+
+        <div style="min-width:0;">
+          <div class="p-badge">
+            <span class="p-dot"></span>
+            <span data-fr="Profil RunCall" data-en="RunCall profile">Profil RunCall</span>
+          </div>
+
+          <h1 class="p-title" id="expertName">—</h1>
+          <p class="p-subtitle" id="expertBio">—</p>
+        </div>
+      </div>
+
+      <div class="p-body">
+        <div class="p-grid">
+
+          <!-- Calendar -->
+          <div class="p-panel">
+            <div class="p-cal-head">
+              <div class="p-cal-title" data-fr="Choisir un créneau" data-en="Pick a time">Choisir un créneau</div>
+              <div class="p-cal-nav">
+                <button class="p-btn" id="prevWeek" type="button" data-fr="← Semaine" data-en="← Week">← Semaine</button>
+                <button class="p-btn" id="nextWeek" type="button" data-fr="Semaine →" data-en="Week →">Semaine →</button>
+              </div>
+            </div>
+
+            <div id="calendar" class="p-days"></div>
+            <div id="slotsError" class="p-error"></div>
+
+            <div class="p-muted"
+              data-fr="Astuce : si aucun créneau n’apparaît, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall."
+              data-en="Tip: if no slots appear, the expert may not have opened RunCall availability yet.">
+              Astuce : si aucun créneau n’apparaît, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall.
+            </div>
+          </div>
+
+          <!-- Info -->
+          <div class="p-panel">
+            <div style="font-weight:900; color:#0f172a; letter-spacing:-.01em;"
+              data-fr="Comment ça marche"
+              data-en="How it works">Comment ça marche</div>
+
+            <ol class="p-muted" style="margin:10px 0 0; padding-left:18px;">
+              <li data-fr="Choisis un créneau libre." data-en="Pick an available slot.">Choisis un créneau libre.</li>
+              <li data-fr="Entre tes infos." data-en="Enter your details.">Entre tes infos.</li>
+              <li data-fr="Choisis ton soutien, puis paiement." data-en="Choose your support, then pay.">Choisis ton soutien, puis paiement.</li>
+              <li data-fr="Tu reçois la confirmation et le lien Google Meet." data-en="You receive the confirmation and Google Meet link.">Tu reçois la confirmation et le lien Google Meet.</li>
+            </ol>
+
+            <div class="p-muted" style="margin-top:12px;"
+              data-fr="En réservant, tu reçois automatiquement un email de confirmation. L’intervenant est notifié aussi."
+              data-en="When you book, you automatically receive a confirmation email. The expert is notified too.">
+              En réservant, tu reçois automatiquement un email de confirmation. L’intervenant est notifié aussi.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Modal -->
+<div id="modalBackdrop" class="p-modal-backdrop" role="dialog" aria-modal="true">
+  <div class="p-modal">
+    <div class="p-modal-head">
+      <div class="p-modal-title" id="modalTitle">Réserver</div>
+      <button class="p-btn" id="closeModal" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="p-modal-body">
+      <div class="p-muted" id="modalWhen" style="margin-top:0;"></div>
+
+      <div class="p-form-row">
+        <label data-fr="Ton nom" data-en="Your name">Ton nom</label>
+        <input id="bookName" type="text" autocomplete="name" />
+      </div>
+
+      <div class="p-form-row">
+        <label data-fr="Ton email" data-en="Your email">Ton email</label>
+        <input id="bookEmail" type="email" autocomplete="email" />
+      </div>
+
+      <div class="p-form-row">
+        <label data-fr="Note (optionnel)" data-en="Note (optional)">Note (optionnel)</label>
+        <textarea id="bookNote" rows="3"></textarea>
+      </div>
+
+      <div id="modalError" class="p-error"></div>
+
+      <div class="p-modal-actions">
+        <button class="p-btn" id="goSupport" type="button" style="flex:1;" data-fr="Continuer" data-en="Continue">Continuer</button>
+        <button class="p-btn" id="cancelModal" type="button" style="flex:1;" data-fr="Annuler" data-en="Cancel">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ---------- Language ----------
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+  if (!lang) {
+    const browserLang = navigator.language || navigator.userLanguage;
+    lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+  function applyLanguage(nextLang) {
+    lang = nextLang;
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+  }
+  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+
+  // ---------- Helpers ----------
+  const qs = new URLSearchParams(window.location.search);
+  const expertId = qs.get("expert_id"); // later you can switch to slug like /@name
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  function fmtDay(d){
+    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"short", month:"short", day:"numeric" }).format(d);
+  }
+  function fmtTime(d){
+    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { hour:"2-digit", minute:"2-digit" }).format(d);
+  }
+  function iso(d){ return d.toISOString(); }
+
+  function showError(el, msg){
+    el.style.display = "block";
+    el.textContent = msg;
+  }
+  function clearError(el){
+    el.style.display = "none";
+    el.textContent = "";
+  }
+
+  // ---------- Load expert profile ----------
+  async function loadExpert(){
+    // expected endpoint: /api/experts/get?expert_id=...
+    // for now, we’ll display placeholders if not available
+    if (!expertId) {
+      document.getElementById("expertName").textContent = (lang === "fr" ? "Profil introuvable" : "Profile not found");
+      document.getElementById("expertBio").textContent = (lang === "fr" ? "Lien invalide." : "Invalid link.");
+      return;
+    }
+
+    try{
+      const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`);
+      if (!r.ok) throw new Error("fetch failed");
+      const d = await r.json();
+
+      document.getElementById("expertName").textContent = d?.name || "—";
+      document.getElementById("expertBio").textContent = d?.presentation || "—";
+
+      const img = document.getElementById("expertPhoto");
+      img.src = d?.photo_url || "https://via.placeholder.com/200x200.png?text=RunCall";
+    } catch {
+      // fallback (still show UI)
+      document.getElementById("expertName").textContent = (lang === "fr" ? "Intervenant RunCall" : "RunCall expert");
+      document.getElementById("expertBio").textContent = (lang === "fr"
+        ? "Ce profil est en cours de configuration."
+        : "This profile is being set up.");
+      document.getElementById("expertPhoto").src = "https://via.placeholder.com/200x200.png?text=RunCall";
+    }
+  }
+
+  // ---------- Calendar logic ----------
+  let weekStart = (function(){
+    const now = new Date();
+    const day = now.getDay(); // 0 sunday
+    const diff = (day === 0 ? -6 : 1) - day; // monday start
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diff);
+    monday.setHours(0,0,0,0);
+    return monday;
+  })();
+
+  let selectedSlot = null;
+
+  function buildWeekDays(){
+    const days = [];
+    for (let i=0; i<7; i++){
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }
+
+  async function fetchSlots(from, to){
+    // expected: returns [{ start, end }] in ISO
+    const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&tz=${encodeURIComponent(tz)}`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("slots fetch failed");
+    const d = await r.json();
+    return Array.isArray(d?.slots) ? d.slots : [];
+  }
+
+  function groupSlotsByDay(slots){
+    const map = new Map(); // yyyy-mm-dd -> slots
+    slots.forEach(s => {
+      const start = new Date(s.start);
+      const key = start.toISOString().slice(0,10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(s);
+    });
+    for (const [k, arr] of map.entries()){
+      arr.sort((a,b) => new Date(a.start) - new Date(b.start));
+      map.set(k, arr);
+    }
+    return map;
+  }
+
+  async function renderCalendar(){
+    const cal = document.getElementById("calendar");
+    const err = document.getElementById("slotsError");
+    clearError(err);
+
+    cal.innerHTML = "";
+
+    const days = buildWeekDays();
+    const from = new Date(days[0]); from.setHours(0,0,0,0);
+    const to = new Date(days[6]); to.setHours(23,59,59,999);
+
+    let slots = [];
+    try{
+      if (!expertId) throw new Error("missing expert_id");
+      slots = await fetchSlots(iso(from), iso(to));
+    } catch(e){
+      showError(err, lang === "fr"
+        ? "Impossible de charger les créneaux pour le moment."
+        : "Unable to load slots right now.");
+      slots = [];
+    }
+
+    const grouped = groupSlotsByDay(slots);
+
+    days.forEach(d => {
+      const key = d.toISOString().slice(0,10);
+      const daySlots = grouped.get(key) || [];
+
+      const col = document.createElement("div");
+      col.className = "p-day";
+
+      const h = document.createElement("h4");
+      h.textContent = fmtDay(d);
+      col.appendChild(h);
+
+      const list = document.createElement("div");
+      list.className = "p-slots";
+
+      if (daySlots.length === 0){
+        const empty = document.createElement("div");
+        empty.className = "p-muted";
+        empty.style.marginTop = "4px";
+        empty.textContent = (lang === "fr" ? "—" : "—");
+        list.appendChild(empty);
+      } else {
+        daySlots.slice(0, 10).forEach(s => {
+          const a = document.createElement("a");
+          a.className = "p-slot";
+          a.href = "#";
+          a.textContent = fmtTime(new Date(s.start));
+          a.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            openModal(s);
+          });
+          list.appendChild(a);
+        });
+
+        if (daySlots.length > 10){
+          const more = document.createElement("div");
+          more.className = "p-muted";
+          more.textContent = (lang === "fr" ? "… plus" : "… more");
+          list.appendChild(more);
+        }
+      }
+
+      col.appendChild(list);
+      cal.appendChild(col);
+    });
+  }
+
+  // ---------- Modal booking ----------
+  const backdrop = document.getElementById("modalBackdrop");
+  const closeModalBtn = document.getElementById("closeModal");
+  const cancelModalBtn = document.getElementById("cancelModal");
+  const goSupportBtn = document.getElementById("goSupport");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalWhen = document.getElementById("modalWhen");
+  const modalError = document.getElementById("modalError");
+
+  function openModal(slot){
+    selectedSlot = slot;
+    clearError(modalError);
+
+    const start = new Date(slot.start);
+    const end = new Date(slot.end);
+
+    modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
+    modalWhen.textContent = (lang === "fr"
+      ? `${fmtDay(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`
+      : `${fmtDay(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`);
+
+    backdrop.style.display = "flex";
+    document.getElementById("bookName").focus();
+  }
+
+  function closeModal(){
+    backdrop.style.display = "none";
+    selectedSlot = null;
+  }
+
+  closeModalBtn.addEventListener("click", closeModal);
+  cancelModalBtn.addEventListener("click", closeModal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
+
+  goSupportBtn.addEventListener("click", () => {
+    clearError(modalError);
+    const name = document.getElementById("bookName").value.trim();
+    const email = document.getElementById("bookEmail").value.trim();
+    const note = document.getElementById("bookNote").value.trim();
+
+    if (!selectedSlot) {
+      showError(modalError, lang === "fr" ? "Créneau invalide." : "Invalid slot.");
+      return;
+    }
+    if (!name || !email) {
+      showError(modalError, lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
+      return;
+    }
+
+    // Redirect to support page (choose $29/$49/$79)
+    const url = new URL("support.html", window.location.origin);
+    url.searchParams.set("expert_id", expertId || "");
+    url.searchParams.set("slot_start", selectedSlot.start);
+    url.searchParams.set("slot_end", selectedSlot.end);
+    url.searchParams.set("tz", tz);
+    url.searchParams.set("name", name);
+    url.searchParams.set("email", email);
+    if (note) url.searchParams.set("note", note);
+
+    window.location.href = url.toString();
+  });
+
+  // ---------- Week nav ----------
+  document.getElementById("prevWeek").addEventListener("click", () => {
+    weekStart.setDate(weekStart.getDate() - 7);
+    renderCalendar();
+  });
+  document.getElementById("nextWeek").addEventListener("click", () => {
+    weekStart.setDate(weekStart.getDate() + 7);
+    renderCalendar();
+  });
+
+  // Init
+  loadExpert().then(renderCalendar);
+})();
+</script>
+
+</body>
+</html>
