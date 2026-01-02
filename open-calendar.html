@@ -157,16 +157,18 @@
       <div class="oc-hero">
         <div class="oc-badge">
           <span class="oc-dot"></span>
-          <span data-fr="Dernière étape" data-en="Final step"></span>
+          <span data-fr="Dernière étape" data-en="Final step">Dernière étape</span>
         </div>
 
         <h1 class="oc-title"
             data-fr="Ouvre Google Calendar"
-            data-en="Open Google Calendar"></h1>
+            data-en="Open Google Calendar">Ouvre Google Calendar</h1>
 
         <p class="oc-subtitle"
            data-fr="Crée tes disponibilités directement dans ton agenda. RunCall détecte tes créneaux et crée un lien Google Meet quand une réservation est confirmée."
-           data-en="Create your availability directly in your calendar. RunCall detects your slots and creates a Google Meet link when a booking is confirmed."></p>
+           data-en="Create your availability directly in your calendar. RunCall detects your slots and creates a Google Meet link when a booking is confirmed.">
+          Crée tes disponibilités directement dans ton agenda. RunCall détecte tes créneaux et crée un lien Google Meet quand une réservation est confirmée.
+        </p>
       </div>
 
       <div class="oc-body">
@@ -179,39 +181,42 @@
                target="_blank"
                rel="noopener noreferrer"
                data-fr="Ouvrir Google Calendar"
-               data-en="Open Google Calendar"></a>
+               data-en="Open Google Calendar">Ouvrir Google Calendar</a>
 
             <span class="oc-small"
               data-fr="Astuce : mets simplement « RunCall » ou « Run-Call » dans le titre de l’événement pour le rendre disponible."
-              data-en="Tip: simply add “RunCall” or “Run-Call” in the event title to make it available."
-            ></span>
+              data-en="Tip: simply add “RunCall” or “Run-Call” in the event title to make it available.">
+              Astuce : mets simplement « RunCall » ou « Run-Call » dans le titre de l’événement pour le rendre disponible.
+            </span>
 
             <div class="oc-alert">
-              <strong data-fr="Note :" data-en="Note:"></strong>
+              <strong data-fr="Note :" data-en="Note:">Note :</strong>
               <span
                 data-fr="RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé. Pour fermer des disponibilités (vacances, imprévus), il suffit de supprimer ou modifier l’événement RunCall dans Google Calendar."
-                data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another event in your calendar, it won’t be offered. To close availability (vacation, conflicts), simply edit or delete the RunCall event in Google Calendar."
-              ></span>
+                data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another event in your calendar, it won’t be offered. To close availability (vacation, conflicts), simply edit or delete the RunCall event in Google Calendar.">
+                RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé. Pour fermer des disponibilités (vacances, imprévus), il suffit de supprimer ou modifier l’événement RunCall dans Google Calendar.
+              </span>
             </div>
 
             <a class="oc-secondary" href="index.html"
                data-fr="Retour à RunCall"
-               data-en="Back to RunCall"></a>
+               data-en="Back to RunCall">Retour à RunCall</a>
           </div>
 
           <!-- SIDE INFO -->
           <div class="oc-panel">
             <ol class="oc-steps">
-              <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar."></li>
-              <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available."></li>
-              <li data-fr="Ajoute « RunCall » dans le titre." data-en="Add “RunCall” in the title."></li>
-              <li data-fr="Tes créneaux apparaîtront sur ton profil." data-en="Your slots will appear on your profile."></li>
+              <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
+              <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">Crée un événement sur une plage où tu es dispo.</li>
+              <li data-fr="Ajoute « RunCall » dans le titre." data-en="Add “RunCall” in the title.">Ajoute « RunCall » dans le titre.</li>
+              <li data-fr="Tes créneaux apparaîtront sur ton profil." data-en="Your slots will appear on your profile.">Tes créneaux apparaîtront sur ton profil.</li>
             </ol>
 
             <span class="oc-small"
               data-fr="Tu peux créer un seul créneau pour tester, puis en ajouter d’autres ensuite."
-              data-en="You can create just one slot to test, then add more later."
-            ></span>
+              data-en="You can create just one slot to test, then add more later.">
+              Tu peux créer un seul créneau pour tester, puis en ajouter d’autres ensuite.
+            </span>
           </div>
 
         </div>
@@ -223,7 +228,6 @@
 
 <script>
 (function () {
-  // ---------- Language ----------
   const buttons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
 
@@ -234,4 +238,17 @@
 
   function applyLanguage(nextLang) {
     lang = nextLang;
-    document.querySelecto
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+  }
+
+  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+})();
+</script>
+
+</body>
+</html>
