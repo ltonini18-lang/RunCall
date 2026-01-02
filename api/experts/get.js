@@ -1,7 +1,23 @@
 export default async function handler(req, res) {
   try {
-    const expertId = String(req.query.expert_id || "").trim();
-    if (!expertId) return res.status(400).json({ error: "Missing expert_id" });
+const expertIdRaw = req.query.expert_id;
+
+if (!expertIdRaw) {
+  return res.status(400).json({
+    error: "Missing expert_id",
+    received_query: req.query
+  });
+}
+
+const expertId = String(expertIdRaw).trim();
+
+if (!expertId) {
+  return res.status(400).json({
+    error: "Empty expert_id",
+    received_query: req.query
+  });
+}
+
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
