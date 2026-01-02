@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
     return res.redirect(
       302,
-      `/connect-calendar.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
+      `/open-calendar.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
     );
   } catch (err) {
     console.error("Callback crashed:", err);
