@@ -152,10 +152,15 @@ export default async function handler(req, res) {
       });
     }
 
-    const isRunCall = (summary) => {
-      const s = String(summary || "");
-      return /runcall/i.test(s) || /run-call/i.test(s);
-    };
+const isRunCall = (summary) => {
+  const s = String(summary || "")
+    .toLowerCase()
+    .normalize("NFD")              // enlève les accents
+    .replace(/[\u0300-\u036f]/g, "");
+
+  return s.includes("runcall");
+};
+
 
     // 1) Get all calendars
     const calendars = await googleListCalendars(accessToken);
