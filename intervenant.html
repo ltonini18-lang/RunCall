@@ -113,7 +113,7 @@
     /* Layout: Calendar (left) + Slots panel (right) */
     .p-grid{
       display:grid;
-      grid-template-columns: 1.15fr .85fr;
+      grid-template-columns: 1.2fr .8fr;
       gap:16px;
       align-items:start;
       margin-top: 14px;
@@ -164,6 +164,7 @@
       user-select:none;
       font-weight:800;
       letter-spacing:-.01em;
+      flex: 0 0 auto;
     }
     .p-btn:hover{
       transform: translateY(-1px);
@@ -172,18 +173,25 @@
     }
     .p-btn:active{ transform: translateY(0); }
 
-    /* Week grid with dots */
+    /* =========================
+       COMPACT WEEK GRID (Calendly-like)
+       - makes left side narrower and shorter
+       - frees space for right panel without scroll
+       ========================= */
+
     .p-week{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
       gap:10px;
     }
+
+    /* CHANGED: compact cards */
     .p-day{
       border:1px solid var(--rc-border);
       border-radius:16px;
-      padding:12px 10px;
+      padding:10px 10px;
       background:#fff;
-      min-height: 132px;
+      min-height: 110px;  /* was 132px */
       transition: border-color 160ms ease, background-color 160ms ease, transform 140ms ease;
     }
     .p-day:hover{ border-color: rgba(22,119,255,.45); background: rgba(22,119,255,.03); }
@@ -198,35 +206,38 @@
       justify-content:space-between;
       align-items:baseline;
       gap:8px;
-      margin-bottom:10px;
+      margin-bottom:8px; /* was 10px */
     }
+
+    /* CHANGED: smaller typography */
     .p-day-label{
       margin:0;
-      font-size:.92rem;
+      font-size:.88rem; /* was .92 */
       color:#334155;
       font-weight:900;
       letter-spacing:-.01em;
       line-height:1.2;
     }
     .p-day-date{
-      font-size:.86rem;
+      font-size:.82rem; /* was .86 */
       color: var(--rc-muted);
       font-weight:800;
       white-space:nowrap;
     }
 
+    /* CHANGED: fewer dots + smaller grid */
     .p-dots{
       display:grid;
-      grid-template-columns: repeat(4, 12px);
-      gap:8px;
+      grid-template-columns: repeat(4, 10px); /* was 12px */
+      gap:7px;
       align-content:start;
-      min-height: 56px;
+      min-height: 44px; /* was 56px */
     }
     .p-dot-slot{
-      width:12px; height:12px;
+      width:10px; height:10px; /* was 12px */
       border-radius:999px;
       border:1px solid var(--rc-border);
-      background:#f1f5f9; /* gray */
+      background:#f1f5f9;
     }
     .p-dot-slot.on{
       border-color: rgba(22,119,255,.35);
@@ -235,13 +246,13 @@
     }
 
     .p-day-foot{
-      margin-top: 10px;
+      margin-top: 8px; /* was 10px */
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:8px;
       color: var(--rc-muted);
-      font-size:.9rem;
+      font-size:.86rem; /* was .9 */
       font-weight:700;
     }
     .p-day-cta{
@@ -301,6 +312,7 @@
       text-decoration:none;
       user-select:none;
       letter-spacing:-.01em;
+      white-space: nowrap;
     }
     .p-slot:hover{
       transform: translateY(-1px);
@@ -538,11 +550,9 @@
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   function fmtDayLabel(d){
-    // "Mon" / "Lun."
     return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"short" }).format(d);
   }
   function fmtDayDate(d){
-    // "Jan 5" / "5 jan."
     return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"short", day:"numeric" }).format(d);
   }
   // Always AM/PM (even in FR) as requested
@@ -584,7 +594,6 @@
       document.getElementById("expertName").textContent = name;
       document.getElementById("expertBio").textContent = d?.presentation || "—";
 
-      // Avatar: clean fallback (initial) if no photo
       const img = document.getElementById("expertPhoto");
       const fallback = document.getElementById("avatarFallback");
       const initial = String(name || "R").trim().slice(0,1).toUpperCase() || "R";
@@ -684,13 +693,11 @@
       return;
     }
 
-    // Build subtitle
     const anyStart = new Date(daySlots[0].start);
     sub.textContent = (lang === "fr"
       ? `${fmtDayLabel(anyStart)} ${fmtDayDate(anyStart)} • ${daySlots.length} créneau(x)`
       : `${fmtDayLabel(anyStart)} ${fmtDayDate(anyStart)} • ${daySlots.length} time(s)`);
 
-    // Render times
     daySlots.forEach(s => {
       const a = document.createElement("a");
       a.className = "p-slot";
@@ -735,7 +742,6 @@
 
     latestGrouped = groupSlotsByDay(slots);
 
-    // If selected day is no longer in this week, clear it
     const weekKeys = new Set(days.map(d => localKey(d)));
     if (selectedDayKey && !weekKeys.has(selectedDayKey)) {
       selectedDayKey = null;
@@ -765,7 +771,6 @@
       top.appendChild(date);
       col.appendChild(top);
 
-      // Dots (show up to 12 as "availability density")
       const dots = document.createElement("div");
       dots.className = "p-dots";
 
@@ -795,7 +800,6 @@
       foot.appendChild(cta);
       col.appendChild(foot);
 
-      // Click behaviour: open list on the right
       col.addEventListener("click", () => {
         setSlotsPanel(key);
         highlightSelectedDay();
@@ -804,7 +808,6 @@
       cal.appendChild(col);
     });
 
-    // If no day selected, auto-pick the first day that has availability (nice UX)
     if (!selectedDayKey) {
       const firstAvailable = days.map(d => localKey(d)).find(k => (latestGrouped.get(k) || []).length > 0);
       if (firstAvailable) selectedDayKey = firstAvailable;
@@ -885,7 +888,7 @@
     renderCalendar();
   });
 
-  // Reset day selection (nice UX)
+  // Reset day selection
   document.getElementById("clearDay").addEventListener("click", () => {
     selectedDayKey = null;
     renderCalendar();
