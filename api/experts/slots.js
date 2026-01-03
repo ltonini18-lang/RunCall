@@ -188,15 +188,18 @@ const isRunCall = (summary) => {
   if (!start || !end || end <= start) continue;
 
   const summary = ev.summary || "";
+const description = ev.description || "";
+const haystack = `${summary} ${description}`; // on check titre + description
 
-  if (isRunCall(summary)) {
-    availabilityIntervals.push({ start, end });
-  } else {
-    // Ne bloque pas les événements marqués "Libre" dans Google Calendar
-    if (ev.transparency !== "transparent") {
-      busyIntervals.push({ start, end });
-    }
+if (isRunCall(haystack)) {
+  availabilityIntervals.push({ start, end });
+} else {
+  // Ne bloque pas les événements marqués "Libre" dans Google Calendar
+  if (ev.transparency !== "transparent") {
+    busyIntervals.push({ start, end });
   }
+}
+
 }
 }
 
