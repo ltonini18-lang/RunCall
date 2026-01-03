@@ -449,14 +449,7 @@
           </div>
 
           <h1 class="p-title" id="expertName">—</h1>
-         <div class="p-bio-wrap">
-  <p class="p-subtitle p-bio" id="expertBio">—</p>
-
-  <button class="p-bio-toggle" id="bioToggle" type="button" aria-expanded="false">
-    <span class="p-bio-arrow" aria-hidden="true">⌄</span>
-  </button>
-</div>
-
+          <p class="p-subtitle" id="expertBio">—</p>
         </div>
       </div>
 
@@ -793,27 +786,17 @@
       const hasAny = daySlots.length > 0;
 
       const cell = document.createElement("div");
-cell.setAttribute("data-daykey", key);
+      cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
+      cell.setAttribute("data-daykey", key);
 
-/* ✅ out-of-month = blank, no state, no blue */
-if (d.getMonth() !== currentMonth) {
-  cell.className = "p-mday is-out";
-  cell.textContent = "";
-  cal.appendChild(cell);
-  return;
-}
-
-/* In-month: apply availability styling */
-cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
-cell.textContent = String(d.getDate());
-
-cell.addEventListener("click", () => {
-  setSlotsPanel(key);
-  highlightSelectedDay();
-});
-
-cal.appendChild(cell);
-
+      /* ✅ CHANGED: out-of-month days should be blank */
+      if (d.getMonth() !== currentMonth) {
+        cell.classList.add("is-out");
+        cell.textContent = "";              // blank
+        // no click
+        cal.appendChild(cell);
+        return;
+      }
 
       cell.textContent = String(d.getDate());
 
@@ -910,54 +893,6 @@ cal.appendChild(cell);
 
   // Init
   loadExpert().then(renderCalendar);
-    // ---------- Mobile: collapsible bio ----------
-  (function initBioToggle(){
-    const wrap = document.querySelector(".p-bio-wrap");
-    const btn = document.getElementById("bioToggle");
-    const bio = document.getElementById("expertBio");
-    if (!wrap || !btn || !bio) return;
-
-    function setOpen(open){
-      wrap.classList.toggle("is-open", open);
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
-    // Default collapsed on mobile only
-    const mq = window.matchMedia("(max-width: 640px)");
-    function applyDefault(){
-      if (mq.matches) setOpen(false);
-      else setOpen(true); // desktop: don’t clamp
-    }
-    applyDefault();
-
-    btn.addEventListener("click", () => {
-      const isOpen = wrap.classList.contains("is-open");
-      setOpen(!isOpen);
-    });
-
-    // If user rotates or resizes, keep logic sane
-    mq.addEventListener?.("change", applyDefault);
-
-    // If bio is very short, hide toggle
-    function updateToggleVisibility(){
-      // measure only when collapsed to avoid always hiding
-      const wasOpen = wrap.classList.contains("is-open");
-      setOpen(true);
-      const full = bio.scrollHeight;
-      setOpen(false);
-      const collapsed = bio.scrollHeight;
-
-      // if not much difference, no need for toggle
-      const needs = full > collapsed + 6;
-      btn.style.display = needs ? "grid" : "none";
-      if (!needs) wrap.classList.add("is-open"); // show all if short
-      if (wasOpen && needs) wrap.classList.add("is-open");
-    }
-
-    // call after loadExpert fills bio
-    setTimeout(updateToggleVisibility, 0);
-  })();
-
 })();
 </script>
 
