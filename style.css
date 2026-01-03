@@ -697,10 +697,10 @@ a {
   .p-day{ min-height: 96px; }
 }
 
-/* Override uniquement pour la page profil/dispos */
 .p-page{
-  --blue: #3b8cff;
-  --blue-light: #f0f7ff;
-  --border-light: #cfe3ff;
+  --blue: #6ea8ff;          /* bleu clair, doux, non agressif */
+  --blue-light: #f6faff;    /* quasi blanc bleuté */
+  --border-light: #e6efff;  /* bordures très subtiles */
 }
+
 
