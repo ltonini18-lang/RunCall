@@ -652,3 +652,47 @@ a {
   .support-page .support-grid{ grid-template-columns: 1fr; }
   .support-page .support-btn{ text-align: left; }
 }
+/* --- No-scroll fit: tighten right column while staying premium --- */
+
+/* Global small tightening */
+.p-body{ padding: 18px 20px 20px; }
+.p-panel{ padding: 14px; border-radius: 16px; }
+
+/* Calendar header a bit smaller */
+.p-cal-head{ margin-bottom: 10px; }
+.p-cal-title{ font-size: 1.02rem; }
+
+/* Buttons slightly tighter */
+.p-btn{
+  padding: 9px 10px;
+  border-radius: 12px;
+  font-weight: 800;
+}
+
+/* Day columns a bit tighter */
+.p-days{ gap: 8px; }
+.p-day{
+  padding: 9px;
+  border-radius: 14px;
+  min-height: 112px; /* slightly smaller */
+}
+.p-day h4{ margin: 0 0 6px; font-size: .9rem; }
+
+/* Slot pills more compact */
+.p-slot{
+  padding: 7px 10px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: .92rem;
+}
+
+/* Make text blocks less tall */
+.p-muted{ margin-top: 8px; font-size: .94rem; line-height: 1.5; }
+
+/* Mobile: reduce even more */
+@media (max-width: 920px){
+  .p-body{ padding: 16px; }
+  .p-panel{ padding: 14px; }
+  .p-day{ min-height: 96px; }
+}
+
