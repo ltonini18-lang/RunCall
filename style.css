@@ -830,3 +830,27 @@ a {
   /* Rotate arrow when open */
   .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
 }
+@media (max-width: 640px){
+
+  /* ✅ On n'utilise plus l'overlay blanc (cause de la barre) */
+  .p-bio-fade{ display:none !important; }
+
+  /* ✅ Clamp 3 lignes + fondu via mask (pas de barre) */
+  .p-bio-wrap:not(.is-open) #expertBio{
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+
+    /* Fade out the last line */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+    -webkit-mask-size: 100% 100%;
+            mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+  }
+
+  /* (optionnel) un peu moins de padding puisque plus d'overlay */
+  .p-bio-wrap{ padding-bottom: 14px; }
+}
