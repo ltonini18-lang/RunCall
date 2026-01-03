@@ -8,7 +8,7 @@
 
   <style>
     /* =========================
-       Unicorn Profile Page (scoped)
+       Unicorn Calendly-style Page (scoped)
        ========================= */
 
     :root{
@@ -17,18 +17,21 @@
       --rc-border: #e5e7eb;
       --rc-text: #0f172a;
       --rc-muted: #64748b;
-
-      /* Calendar “licorne” (clair + doux) */
       --rc-blue: #1677ff;
-      --rc-blue-ghost: rgba(22,119,255,.16);   /* bleu clair transparent */
-      --rc-blue-ghost2: rgba(22,119,255,.22);  /* hover */
-      --rc-gray-day: #cbd5e1;
+
+      /* “Licorne” blue gradient (same vibe as avatar fallback) */
+      --rc-blue-grad:
+        radial-gradient(140px 110px at 30% 20%, rgba(22,119,255,.30), transparent 58%),
+        radial-gradient(140px 110px at 80% 60%, rgba(22,119,255,.20), transparent 58%),
+        #ffffff;
 
       --rc-shadow: 0 18px 40px rgba(15,23,42,.08);
     }
 
     .p-page{ background: var(--rc-bg); }
-    .p-wrap{ max-width: 1020px; margin: 0 auto; padding: 18px 0 52px; }
+
+    /* ✅ 20% narrower overall block */
+    .p-wrap{ max-width: 848px; margin: 0 auto; padding: 18px 0 52px; }
 
     .p-card{
       background:var(--rc-card);
@@ -49,6 +52,7 @@
       align-items:center;
     }
 
+    /* Avatar */
     .p-avatar{
       width:78px; height:78px;
       border-radius:22px;
@@ -69,9 +73,7 @@
       width:100%; height:100%;
       display:grid;
       place-items:center;
-      background: radial-gradient(120px 90px at 30% 20%, rgba(22,119,255,.28), transparent 55%),
-                  radial-gradient(120px 90px at 80% 60%, rgba(22,119,255,.18), transparent 55%),
-                  #ffffff;
+      background: var(--rc-blue-grad);
       color: var(--rc-blue);
       font-weight: 900;
       letter-spacing: -.02em;
@@ -98,7 +100,7 @@
     }
     .p-title{
       margin: 10px 0 6px;
-      font-size: 1.75rem;
+      font-size: 1.65rem;
       line-height:1.2;
       letter-spacing:-.03em;
       color:var(--rc-text);
@@ -107,40 +109,89 @@
       margin:0;
       color:#475569;
       line-height:1.6;
-      font-size:1.02rem;
-      max-width: 85ch;
+      font-size:1.0rem;
+      max-width: 80ch;
     }
 
     .p-body{ padding: 18px 24px 24px; }
 
+    /* =========================
+       Calendar area
+       ========================= */
+
     .p-grid{
-      display:grid;
-      grid-template-columns: 1.15fr .85fr;
+      display:flex;
+      align-items:stretch;
       gap:16px;
-      align-items:start;
       margin-top: 14px;
+      min-width: 0;
+      justify-content:center; /* initial centered */
     }
+    .p-grid.has-day{
+      justify-content:space-between; /* calendar left + slots right */
+    }
+
     .p-panel{
       border:1px solid var(--rc-border);
       border-radius:18px;
       padding:16px;
       background:#fff;
+      min-width:0;
     }
 
-    /* ---------- Calendar header/nav ---------- */
-    .p-cal-head{
+    /* Calendar stays ~half width */
+    .p-panel.calendar{
+      flex: 0 0 50%;
+      max-width: 460px;
+      min-width: 320px;
+    }
+
+    /* Slots panel hidden until day selected */
+    .p-panel.slots{
+      flex: 0 0 50%;
+      max-width: 460px;
+      min-width: 320px;
+
+      opacity: 0;
+      transform: translateX(10px);
+      pointer-events: none;
+      max-width: 0;
+      min-width: 0;
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      overflow: hidden;
+
+      transition: opacity 220ms ease, transform 220ms ease, max-width 220ms ease, min-width 220ms ease, padding 220ms ease, border-color 220ms ease, background-color 220ms ease;
+    }
+    .p-grid.has-day .p-panel.slots{
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+
+      max-width: 460px;
+      min-width: 320px;
+      padding:16px;
+      border-color: var(--rc-border);
+      background:#fff;
+    }
+
+    .p-month-head{
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-    .p-cal-title{
+    .p-month-title{
       font-weight:900;
-      color:var(--rc-text);
+      color: var(--rc-text);
       letter-spacing:-.02em;
+      font-size: 1.05rem;
+      white-space:nowrap;
+      text-align:center;
+      flex: 1 1 auto;
     }
-    .p-cal-nav{ display:flex; gap:8px; }
 
     .p-btn{
       display:inline-flex;
@@ -156,119 +207,126 @@
       user-select:none;
       font-weight:800;
       letter-spacing:-.01em;
+      white-space:nowrap;
     }
     .p-btn:hover{
       transform: translateY(-1px);
       border-color: var(--rc-blue);
       background: rgba(22,119,255,.06);
     }
-    .p-btn:active{ transform: translateY(0); }
 
-    /* =========================
-       ✅ Calendly-like MONTH calendar
-       (only changes requested)
-       ========================= */
-
-    /* Weekday header (Monday first) */
-    .p-weekdays{
+    .p-dow{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
-      gap:10px;
-      padding: 0 2px;
-      margin-bottom: 10px;
+      gap:8px;
+      margin-bottom: 8px;
     }
-    .p-weekday{
+    .p-dow div{
       text-align:center;
-      font-size:.85rem;
+      font-size:.78rem;
+      font-weight:900;
       color:#94a3b8;
-      font-weight:800;
-      letter-spacing:-.01em;
-      user-select:none;
+      letter-spacing:.02em;
+      text-transform: uppercase;
     }
 
-    /* Month grid */
     .p-month{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
-      gap:10px;
-      justify-items:center;
-    }
-
-    /* Cell wrapper: keeps whitespace for outside days */
-    .p-cell{
-      width: 44px;
-      height: 44px;
-      display:grid;
-      place-items:center;
-      border-radius: 999px; /* circle base */
+      gap:8px;
       user-select:none;
     }
 
-    /* Outside month => blank (no number, no hover, no border) */
-    .p-cell.is-empty{
-      background: transparent;
-    }
+    /* ✅ Days: more rounded, number color depends on availability */
+    .p-mday{
+      border-radius: 18px;            /* more rounded */
+      padding: 12px 8px;
+      min-height: 52px;
 
-    /* Default number styling */
-    .p-daynum{
-      font-weight:900;
-      letter-spacing:-.01em;
-      font-size: .95rem;
-      color: #94a3b8;
-    }
+      display:flex;
+      align-items:center;
+      justify-content:center;
 
-    /* ✅ No availability: just gray number, no border, no background */
-    .p-cell.is-off{
-      background: transparent;
-    }
-    .p-cell.is-off .p-daynum{
-      color: var(--rc-gray-day);
-    }
+      font-weight: 950;
+      letter-spacing: -.01em;
 
-    /* ✅ Availability: circle, light transparent blue, no border */
-    .p-cell.is-on{
-      background: var(--rc-blue-ghost);
+      transition: transform 140ms ease, background-color 160ms ease, box-shadow 180ms ease;
       cursor:pointer;
-      transition: transform 120ms ease, background-color 160ms ease;
+      background:#fff;
     }
-    .p-cell.is-on .p-daynum{
+    .p-mday:hover{ transform: translateY(-1px); }
+
+    /* ✅ CHANGED: out-of-month cells are blank, keep space (no number shown) */
+    .p-mday.is-out{
+      background: transparent;
+      cursor: default;
+    }
+    .p-mday.is-out:hover{
+      transform:none;
+      background: transparent;
+      box-shadow:none;
+    }
+
+    /* ✅ No availability: grey number + NO border */
+    .p-mday.no-any{
+      border: none;
+      color: #9aa6b2;
+      background: transparent;
+    }
+    .p-mday.no-any:hover{
+      transform:none;
+      background: transparent;
+      box-shadow:none;
+    }
+
+    /* ✅ CHANGED: Has availability => circle + much lighter translucent blue, NO border */
+    .p-mday.has-any{
+      border: none;
+      border-radius: 999px;                 /* circle */
+      background: rgba(22,119,255,.18);     /* lighter + more transparent */
       color: var(--rc-blue);
+      box-shadow: none;
     }
-    .p-cell.is-on:hover{
-      transform: translateY(-1px);
-      background: var(--rc-blue-ghost2);
-    }
-
-    /* Selected day (still circle, slightly stronger fill) */
-    .p-cell.is-selected{
-      background: rgba(22,119,255,.28);
+    .p-mday.has-any:hover{
+      background: rgba(22,119,255,.24);
+      box-shadow: none;
     }
 
-    /* Right panel slots */
+    .p-mday.is-selected{
+      border: none;                         /* no border */
+      border-radius: 999px;                 /* keep circle */
+      background: rgba(22,119,255,.30);     /* slightly stronger selected */
+      box-shadow: none;
+    }
+
+    /* Slots side */
     .p-slots-date{
-      font-weight:900;
-      color: var(--rc-text);
-      letter-spacing:-.02em;
       text-align:center;
-      margin: 2px 0 12px;
+      font-weight: 950;
+      letter-spacing:-.02em;
+      color: var(--rc-text);
+      font-size: 1.05rem;
+      margin: 4px 0 12px;
     }
-
     .p-slot-list{
       display:flex;
       flex-direction:column;
       gap:10px;
+      margin-top: 6px;
     }
+
+    /* ✅ Slots: border + text same blue as available days */
     .p-slot{
       display:flex;
       justify-content:center;
       align-items:center;
       padding:10px 12px;
       border-radius: 14px;
-      border:1px solid rgba(22,119,255,.30);
-      background: rgba(22,119,255,.06);
+      border:1px solid rgba(22,119,255,.35);
+      background:#fff;
       cursor:pointer;
-      transition: transform 120ms ease, background-color 160ms ease, border-color 160ms ease;
-      font-weight:900;
+      transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      font-weight:950;
       color: var(--rc-blue);
       text-decoration:none;
       user-select:none;
@@ -276,16 +334,9 @@
     }
     .p-slot:hover{
       transform: translateY(-1px);
-      background: rgba(22,119,255,.10);
-      border-color: rgba(22,119,255,.45);
-    }
-    .p-slot:active{ transform: translateY(0); }
-
-    .p-muted{
-      color: var(--rc-muted);
-      font-size:.95rem;
-      line-height:1.55;
-      margin-top:10px;
+      border-color: rgba(22,119,255,.65);
+      background: rgba(22,119,255,.06);
+      box-shadow: 0 12px 24px rgba(22,119,255,.12);
     }
 
     .p-error{
@@ -323,6 +374,7 @@
       padding:16px;
       border-bottom:1px solid var(--rc-border);
       display:flex; justify-content:space-between; align-items:center;
+      gap:10px;
     }
     .p-modal-title{ font-weight:900; color:var(--rc-text); letter-spacing:-.02em; }
     .p-modal-body{ padding:16px; }
@@ -343,8 +395,24 @@
     .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
 
     @media (max-width: 980px){
-      .p-grid{ grid-template-columns: 1fr; }
-      .p-cell{ width: 46px; height: 46px; }
+      .p-wrap{ max-width: 92vw; }
+      .p-grid{ flex-direction: column; justify-content:flex-start; }
+      .p-panel.calendar, .p-panel.slots{
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+      }
+      .p-panel.slots{
+        opacity:1;
+        transform:none;
+        pointer-events:auto;
+        padding:16px;
+        border-color: var(--rc-border);
+        background:#fff;
+        max-width:none;
+        min-width:0;
+      }
     }
   </style>
 </head>
@@ -386,29 +454,24 @@
       </div>
 
       <div class="p-body">
-        <div class="p-grid">
+        <div class="p-grid" id="gridRoot">
 
           <!-- Calendar -->
-          <div class="p-panel">
-            <div class="p-cal-head">
-              <div class="p-cal-title" id="monthTitle">—</div>
-              <div class="p-cal-nav">
-                <button class="p-btn" id="prevMonth" type="button">←</button>
-                <button class="p-btn" id="nextMonth" type="button">→</button>
-              </div>
+          <div class="p-panel calendar">
+            <div class="p-month-head">
+              <button class="p-btn" id="prevMonth" type="button" aria-label="Previous month">←</button>
+              <div class="p-month-title" id="monthTitle">—</div>
+              <button class="p-btn" id="nextMonth" type="button" aria-label="Next month">→</button>
             </div>
 
-            <!-- ✅ Weekdays (Monday first) -->
-            <div id="weekdays" class="p-weekdays"></div>
-
-            <!-- ✅ Month grid -->
+            <div class="p-dow" id="dow"></div>
             <div id="calendar" class="p-month"></div>
 
             <div id="slotsError" class="p-error"></div>
           </div>
 
-          <!-- Times -->
-          <div class="p-panel">
+          <!-- Slots -->
+          <div class="p-panel slots">
             <div id="slotsDate" class="p-slots-date">—</div>
             <div id="slotList" class="p-slot-list"></div>
           </div>
@@ -471,9 +534,8 @@
     });
     buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     localStorage.setItem('runcall_lang', lang);
-    renderWeekdays();     // keep weekday labels correct when language changes
-    renderMonth();        // keep month title correct when language changes
-    setSlotsHeader();     // keep date header correct
+    renderDow();
+    renderCalendar();
   }
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
@@ -483,10 +545,6 @@
   const expertId = qs.get("expert_id");
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  // Always AM/PM as requested
-  function fmtTime(d){
-    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
-  }
   function iso(d){ return d.toISOString(); }
 
   function localKey(d){
@@ -496,17 +554,6 @@
     return `${y}-${m}-${day}`;
   }
 
-  function fmtMonthTitle(d){
-    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"long", year:"numeric" }).format(d);
-  }
-
-  function fmtSlotsHeaderFromKey(dayKey){
-    if (!dayKey) return "—";
-    const [y, m, dd] = dayKey.split("-").map(Number);
-    const d = new Date(y, m-1, dd);
-    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
-  }
-
   function showError(el, msg){
     el.style.display = "block";
     el.textContent = msg;
@@ -514,6 +561,37 @@
   function clearError(el){
     el.style.display = "none";
     el.textContent = "";
+  }
+
+  function fmtMonthTitle(d){
+    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"long", year:"numeric" }).format(d);
+  }
+
+  function fmtSlotsHeader(d){
+    return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
+  }
+
+  // Always AM/PM
+  function fmtTime(d){
+    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
+  }
+
+  function renderDow(){
+    const el = document.getElementById("dow");
+    if (!el) return;
+    el.innerHTML = "";
+
+    /* ✅ CHANGED: robust Monday-first, locale-safe
+       We generate labels for Mon..Sun using a known Monday in local time. */
+    const base = new Date(2026, 0, 5, 12, 0, 0, 0); // Jan 5 2026 = Monday
+    for (let i=0;i<7;i++){
+      const d = new Date(base);
+      d.setDate(base.getDate()+i);
+      const label = new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"short" }).format(d);
+      const cell = document.createElement("div");
+      cell.textContent = label.replace(".","").toUpperCase();
+      el.appendChild(cell);
+    }
   }
 
   // ---------- Load expert profile ----------
@@ -560,25 +638,7 @@
     }
   }
 
-  // ---------- ✅ Weekdays (Monday first) ----------
-  function renderWeekdays(){
-    const el = document.getElementById("weekdays");
-    el.innerHTML = "";
-
-    // Use a known Monday as reference: 2023-01-02 is Monday
-    const baseMonday = new Date(2023, 0, 2);
-    for (let i=0; i<7; i++){
-      const d = new Date(baseMonday);
-      d.setDate(baseMonday.getDate() + i);
-      const label = new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"short" }).format(d);
-      const div = document.createElement("div");
-      div.className = "p-weekday";
-      div.textContent = label.replace(".", ""); // FR sometimes adds dot
-      el.appendChild(div);
-    }
-  }
-
-  // ---------- Slots fetching ----------
+  // ---------- Slots fetch ----------
   async function fetchSlots(from, to){
     const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&tz=${encodeURIComponent(tz)}`;
     const r = await fetch(url);
@@ -602,29 +662,69 @@
     return map;
   }
 
-  // ---------- ✅ Month calendar ----------
+  // ---------- Month calendar state ----------
+  const gridRoot = document.getElementById("gridRoot");
   let viewMonth = (function(){
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
+    return new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
   })();
 
+  let latestGrouped = new Map();
   let selectedDayKey = null;
   let selectedSlot = null;
-  let latestGrouped = new Map();
 
-  function setSlotsHeader(){
-    const h = document.getElementById("slotsDate");
-    h.textContent = fmtSlotsHeaderFromKey(selectedDayKey);
+  function startOfWeekMonday(d){
+    const x = new Date(d);
+    const day = x.getDay(); // 0 Sun..6 Sat
+    const diff = (day === 0 ? -6 : 1) - day; // to Monday
+    x.setDate(x.getDate() + diff);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+  function endOfWeekSunday(d){
+    const x = startOfWeekMonday(d);
+    x.setDate(x.getDate() + 6);
+    x.setHours(23,59,59,999);
+    return x;
   }
 
-  function setSlotsList(dayKey){
+  function monthGridRange(monthStart){
+    const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1, 0,0,0,0);
+    const last = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23,59,59,999);
+    const gridStart = startOfWeekMonday(first);
+    const gridEnd = endOfWeekSunday(last);
+    return { gridStart, gridEnd };
+  }
+
+  function buildMonthDays(monthStart){
+    const { gridStart, gridEnd } = monthGridRange(monthStart);
+    const days = [];
+    const cur = new Date(gridStart);
+    while (cur <= gridEnd){
+      days.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return days;
+  }
+
+  function setSlotsPanel(dayKey){
     const list = document.getElementById("slotList");
+    const header = document.getElementById("slotsDate");
     list.innerHTML = "";
 
     selectedDayKey = dayKey;
-    setSlotsHeader();
+
+    if (!dayKey){
+      gridRoot.classList.remove("has-day");
+      return;
+    }
 
     const daySlots = latestGrouped.get(dayKey) || [];
+
+    const parts = dayKey.split("-").map(Number);
+    const d = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0, 0);
+    header.textContent = fmtSlotsHeader(d);
+
     daySlots.forEach(s => {
       const a = document.createElement("a");
       a.className = "p-slot";
@@ -636,126 +736,85 @@
       });
       list.appendChild(a);
     });
+
+    gridRoot.classList.add("has-day");
   }
 
-  function monthRange(d){
-    const start = new Date(d.getFullYear(), d.getMonth(), 1);
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    start.setHours(0,0,0,0);
-    end.setHours(23,59,59,999);
-    return { start, end };
-  }
-
-  function getMondayIndex(jsDay){
-    // JS: 0=Sun..6=Sat -> Monday-first index: 0=Mon..6=Sun
-    return (jsDay + 6) % 7;
-  }
-
-  function buildMonthCells(monthDate){
-    const y = monthDate.getFullYear();
-    const m = monthDate.getMonth();
-
-    const first = new Date(y, m, 1);
-    const last = new Date(y, m + 1, 0);
-
-    const leading = getMondayIndex(first.getDay()); // blanks before day 1
-    const totalDays = last.getDate();
-
-    // 6 rows * 7 = 42 cells
-    const cells = Array(42).fill(null);
-
-    for (let day=1; day<=totalDays; day++){
-      const idx = leading + (day - 1);
-      cells[idx] = new Date(y, m, day);
-    }
-    return cells;
-  }
-
-  function highlightSelected(){
-    document.querySelectorAll(".p-cell").forEach(el => {
-      const key = el.getAttribute("data-daykey");
-      el.classList.toggle("is-selected", !!selectedDayKey && key === selectedDayKey);
+  function highlightSelectedDay(){
+    document.querySelectorAll(".p-mday").forEach(el => {
+      const k = el.getAttribute("data-daykey");
+      el.classList.toggle("is-selected", !!selectedDayKey && k === selectedDayKey);
     });
   }
 
-  async function renderMonth(){
-    const monthTitle = document.getElementById("monthTitle");
-    monthTitle.textContent = fmtMonthTitle(viewMonth);
+  async function renderCalendar(){
+    renderDow();
+    document.getElementById("monthTitle").textContent = fmtMonthTitle(viewMonth);
 
     const cal = document.getElementById("calendar");
     const err = document.getElementById("slotsError");
     clearError(err);
     cal.innerHTML = "";
 
-    const { start, end } = monthRange(viewMonth);
+    if (!expertId){
+      showError(err, lang === "fr" ? "Lien invalide (expert_id manquant)." : "Invalid link (missing expert_id).");
+      latestGrouped = new Map();
+      if (!selectedDayKey) setSlotsPanel(null);
+      return;
+    }
+
+    const days = buildMonthDays(viewMonth);
+    const { gridStart, gridEnd } = monthGridRange(viewMonth);
 
     let slots = [];
     try{
-      if (!expertId) throw new Error("missing expert_id");
-      slots = await fetchSlots(iso(start), iso(end));
+      slots = await fetchSlots(iso(gridStart), iso(gridEnd));
     } catch(e){
       showError(err, lang === "fr"
-        ? "Impossible de charger les disponibilités pour le moment."
-        : "Unable to load availability right now.");
+        ? "Impossible de charger les créneaux pour le moment."
+        : "Unable to load slots right now.");
       slots = [];
     }
 
     latestGrouped = groupSlotsByDay(slots);
 
-    const cells = buildMonthCells(viewMonth);
+    const currentMonth = viewMonth.getMonth();
 
-    cells.forEach(d => {
+    days.forEach(d => {
+      const key = localKey(d);
+      const daySlots = latestGrouped.get(key) || [];
+      const hasAny = daySlots.length > 0;
+
       const cell = document.createElement("div");
-      cell.className = "p-cell";
+      cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
+      cell.setAttribute("data-daykey", key);
 
-      // ✅ Outside month => blank (white)
-      if (!d) {
-        cell.classList.add("is-empty");
+      /* ✅ CHANGED: out-of-month days should be blank */
+      if (d.getMonth() !== currentMonth) {
+        cell.classList.add("is-out");
+        cell.textContent = "";              // blank
+        // no click
         cal.appendChild(cell);
         return;
       }
 
-      const key = localKey(d);
-      cell.setAttribute("data-daykey", key);
+      cell.textContent = String(d.getDate());
 
-      const hasAny = (latestGrouped.get(key) || []).length > 0;
-
-      cell.classList.add(hasAny ? "is-on" : "is-off");
-
-      const num = document.createElement("div");
-      num.className = "p-daynum";
-      num.textContent = String(d.getDate());
-      cell.appendChild(num);
-
-      if (hasAny) {
-        cell.addEventListener("click", () => {
-          setSlotsList(key);
-          highlightSelected();
-        });
-      }
+      cell.addEventListener("click", () => {
+        setSlotsPanel(key);
+        highlightSelectedDay();
+      });
 
       cal.appendChild(cell);
     });
 
-    // Keep right panel as-is when changing month.
-    // If nothing ever selected, auto-select first available day IN THIS MONTH (nice UX),
-    // otherwise preserve current selection & list.
-    if (!selectedDayKey) {
-      const firstAvailKey = Array.from(latestGrouped.keys()).sort()[0];
-      if (firstAvailKey) {
-        selectedDayKey = firstAvailKey;
-        setSlotsList(selectedDayKey);
-      } else {
-        setSlotsHeader();
-        document.getElementById("slotList").innerHTML = "";
-      }
+    /* ✅ Keep right panel visible once a day has been clicked */
+    if (!selectedDayKey){
+      gridRoot.classList.remove("has-day");
     } else {
-      // Preserve existing selection/list even if it’s not in current month
-      setSlotsHeader();
-      // Do not overwrite the right list here (preserve)
+      gridRoot.classList.add("has-day");
+      highlightSelectedDay();
     }
-
-    highlightSelected();
   }
 
   // ---------- Modal booking ----------
@@ -769,16 +828,14 @@
 
   function openModal(slot){
     selectedSlot = slot;
-    clearError(modalError);
+    modalError.style.display = "none";
+    modalError.textContent = "";
 
     const start = new Date(slot.start);
     const end = new Date(slot.end);
 
     modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
-    const header = new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US",
-      { weekday:"short", month:"short", day:"numeric" }).format(start);
-
-    modalWhen.textContent = `${header} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
+    modalWhen.textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
 
     backdrop.style.display = "flex";
     document.getElementById("bookName").focus();
@@ -794,17 +851,21 @@
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
   goSupportBtn.addEventListener("click", () => {
-    clearError(modalError);
+    modalError.style.display = "none";
+    modalError.textContent = "";
+
     const name = document.getElementById("bookName").value.trim();
     const email = document.getElementById("bookEmail").value.trim();
     const note = document.getElementById("bookNote").value.trim();
 
     if (!selectedSlot) {
-      showError(modalError, lang === "fr" ? "Créneau invalide." : "Invalid slot.");
+      modalError.style.display = "block";
+      modalError.textContent = (lang === "fr" ? "Créneau invalide." : "Invalid slot.");
       return;
     }
     if (!name || !email) {
-      showError(modalError, lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
+      modalError.style.display = "block";
+      modalError.textContent = (lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
       return;
     }
 
@@ -823,19 +884,15 @@
   // ---------- Month nav ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
-    renderMonth();
+    renderCalendar();
   });
   document.getElementById("nextMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
-    renderMonth();
+    renderCalendar();
   });
 
   // Init
-  loadExpert().then(() => {
-    renderWeekdays();
-    renderMonth();
-    setSlotsHeader();
-  });
+  loadExpert().then(renderCalendar);
 })();
 </script>
 
