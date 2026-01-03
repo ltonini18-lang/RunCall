@@ -414,6 +414,97 @@
         min-width:0;
       }
     }
+
+    /* ======================================================
+       ✅ MOBILE-ONLY MODS (desktop untouched)
+       - sticky hero top (avatar + badge + name)
+       - bio collapses to 3 lines with fade + unicorn arrow
+       - calendar moves under bio; expands pushes calendar down
+       ====================================================== */
+    @media (max-width: 640px){
+
+      /* Make the hero a sticky “header card” */
+      .p-hero{
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        align-items:flex-start;            /* keep avatar aligned with badge/name */
+        padding: 14px 14px 12px;
+        gap: 12px;
+        backdrop-filter: blur(10px);
+        background:
+          radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%),
+          radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%),
+          rgba(248,250,252,.88);
+      }
+
+      /* Smaller avatar on mobile so it stays “next to” badge/name */
+      .p-avatar{ width:56px; height:56px; border-radius:18px; }
+
+      /* Tighten title spacing so it doesn’t “sink” into the bio */
+      .p-title{ margin: 8px 0 6px; font-size: 1.25rem; }
+      .p-badge{ font-size:.85rem; padding:5px 9px; }
+      .p-dot{ box-shadow: 0 0 0 3px rgba(22,119,255,.10); }
+
+      /* Body spacing under sticky hero */
+      .p-body{ padding: 12px 14px 18px; }
+
+      /* Bio wrapper + toggle */
+      .p-bio-wrap{
+        position: relative;
+        margin-top: 2px;
+      }
+
+      /* Clamp bio to 3 lines by default */
+      .p-bio-wrap:not(.is-open) #expertBio{
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+      }
+
+      /* Fade at the bottom (4th line melting) */
+      .p-bio-fade{
+        pointer-events: none;
+        position:absolute;
+        left:0; right:0; bottom:0;
+        height: 2.2em;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+        opacity: 0;
+        transition: opacity 160ms ease;
+      }
+      .p-bio-wrap:not(.is-open) .p-bio-fade{ opacity: 1; }
+
+      /* Unicorn arrow button (discreet) */
+      .p-bio-toggle{
+        position:absolute;
+        right: 2px;
+        bottom: -10px;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid rgba(22,119,255,.20);
+        background: var(--rc-blue-grad);
+        display:grid;
+        place-items:center;
+        cursor:pointer;
+        user-select:none;
+        box-shadow: 0 10px 20px rgba(22,119,255,.10);
+        transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease;
+      }
+      .p-bio-toggle:hover{ transform: translateY(-1px); box-shadow: 0 14px 24px rgba(22,119,255,.14); }
+      .p-bio-toggle:active{ transform: translateY(0); }
+      .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
+      .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
+
+      /* If bio is open, remove fade */
+      .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
+
+      /* Calendar should be visible under bio (already stacks in your 980px media rule)
+         We just tighten spacing so it feels intentional */
+      .p-grid{ gap: 12px; }
+      .p-panel{ padding: 14px; border-radius: 18px; }
+    }
   </style>
 </head>
 
@@ -449,7 +540,18 @@
           </div>
 
           <h1 class="p-title" id="expertName">—</h1>
-          <p class="p-subtitle" id="expertBio">—</p>
+
+          <!-- ✅ MOBILE: wrap bio + fade + toggle (desktop unchanged) -->
+          <div class="p-bio-wrap" id="bioWrap">
+            <p class="p-subtitle" id="expertBio">—</p>
+            <div class="p-bio-fade" aria-hidden="true"></div>
+            <button class="p-bio-toggle" id="bioToggle" type="button" aria-label="Toggle bio" aria-expanded="false">
+              <!-- tiny chevron-down -->
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6.7 9.3a1 1 0 0 1 1.4 0L12 13.2l3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4z"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -891,8 +993,68 @@
     renderCalendar();
   });
 
+  // ======================================================
+  // ✅ MOBILE-ONLY: bio collapse/expand (desktop untouched)
+  // - default collapsed on <=640px
+  // - if bio is short, hides the toggle
+  // ======================================================
+  (function initMobileBio(){
+    const wrap = document.getElementById("bioWrap");
+    const btn = document.getElementById("bioToggle");
+    const bio = document.getElementById("expertBio");
+    if (!wrap || !btn || !bio) return;
+
+    const mq = window.matchMedia("(max-width: 640px)");
+
+    function setOpen(open){
+      wrap.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function needsToggle(){
+      // Temporarily open to measure full height vs clamped height
+      const wasOpen = wrap.classList.contains("is-open");
+      setOpen(true);
+      const full = bio.scrollHeight;
+      setOpen(false);
+      const clamped = bio.scrollHeight;
+      if (wasOpen) setOpen(true);
+      return full > clamped + 6;
+    }
+
+    function apply(){
+      if (!mq.matches){
+        // desktop/tablet: keep as-is visually (no forced clamp)
+        wrap.classList.add("is-open");
+        btn.style.display = "none";
+        return;
+      }
+      // mobile: default collapsed
+      const toggle = needsToggle();
+      btn.style.display = toggle ? "grid" : "none";
+      setOpen(!toggle); // if no toggle needed, keep open
+      if (toggle) setOpen(false);
+    }
+
+    btn.addEventListener("click", () => {
+      const open = wrap.classList.contains("is-open");
+      setOpen(!open);
+      // calendar will naturally move down because bio grows
+    });
+
+    // Run once now, and again after profile loads (bio text set)
+    apply();
+    window.addEventListener("resize", apply);
+
+    // expose a tiny hook so loadExpert can trigger re-eval after setting bio
+    window.__rcBioApply = apply;
+  })();
+
   // Init
-  loadExpert().then(renderCalendar);
+  loadExpert().then(() => {
+    renderCalendar();
+    if (window.__rcBioApply) window.__rcBioApply();
+  });
 })();
 </script>
 
