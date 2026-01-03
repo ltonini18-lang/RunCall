@@ -7,9 +7,10 @@ function overlaps(aStart, aEnd, bStart, bEnd) {
 function parseGoogleEventTime(t) {
   if (!t) return null;
   if (t.dateTime) return new Date(t.dateTime);
-  if (t.date) return new Date(t.date + "T00:00:00.000Z"); // all-day
+  // Ignore all-day events for slot logic (prevents "monday disappears")
   return null;
 }
+
 
 async function refreshAccessToken(refreshToken) {
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
