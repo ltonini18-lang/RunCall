@@ -786,17 +786,27 @@
       const hasAny = daySlots.length > 0;
 
       const cell = document.createElement("div");
-      cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
-      cell.setAttribute("data-daykey", key);
+cell.setAttribute("data-daykey", key);
 
-      /* ✅ CHANGED: out-of-month days should be blank */
-      if (d.getMonth() !== currentMonth) {
-        cell.classList.add("is-out");
-        cell.textContent = "";              // blank
-        // no click
-        cal.appendChild(cell);
-        return;
-      }
+/* ✅ out-of-month = blank, no state, no blue */
+if (d.getMonth() !== currentMonth) {
+  cell.className = "p-mday is-out";
+  cell.textContent = "";
+  cal.appendChild(cell);
+  return;
+}
+
+/* In-month: apply availability styling */
+cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
+cell.textContent = String(d.getDate());
+
+cell.addEventListener("click", () => {
+  setSlotsPanel(key);
+  highlightSelectedDay();
+});
+
+cal.appendChild(cell);
+
 
       cell.textContent = String(d.getDate());
 
