@@ -2,113 +2,332 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Profil</title>
+  <title>RunCall – Disponibilités</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
 
   <style>
-    /* Scoped to this page only */
-    .p-page{ background:#f8fafc; }
-    .p-wrap{ max-width: 980px; margin: 0 auto; padding: 18px 0 46px; }
+    /* =========================
+       Unicorn Profile Page (scoped)
+       ========================= */
+
+    :root{
+      --rc-bg: #f8fafc;
+      --rc-card: #ffffff;
+      --rc-border: #e5e7eb;
+      --rc-text: #0f172a;
+      --rc-muted: #64748b;
+      --rc-blue: #1677ff;
+      --rc-blue-weak: rgba(22,119,255,.10);
+      --rc-blue-weak2: rgba(22,119,255,.14);
+      --rc-shadow: 0 18px 40px rgba(15,23,42,.08);
+    }
+
+    .p-page{ background: var(--rc-bg); }
+    .p-wrap{ max-width: 1020px; margin: 0 auto; padding: 18px 0 52px; }
+
     .p-card{
-      background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:18px;
-      box-shadow:0 18px 40px rgba(15,23,42,.08);
+      background:var(--rc-card);
+      border:1px solid var(--rc-border);
+      border-radius:20px;
+      box-shadow:var(--rc-shadow);
       overflow:hidden;
     }
+
     .p-hero{
-      padding: 26px 24px 18px;
-      border-bottom:1px solid #e5e7eb;
-      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
-      display:flex; gap:16px; align-items:flex-start;
+      padding: 26px 24px 20px;
+      border-bottom:1px solid var(--rc-border);
+      background:
+        radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%),
+        radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%);
+      display:flex;
+      gap:16px;
+      align-items:center;
     }
+
+    /* Avatar */
     .p-avatar{
-      width:78px; height:78px; border-radius:18px;
-      border:1px solid #e5e7eb; background:#fff; overflow:hidden;
+      width:78px; height:78px;
+      border-radius:22px;
+      border:1px solid var(--rc-border);
+      background:#fff;
+      overflow:hidden;
       flex:0 0 auto;
+      display:grid;
+      place-items:center;
+      position:relative;
     }
-    .p-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+    .p-avatar img{
+      width:100%; height:100%;
+      object-fit:cover;
+      display:none; /* shown only when loaded */
+    }
+    .p-avatar-fallback{
+      width:100%; height:100%;
+      display:grid;
+      place-items:center;
+      background: radial-gradient(120px 90px at 30% 20%, rgba(22,119,255,.28), transparent 55%),
+                  radial-gradient(120px 90px at 80% 60%, rgba(22,119,255,.18), transparent 55%),
+                  #ffffff;
+      color: var(--rc-blue);
+      font-weight: 900;
+      letter-spacing: -.02em;
+      font-size: 1.4rem;
+    }
+
+    .p-hero-main{ min-width:0; }
     .p-badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid #e5e7eb; background:#fff;
-      color:#475569; font-size:.9rem;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--rc-border);
+      background:#fff;
+      color:#334155;
+      font-size:.92rem;
     }
-    .p-dot{ width:8px; height:8px; border-radius:999px; background:#1677ff; }
-    .p-title{ margin: 10px 0 6px; font-size: 1.7rem; line-height:1.2; letter-spacing:-.02em; color:#0f172a; }
-    .p-subtitle{ margin:0; color:#475569; line-height:1.55; font-size:1.02rem; max-width: 75ch; }
+    .p-dot{
+      width:8px; height:8px;
+      border-radius:999px;
+      background: var(--rc-blue);
+      box-shadow: 0 0 0 4px rgba(22,119,255,.10);
+    }
+    .p-title{
+      margin: 10px 0 6px;
+      font-size: 1.75rem;
+      line-height:1.2;
+      letter-spacing:-.03em;
+      color:var(--rc-text);
+    }
+    .p-subtitle{
+      margin:0;
+      color:#475569;
+      line-height:1.6;
+      font-size:1.02rem;
+      max-width: 85ch;
+    }
 
-    .p-body{ padding: 20px 24px 24px; }
+    .p-body{ padding: 18px 24px 24px; }
 
+    /* Layout: Calendar (left) + Slots panel (right) */
     .p-grid{
       display:grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.15fr .85fr;
       gap:16px;
       align-items:start;
       margin-top: 14px;
     }
     .p-panel{
-      border:1px solid #e5e7eb;
-      border-radius:16px;
+      border:1px solid var(--rc-border);
+      border-radius:18px;
       padding:16px;
       background:#fff;
     }
 
+    /* Header / nav */
     .p-cal-head{
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
       margin-bottom: 12px;
     }
-    .p-cal-title{ font-weight:800; color:#0f172a; letter-spacing:-.01em; }
+    .p-cal-title{
+      font-weight:900;
+      color:var(--rc-text);
+      letter-spacing:-.02em;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .p-cal-title small{
+      font-weight:700;
+      color: var(--rc-muted);
+      letter-spacing:0;
+      font-size: .9rem;
+    }
     .p-cal-nav{ display:flex; gap:8px; }
+
     .p-btn{
-      display:inline-flex; align-items:center; justify-content:center;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
       padding: 10px 12px;
       border-radius: 14px;
-      border:1px solid #e5e7eb;
+      border:1px solid var(--rc-border);
       background:#fff;
-      color:#0f172a;
+      color:var(--rc-text);
       text-decoration:none;
       cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
       user-select:none;
+      font-weight:800;
+      letter-spacing:-.01em;
+    }
+    .p-btn:hover{
+      transform: translateY(-1px);
+      border-color: var(--rc-blue);
+      background: rgba(22,119,255,.06);
+    }
+    .p-btn:active{ transform: translateY(0); }
+
+    /* Week grid with dots */
+    .p-week{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    }
+    .p-day{
+      border:1px solid var(--rc-border);
+      border-radius:16px;
+      padding:12px 10px;
+      background:#fff;
+      min-height: 132px;
+      transition: border-color 160ms ease, background-color 160ms ease, transform 140ms ease;
+    }
+    .p-day:hover{ border-color: rgba(22,119,255,.45); background: rgba(22,119,255,.03); }
+    .p-day.is-selected{
+      border-color: var(--rc-blue);
+      background: rgba(22,119,255,.05);
+      box-shadow: 0 12px 28px rgba(22,119,255,.10);
+    }
+
+    .p-day-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:8px;
+      margin-bottom:10px;
+    }
+    .p-day-label{
+      margin:0;
+      font-size:.92rem;
+      color:#334155;
+      font-weight:900;
+      letter-spacing:-.01em;
+      line-height:1.2;
+    }
+    .p-day-date{
+      font-size:.86rem;
+      color: var(--rc-muted);
+      font-weight:800;
+      white-space:nowrap;
+    }
+
+    .p-dots{
+      display:grid;
+      grid-template-columns: repeat(4, 12px);
+      gap:8px;
+      align-content:start;
+      min-height: 56px;
+    }
+    .p-dot-slot{
+      width:12px; height:12px;
+      border-radius:999px;
+      border:1px solid var(--rc-border);
+      background:#f1f5f9; /* gray */
+    }
+    .p-dot-slot.on{
+      border-color: rgba(22,119,255,.35);
+      background: rgba(22,119,255,.22);
+      box-shadow: 0 0 0 4px rgba(22,119,255,.06);
+    }
+
+    .p-day-foot{
+      margin-top: 10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      color: var(--rc-muted);
+      font-size:.9rem;
       font-weight:700;
     }
-    .p-btn:hover{ transform: translateY(-1px); border-color:#1677ff; background: rgba(22,119,255,.06); }
-    .p-btn:active{ transform: translateY(0); }
-    .p-btn.primary{
-      border:1px solid #1677ff;
-      background: rgba(22,119,255,.10);
-    }
-    .p-btn.primary:hover{ background: rgba(22,119,255,.14); box-shadow: 0 12px 26px rgba(22,119,255,.12); }
-
-    .p-days{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; }
-    .p-day{
-      border:1px solid #e5e7eb; border-radius:14px; padding:10px;
-      background:#fff;
-      min-height: 120px;
-    }
-    .p-day h4{ margin:0 0 8px; font-size:.92rem; color:#334155; }
-    .p-slots{ display:flex; flex-direction:column; gap:8px; }
-    .p-slot{
-      display:flex; justify-content:center; align-items:center;
-      padding:8px 10px;
-      border-radius: 12px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      cursor:pointer;
-      transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease;
-      font-weight:800;
-      color:#0f172a;
+    .p-day-cta{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      color: var(--rc-blue);
+      font-weight:900;
       text-decoration:none;
+      cursor:pointer;
       user-select:none;
     }
-    .p-slot:hover{ transform: translateY(-1px); border-color:#1677ff; background: rgba(22,119,255,.06); }
-    .p-slot:active{ transform: translateY(0); }
-    .p-slot[aria-disabled="true"]{ opacity:.5; cursor:not-allowed; transform:none; }
+    .p-day-cta[aria-disabled="true"]{
+      color: #94a3b8;
+      cursor:not-allowed;
+    }
 
-    .p-muted{ color:#64748b; font-size:.95rem; line-height:1.55; margin-top:10px; }
-    .p-error{ display:none; margin-top: 10px; border-radius: 14px; border:1px solid #fecaca; background:#fff1f2; padding: 12px; color:#881337; font-size:.95rem; line-height:1.55; }
+    /* Right slots panel */
+    .p-slots-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom: 12px;
+    }
+    .p-slots-title{
+      font-weight:900;
+      color: var(--rc-text);
+      letter-spacing:-.02em;
+    }
+    .p-slots-sub{
+      color: var(--rc-muted);
+      font-size:.92rem;
+      font-weight:700;
+      margin-top:4px;
+      line-height:1.4;
+    }
+
+    .p-slot-list{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top: 10px;
+    }
+    .p-slot{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--rc-border);
+      background:#fff;
+      cursor:pointer;
+      transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      font-weight:900;
+      color: var(--rc-text);
+      text-decoration:none;
+      user-select:none;
+      letter-spacing:-.01em;
+    }
+    .p-slot:hover{
+      transform: translateY(-1px);
+      border-color: var(--rc-blue);
+      background: rgba(22,119,255,.06);
+      box-shadow: 0 10px 22px rgba(22,119,255,.10);
+    }
+    .p-slot:active{ transform: translateY(0); }
+
+    .p-muted{
+      color: var(--rc-muted);
+      font-size:.95rem;
+      line-height:1.55;
+      margin-top:10px;
+    }
+
+    .p-error{
+      display:none;
+      margin-top: 10px;
+      border-radius: 14px;
+      border:1px solid #fecaca;
+      background:#fff1f2;
+      padding: 12px;
+      color:#881337;
+      font-size:.95rem;
+      line-height:1.55;
+    }
 
     /* Modal */
     .p-modal-backdrop{
@@ -124,36 +343,40 @@
       width: 100%;
       max-width: 520px;
       background:#fff;
-      border:1px solid #e5e7eb;
+      border:1px solid var(--rc-border);
       border-radius: 18px;
       box-shadow:0 18px 50px rgba(15,23,42,.20);
       overflow:hidden;
     }
     .p-modal-head{
       padding:16px;
-      border-bottom:1px solid #e5e7eb;
+      border-bottom:1px solid var(--rc-border);
       display:flex; justify-content:space-between; align-items:center;
     }
-    .p-modal-title{ font-weight:900; color:#0f172a; }
+    .p-modal-title{ font-weight:900; color:var(--rc-text); letter-spacing:-.02em; }
     .p-modal-body{ padding:16px; }
     .p-form-row{ margin: 0 0 12px; }
-    .p-form-row label{ display:block; font-weight:800; color:#0f172a; margin-bottom:6px; }
+    .p-form-row label{ display:block; font-weight:900; color:var(--rc-text); margin-bottom:6px; }
     .p-form-row input, .p-form-row textarea{
       width:100%;
       padding: 12px 12px;
       border-radius: 14px;
-      border:1px solid #e5e7eb;
+      border:1px solid var(--rc-border);
       outline:none;
       transition: border-color 160ms ease, box-shadow 160ms ease;
     }
     .p-form-row input:focus, .p-form-row textarea:focus{
-      border-color:#1677ff;
+      border-color:var(--rc-blue);
       box-shadow: 0 0 0 4px rgba(22,119,255,.10);
     }
     .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
 
-    @media (max-width: 920px){
+    @media (max-width: 980px){
       .p-grid{ grid-template-columns: 1fr; }
+      .p-week{ grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 520px){
+      .p-week{ grid-template-columns: 1fr; }
       .p-title{ font-size: 1.45rem; }
     }
   </style>
@@ -181,12 +404,13 @@
       <div class="p-hero">
         <div class="p-avatar">
           <img id="expertPhoto" alt="Profile photo" />
+          <div id="avatarFallback" class="p-avatar-fallback">R</div>
         </div>
 
-        <div style="min-width:0;">
+        <div class="p-hero-main">
           <div class="p-badge">
             <span class="p-dot"></span>
-            <span data-fr="Profil RunCall" data-en="RunCall profile">Profil RunCall</span>
+            <span data-fr="Disponibilités RunCall" data-en="RunCall availability">Disponibilités RunCall</span>
           </div>
 
           <h1 class="p-title" id="expertName">—</h1>
@@ -197,43 +421,52 @@
       <div class="p-body">
         <div class="p-grid">
 
-          <!-- Calendar -->
+          <!-- Calendar (days + dots) -->
           <div class="p-panel">
             <div class="p-cal-head">
-              <div class="p-cal-title" data-fr="Choisir un créneau" data-en="Pick a time">Choisir un créneau</div>
+              <div class="p-cal-title">
+                <span data-fr="Choisir un jour" data-en="Pick a day">Choisir un jour</span>
+                <small data-fr="Clique sur un jour bleu pour voir les créneaux."
+                       data-en="Click a blue day to see times.">Clique sur un jour bleu pour voir les créneaux.</small>
+              </div>
+
               <div class="p-cal-nav">
                 <button class="p-btn" id="prevWeek" type="button" data-fr="← Semaine" data-en="← Week">← Semaine</button>
                 <button class="p-btn" id="nextWeek" type="button" data-fr="Semaine →" data-en="Week →">Semaine →</button>
               </div>
             </div>
 
-            <div id="calendar" class="p-days"></div>
+            <div id="calendar" class="p-week"></div>
             <div id="slotsError" class="p-error"></div>
 
             <div class="p-muted"
-              data-fr="Astuce : si aucun créneau n’apparaît, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall."
-              data-en="Tip: if no slots appear, the expert may not have opened RunCall availability yet.">
-              Astuce : si aucun créneau n’apparaît, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall.
+              data-fr="Astuce : si aucun jour n’est bleu, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall."
+              data-en="Tip: if no day is blue, the expert may not have opened RunCall availability yet.">
+              Astuce : si aucun jour n’est bleu, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall.
             </div>
           </div>
 
-          <!-- Info -->
+          <!-- Times (right panel) -->
           <div class="p-panel">
-            <div style="font-weight:900; color:#0f172a; letter-spacing:-.01em;"
-              data-fr="Comment ça marche"
-              data-en="How it works">Comment ça marche</div>
+            <div class="p-slots-head">
+              <div>
+                <div class="p-slots-title" data-fr="Créneaux" data-en="Times">Créneaux</div>
+                <div id="slotsSub" class="p-slots-sub"
+                     data-fr="Sélectionne un jour à gauche."
+                     data-en="Select a day on the left.">
+                  Sélectionne un jour à gauche.
+                </div>
+              </div>
+              <button class="p-btn" id="clearDay" type="button"
+                      data-fr="Réinitialiser" data-en="Reset">Réinitialiser</button>
+            </div>
 
-            <ol class="p-muted" style="margin:10px 0 0; padding-left:18px;">
-              <li data-fr="Choisis un créneau libre." data-en="Pick an available slot.">Choisis un créneau libre.</li>
-              <li data-fr="Entre tes infos." data-en="Enter your details.">Entre tes infos.</li>
-              <li data-fr="Choisis ton soutien, puis paiement." data-en="Choose your support, then pay.">Choisis ton soutien, puis paiement.</li>
-              <li data-fr="Tu reçois la confirmation et le lien Google Meet." data-en="You receive the confirmation and Google Meet link.">Tu reçois la confirmation et le lien Google Meet.</li>
-            </ol>
+            <div id="slotList" class="p-slot-list"></div>
 
             <div class="p-muted" style="margin-top:12px;"
-              data-fr="En réservant, tu reçois automatiquement un email de confirmation. L’intervenant est notifié aussi."
-              data-en="When you book, you automatically receive a confirmation email. The expert is notified too.">
-              En réservant, tu reçois automatiquement un email de confirmation. L’intervenant est notifié aussi.
+              data-fr="En réservant, tu reçois un email de confirmation. L’intervenant est notifié aussi."
+              data-en="When you book, you receive a confirmation email. The expert is notified too.">
+              En réservant, tu reçois un email de confirmation. L’intervenant est notifié aussi.
             </div>
           </div>
 
@@ -301,25 +534,29 @@
 
   // ---------- Helpers ----------
   const qs = new URLSearchParams(window.location.search);
-  const expertId = qs.get("expert_id"); // later you can switch to slug like /@name
+  const expertId = qs.get("expert_id");
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
-  function fmtDay(d){
-    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"short", month:"short", day:"numeric" }).format(d);
+  function fmtDayLabel(d){
+    // "Mon" / "Lun."
+    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { weekday:"short" }).format(d);
   }
+  function fmtDayDate(d){
+    // "Jan 5" / "5 jan."
+    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"short", day:"numeric" }).format(d);
+  }
+  // Always AM/PM (even in FR) as requested
   function fmtTime(d){
-    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { hour:"2-digit", minute:"2-digit" }).format(d);
+    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
   }
   function iso(d){ return d.toISOString(); }
 
   function localKey(d){
-  // yyyy-mm-dd en heure locale (pas UTC)
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
   function showError(el, msg){
     el.style.display = "block";
@@ -332,8 +569,6 @@
 
   // ---------- Load expert profile ----------
   async function loadExpert(){
-    // expected endpoint: /api/experts/get?expert_id=...
-    // for now, we’ll display placeholders if not available
     if (!expertId) {
       document.getElementById("expertName").textContent = (lang === "fr" ? "Profil introuvable" : "Profile not found");
       document.getElementById("expertBio").textContent = (lang === "fr" ? "Lien invalide." : "Invalid link.");
@@ -345,18 +580,35 @@
       if (!r.ok) throw new Error("fetch failed");
       const d = await r.json();
 
-      document.getElementById("expertName").textContent = d?.name || "—";
+      const name = d?.name || "—";
+      document.getElementById("expertName").textContent = name;
       document.getElementById("expertBio").textContent = d?.presentation || "—";
 
+      // Avatar: clean fallback (initial) if no photo
       const img = document.getElementById("expertPhoto");
-      img.src = d?.photo_url || "https://via.placeholder.com/200x200.png?text=RunCall";
+      const fallback = document.getElementById("avatarFallback");
+      const initial = String(name || "R").trim().slice(0,1).toUpperCase() || "R";
+      fallback.textContent = initial;
+
+      const photoUrl = d?.photo_url || "";
+      if (photoUrl) {
+        img.onload = () => { img.style.display = "block"; fallback.style.display = "none"; };
+        img.onerror = () => { img.style.display = "none"; fallback.style.display = "grid"; };
+        img.src = photoUrl;
+      } else {
+        img.style.display = "none";
+        fallback.style.display = "grid";
+      }
     } catch {
-      // fallback (still show UI)
       document.getElementById("expertName").textContent = (lang === "fr" ? "Intervenant RunCall" : "RunCall expert");
       document.getElementById("expertBio").textContent = (lang === "fr"
         ? "Ce profil est en cours de configuration."
         : "This profile is being set up.");
-      document.getElementById("expertPhoto").src = "https://via.placeholder.com/200x200.png?text=RunCall";
+
+      const fallback = document.getElementById("avatarFallback");
+      fallback.textContent = "R";
+      document.getElementById("expertPhoto").style.display = "none";
+      fallback.style.display = "grid";
     }
   }
 
@@ -372,6 +624,8 @@
   })();
 
   let selectedSlot = null;
+  let selectedDayKey = null;
+  let latestGrouped = new Map();
 
   function buildWeekDays(){
     const days = [];
@@ -384,7 +638,6 @@
   }
 
   async function fetchSlots(from, to){
-    // expected: returns [{ start, end }] in ISO
     const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&tz=${encodeURIComponent(tz)}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error("slots fetch failed");
@@ -393,7 +646,7 @@
   }
 
   function groupSlotsByDay(slots){
-    const map = new Map(); // yyyy-mm-dd -> slots
+    const map = new Map();
     slots.forEach(s => {
       const start = new Date(s.start);
       const key = localKey(start);
@@ -405,6 +658,57 @@
       map.set(k, arr);
     }
     return map;
+  }
+
+  function setSlotsPanel(dayKey){
+    const list = document.getElementById("slotList");
+    const sub = document.getElementById("slotsSub");
+    list.innerHTML = "";
+
+    selectedDayKey = dayKey;
+
+    if (!dayKey) {
+      sub.textContent = (lang === "fr" ? "Sélectionne un jour à gauche." : "Select a day on the left.");
+      return;
+    }
+
+    const daySlots = latestGrouped.get(dayKey) || [];
+
+    if (daySlots.length === 0) {
+      sub.textContent = (lang === "fr" ? "Aucun créneau ce jour-là." : "No times on this day.");
+      const empty = document.createElement("div");
+      empty.className = "p-muted";
+      empty.style.marginTop = "8px";
+      empty.textContent = (lang === "fr" ? "Essaie un autre jour bleu ✨" : "Try another blue day ✨");
+      list.appendChild(empty);
+      return;
+    }
+
+    // Build subtitle
+    const anyStart = new Date(daySlots[0].start);
+    sub.textContent = (lang === "fr"
+      ? `${fmtDayLabel(anyStart)} ${fmtDayDate(anyStart)} • ${daySlots.length} créneau(x)`
+      : `${fmtDayLabel(anyStart)} ${fmtDayDate(anyStart)} • ${daySlots.length} time(s)`);
+
+    // Render times
+    daySlots.forEach(s => {
+      const a = document.createElement("a");
+      a.className = "p-slot";
+      a.href = "#";
+      a.textContent = fmtTime(new Date(s.start));
+      a.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        openModal(s);
+      });
+      list.appendChild(a);
+    });
+  }
+
+  function highlightSelectedDay(){
+    document.querySelectorAll(".p-day").forEach(el => {
+      const key = el.getAttribute("data-daykey");
+      el.classList.toggle("is-selected", !!selectedDayKey && key === selectedDayKey);
+    });
   }
 
   async function renderCalendar(){
@@ -429,52 +733,85 @@
       slots = [];
     }
 
-    const grouped = groupSlotsByDay(slots);
+    latestGrouped = groupSlotsByDay(slots);
+
+    // If selected day is no longer in this week, clear it
+    const weekKeys = new Set(days.map(d => localKey(d)));
+    if (selectedDayKey && !weekKeys.has(selectedDayKey)) {
+      selectedDayKey = null;
+    }
 
     days.forEach(d => {
       const key = localKey(d);
-      const daySlots = grouped.get(key) || [];
+      const daySlots = latestGrouped.get(key) || [];
+      const hasAny = daySlots.length > 0;
 
       const col = document.createElement("div");
       col.className = "p-day";
+      col.setAttribute("data-daykey", key);
 
-      const h = document.createElement("h4");
-      h.textContent = fmtDay(d);
-      col.appendChild(h);
+      const top = document.createElement("div");
+      top.className = "p-day-top";
 
-      const list = document.createElement("div");
-      list.className = "p-slots";
+      const label = document.createElement("div");
+      label.className = "p-day-label";
+      label.textContent = fmtDayLabel(d);
 
-      if (daySlots.length === 0){
-        const empty = document.createElement("div");
-        empty.className = "p-muted";
-        empty.style.marginTop = "4px";
-        empty.textContent = (lang === "fr" ? "—" : "—");
-        list.appendChild(empty);
-      } else {
-        daySlots.slice(0, 10).forEach(s => {
-          const a = document.createElement("a");
-          a.className = "p-slot";
-          a.href = "#";
-          a.textContent = fmtTime(new Date(s.start));
-          a.addEventListener("click", (ev) => {
-            ev.preventDefault();
-            openModal(s);
-          });
-          list.appendChild(a);
-        });
+      const date = document.createElement("div");
+      date.className = "p-day-date";
+      date.textContent = fmtDayDate(d);
 
-        if (daySlots.length > 10){
-          const more = document.createElement("div");
-          more.className = "p-muted";
-          more.textContent = (lang === "fr" ? "… plus" : "… more");
-          list.appendChild(more);
-        }
+      top.appendChild(label);
+      top.appendChild(date);
+      col.appendChild(top);
+
+      // Dots (show up to 12 as "availability density")
+      const dots = document.createElement("div");
+      dots.className = "p-dots";
+
+      const maxDots = 12;
+      const onDots = Math.min(maxDots, Math.max(0, daySlots.length));
+      for (let i=0; i<maxDots; i++){
+        const dot = document.createElement("div");
+        dot.className = "p-dot-slot" + (i < onDots ? " on" : "");
+        dots.appendChild(dot);
       }
+      col.appendChild(dots);
 
-      col.appendChild(list);
+      const foot = document.createElement("div");
+      foot.className = "p-day-foot";
+
+      const count = document.createElement("div");
+      count.textContent = hasAny
+        ? (lang === "fr" ? `${daySlots.length} dispo` : `${daySlots.length} available`)
+        : (lang === "fr" ? `0 dispo` : `0 available`);
+
+      const cta = document.createElement("span");
+      cta.className = "p-day-cta";
+      cta.textContent = (lang === "fr" ? "Voir" : "View");
+      cta.setAttribute("aria-disabled", hasAny ? "false" : "true");
+
+      foot.appendChild(count);
+      foot.appendChild(cta);
+      col.appendChild(foot);
+
+      // Click behaviour: open list on the right
+      col.addEventListener("click", () => {
+        setSlotsPanel(key);
+        highlightSelectedDay();
+      });
+
       cal.appendChild(col);
     });
+
+    // If no day selected, auto-pick the first day that has availability (nice UX)
+    if (!selectedDayKey) {
+      const firstAvailable = days.map(d => localKey(d)).find(k => (latestGrouped.get(k) || []).length > 0);
+      if (firstAvailable) selectedDayKey = firstAvailable;
+    }
+
+    setSlotsPanel(selectedDayKey);
+    highlightSelectedDay();
   }
 
   // ---------- Modal booking ----------
@@ -495,8 +832,8 @@
 
     modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
     modalWhen.textContent = (lang === "fr"
-      ? `${fmtDay(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`
-      : `${fmtDay(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`);
+      ? `${fmtDayLabel(start)} ${fmtDayDate(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`
+      : `${fmtDayLabel(start)} ${fmtDayDate(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`);
 
     backdrop.style.display = "flex";
     document.getElementById("bookName").focus();
@@ -526,7 +863,6 @@
       return;
     }
 
-    // Redirect to support page (choose $29/$49/$79)
     const url = new URL("support.html", window.location.origin);
     url.searchParams.set("expert_id", expertId || "");
     url.searchParams.set("slot_start", selectedSlot.start);
@@ -546,6 +882,12 @@
   });
   document.getElementById("nextWeek").addEventListener("click", () => {
     weekStart.setDate(weekStart.getDate() + 7);
+    renderCalendar();
+  });
+
+  // Reset day selection (nice UX)
+  document.getElementById("clearDay").addEventListener("click", () => {
+    selectedDayKey = null;
     renderCalendar();
   });
 
