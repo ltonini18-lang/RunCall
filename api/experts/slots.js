@@ -189,10 +189,14 @@ const isRunCall = (summary) => {
 
         const summary = ev.summary || "";
 
-        if (isRunCall(summary)) availabilityIntervals.push({ start, end });
-        else busyIntervals.push({ start, end });
-      }
-    }
+if (isRunCall(summary)) {
+  availabilityIntervals.push({ start, end });
+} else {
+  // Ne bloque pas les événements marqués "Libre" dans Google Calendar
+  if (ev.transparency !== "transparent") {
+    busyIntervals.push({ start, end });
+  }
+}
 
     // 3) Split availability into 30-min slots and remove conflicts with busy
     const SLOT_MIN = 30;
