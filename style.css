@@ -703,4 +703,79 @@ a {
   --border-light: #e6efff;  /* bordures très subtiles */
 }
 
+/* =========================
+   RunCall Calendar overrides (paste at end)
+   ========================= */
+
+/* Keep the month grid clean and balanced */
+.p-panel.calendar .p-month{
+  gap: 10px;                 /* a bit more airy */
+}
+
+/* Days of week: Monday-first labels already handled in JS */
+.p-panel.calendar .p-dow{
+  gap: 10px;
+}
+.p-panel.calendar .p-dow div{
+  font-size: .75rem;
+  font-weight: 900;
+  color: #94a3b8;
+  letter-spacing: .04em;
+}
+
+/* ✅ Perfect circles: make each day cell a square */
+.p-panel.calendar .p-mday{
+  aspect-ratio: 1 / 1;       /* forces perfect square */
+  padding: 0;                /* avoids oval distortion */
+  min-height: 0;             /* remove any min-height influence */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 950;
+  letter-spacing: -.01em;
+  background: transparent;   /* base: no background */
+}
+
+/* ✅ Out-of-month cells: fully blank, no hover, no click feel */
+.p-panel.calendar .p-mday.is-out{
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  cursor: default !important;
+  transform: none !important;
+}
+
+/* ✅ No availability: grey number, no border, no background */
+.p-panel.calendar .p-mday.no-any{
+  color: rgba(148,163,184,.9); /* light grey */
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.p-panel.calendar .p-mday.no-any:hover{
+  transform: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ✅ Has availability: PERFECT circle, soft light-blue fill, no border */
+.p-panel.calendar .p-mday.has-any{
+  border: none !important;
+  border-radius: 999px;                 /* circle */
+  color: #1677ff;                       /* same blue */
+  background: rgba(22,119,255,.18);     /* lighter / more transparent */
+  box-shadow: none !important;
+}
+.p-panel.calendar .p-mday.has-any:hover{
+  transform: translateY(-1px);
+  background: rgba(22,119,255,.24);
+}
+
+/* ✅ Selected day: slightly stronger fill, still circle */
+.p-panel.calendar .p-mday.is-selected{
+  border: none !important;
+  border-radius: 999px;
+  background: rgba(22,119,255,.32);
+  box-shadow: none !important;
+}
 
