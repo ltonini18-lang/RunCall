@@ -155,11 +155,14 @@ export default async function handler(req, res) {
 const isRunCall = (summary) => {
   const s = String(summary || "")
     .toLowerCase()
-    .normalize("NFD")              // enlève les accents
-    .replace(/[\u0300-\u036f]/g, "");
+    .normalize("NFD")                     // enlève les accents
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");           // enlève espaces, tirets, symboles
 
-  return s.includes("runcall");
+  // accepte runcall, run-call, run call, etc.
+  return s.includes("run") && s.includes("call") && s.indexOf("run") < s.indexOf("call");
 };
+
 
 
     // 1) Get all calendars
