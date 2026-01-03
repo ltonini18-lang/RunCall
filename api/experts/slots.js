@@ -198,6 +198,7 @@ const isRunCall = (summary) => {
     }
   }
 }
+}
 
     // 3) Split availability into 30-min slots and remove conflicts with busy
     const SLOT_MIN = 30;
