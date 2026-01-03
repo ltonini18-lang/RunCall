@@ -312,6 +312,15 @@
   }
   function iso(d){ return d.toISOString(); }
 
+  function localKey(d){
+  // yyyy-mm-dd en heure locale (pas UTC)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+
   function showError(el, msg){
     el.style.display = "block";
     el.textContent = msg;
@@ -387,7 +396,7 @@
     const map = new Map(); // yyyy-mm-dd -> slots
     slots.forEach(s => {
       const start = new Date(s.start);
-      const key = start.toISOString().slice(0,10);
+      const key = localKey(start);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     });
@@ -423,7 +432,7 @@
     const grouped = groupSlotsByDay(slots);
 
     days.forEach(d => {
-      const key = d.toISOString().slice(0,10);
+      const key = localKey(d);
       const daySlots = grouped.get(key) || [];
 
       const col = document.createElement("div");
