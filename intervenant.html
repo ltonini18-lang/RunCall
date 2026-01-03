@@ -1028,7 +1028,12 @@
   });
 
   apply();
-  window.addEventListener("resize", apply);
+  window.addEventListener("resize", () => {
+  const wasOpen = wrap.classList.contains("is-open");
+  apply();
+  if (wasOpen) setOpen(true); // ✅ garde l'état ouvert même si resize = scroll mobile
+});
+
 
   // Re-apply after profile text loads (in case layout changes)
   window.__rcBioApply = apply;
