@@ -110,13 +110,24 @@
 
     .p-body{ padding: 18px 24px 24px; }
 
-    /* --- Calendly-like layout (no scroll, slide reveal) --- */
+    /* =========================
+       Calendar area (ONLY changed part)
+       ========================= */
+
+    /* Container for calendar + slots */
     .p-grid{
       display:flex;
-      gap:16px;
       align-items:stretch;
+      gap:16px;
       margin-top: 14px;
       min-width: 0;
+
+      /* initial state: center calendar */
+      justify-content:center;
+    }
+    .p-grid.has-day{
+      /* when a day is picked: calendar left + slots right */
+      justify-content:space-between;
     }
 
     .p-panel{
@@ -127,64 +138,68 @@
       min-width:0;
     }
 
-    /* Left calendar width: compact like Calendly */
+    /* Calendar takes ~half width and stays same size */
     .p-panel.calendar{
-      width: 360px;
-      flex: 0 0 auto;
-      transition: width 220ms ease;
+      flex: 0 0 50%;
+      max-width: 520px;      /* keeps it “calendly compact” */
+      min-width: 340px;
+      transition: transform 220ms ease;
+    }
+    .p-grid:not(.has-day) .p-panel.calendar{
+      /* keep centered look */
+      margin: 0 auto;
+    }
+    .p-grid.has-day .p-panel.calendar{
+      margin: 0;
     }
 
-    /* Right panel: hidden until a day is selected */
+    /* Slots panel hidden until day selected */
     .p-panel.slots{
-      flex: 1 1 auto;
-      min-width: 0;
+      flex: 0 0 50%;
+      max-width: 520px;
+      min-width: 340px;
+
       opacity: 0;
       transform: translateX(10px);
       pointer-events: none;
       max-width: 0;
+      min-width: 0;
       padding: 0;
       border-color: transparent;
       background: transparent;
-      transition: opacity 220ms ease, transform 220ms ease, max-width 220ms ease, padding 220ms ease, border-color 220ms ease, background-color 220ms ease;
       overflow: hidden;
-    }
 
-    /* When day selected -> reveal slots panel */
+      transition: opacity 220ms ease, transform 220ms ease, max-width 220ms ease, min-width 220ms ease, padding 220ms ease, border-color 220ms ease, background-color 220ms ease;
+    }
     .p-grid.has-day .p-panel.slots{
       opacity: 1;
       transform: translateX(0);
       pointer-events: auto;
-      max-width: 1000px;
+
+      max-width: 520px;
+      min-width: 340px;
       padding:16px;
       border-color: var(--rc-border);
       background:#fff;
     }
 
-    /* Header / nav */
-    .p-cal-head{
+    /* Month header */
+    .p-month-head{
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
-    .p-cal-title{
+    .p-month-title{
       font-weight:900;
-      color:var(--rc-text);
+      color: var(--rc-text);
       letter-spacing:-.02em;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width: 0;
+      font-size: 1.05rem;
+      white-space:nowrap;
+      text-align:center;
+      flex: 1 1 auto;
     }
-    .p-cal-title small{
-      font-weight:700;
-      color: var(--rc-muted);
-      letter-spacing:0;
-      font-size: .9rem;
-      line-height:1.35;
-    }
-    .p-cal-nav{ display:flex; gap:8px; }
 
     .p-btn{
       display:inline-flex;
@@ -210,22 +225,7 @@
     }
     .p-btn:active{ transform: translateY(0); }
 
-    /* === Month calendar (Calendly-ish) === */
-    .p-month-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      margin-bottom: 10px;
-    }
-    .p-month-title{
-      font-weight:900;
-      color: var(--rc-text);
-      letter-spacing:-.02em;
-      font-size: 1.05rem;
-      white-space:nowrap;
-    }
-
+    /* DOW row */
     .p-dow{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
@@ -241,6 +241,7 @@
       text-transform: uppercase;
     }
 
+    /* Month grid */
     .p-month{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
@@ -248,107 +249,80 @@
       user-select:none;
     }
 
+    /* Day cells: simple (blue if any, grey if none) */
     .p-mday{
       border:1px solid var(--rc-border);
       border-radius: 14px;
-      background:#fff;
-      padding: 10px 8px;
-      min-height: 64px;
+      padding: 12px 8px;
+      min-height: 52px;
+
       display:flex;
-      flex-direction:column;
       align-items:center;
-      justify-content:space-between;
+      justify-content:center;
+
+      font-weight: 900;
+      color: var(--rc-text);
+      background:#fff;
+
       transition: border-color 160ms ease, background-color 160ms ease, transform 140ms ease, box-shadow 180ms ease;
       cursor:pointer;
-      position:relative;
-      min-width:0;
     }
     .p-mday:hover{
       transform: translateY(-1px);
       border-color: rgba(22,119,255,.40);
       background: rgba(22,119,255,.03);
     }
+
+    /* Out-of-month: lighter */
     .p-mday.is-out{
       opacity: .45;
       background: #fbfdff;
     }
-    .p-mday.is-disabled{
-      cursor: default;
+
+    /* No availability => grey */
+    .p-mday.no-any{
+      background:#f1f5f9;
+      color:#334155;
     }
-    .p-mday.is-disabled:hover{
-      transform:none;
+    .p-mday.no-any:hover{
       border-color: var(--rc-border);
-      background:#fff;
-      box-shadow:none;
+      background:#eef2f7;
+      transform:none;
     }
+
+    /* Has availability => blue */
+    .p-mday.has-any{
+      background: rgba(22,119,255,.14);
+      border-color: rgba(22,119,255,.35);
+      color: #0b1b3a;
+    }
+    .p-mday.has-any:hover{
+      background: rgba(22,119,255,.18);
+      border-color: rgba(22,119,255,.55);
+      box-shadow: 0 10px 22px rgba(22,119,255,.10);
+    }
+
+    /* Selected day */
     .p-mday.is-selected{
       border-color: var(--rc-blue);
-      background: rgba(22,119,255,.06);
       box-shadow: 0 12px 26px rgba(22,119,255,.12);
     }
 
-    .p-mday-num{
-      font-weight: 900;
-      color: #0f172a;
-      font-size: .95rem;
-      line-height:1;
-    }
-
-    .p-mday-dots{
-      display:flex;
-      gap:6px;
-      align-items:center;
-      justify-content:center;
-      height: 18px;
-    }
-    .p-dot-pill{
-      width:10px; height:10px;
-      border-radius:999px;
-      border:1px solid var(--rc-border);
-      background:#f1f5f9;
-    }
-    .p-dot-pill.on{
-      border-color: rgba(22,119,255,.35);
-      background: rgba(22,119,255,.28);
-      box-shadow: 0 0 0 4px rgba(22,119,255,.06);
-    }
-
-    .p-mday-meta{
-      font-size:.78rem;
-      font-weight:800;
-      color: var(--rc-muted);
-      line-height:1;
-      white-space:nowrap;
-    }
-
-    /* Right slots panel */
-    .p-slots-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:10px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-    .p-slots-title{
-      font-weight:900;
-      color: var(--rc-text);
+    /* Slots side: date centered */
+    .p-slots-date{
+      text-align:center;
+      font-weight: 950;
       letter-spacing:-.02em;
-    }
-    .p-slots-sub{
-      color: var(--rc-muted);
-      font-size:.92rem;
-      font-weight:700;
-      margin-top:4px;
-      line-height:1.4;
-      overflow-wrap:anywhere;
+      color: var(--rc-text);
+      font-size: 1.05rem;
+      margin: 4px 0 12px;
     }
 
     .p-slot-list{
       display:flex;
       flex-direction:column;
       gap:10px;
-      margin-top: 10px;
+      margin-top: 6px;
     }
     .p-slot{
       display:flex;
@@ -373,13 +347,6 @@
       box-shadow: 0 10px 22px rgba(22,119,255,.10);
     }
     .p-slot:active{ transform: translateY(0); }
-
-    .p-muted{
-      color: var(--rc-muted);
-      font-size:.95rem;
-      line-height:1.55;
-      margin-top:10px;
-    }
 
     .p-error{
       display:none;
@@ -438,16 +405,22 @@
 
     /* Responsive: stack */
     @media (max-width: 980px){
-      .p-grid{ flex-direction: column; }
-      .p-panel.calendar{ width: 100%; }
+      .p-grid{ flex-direction: column; justify-content:flex-start; }
+      .p-panel.calendar{
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+      }
       .p-panel.slots{
-        max-width: 1000px;
-        padding:16px;
-        border-color: var(--rc-border);
-        background:#fff;
         opacity:1;
         transform:none;
         pointer-events:auto;
+        max-width: none;
+        min-width: 0;
+        padding:16px;
+        border-color: var(--rc-border);
+        background:#fff;
       }
     }
   </style>
@@ -492,16 +465,8 @@
       <div class="p-body">
         <div class="p-grid" id="gridRoot">
 
-          <!-- Calendar (month + dots) -->
+          <!-- Calendar -->
           <div class="p-panel calendar">
-            <div class="p-cal-head">
-              <div class="p-cal-title">
-                <span data-fr="Choisir un jour" data-en="Pick a day">Choisir un jour</span>
-                <small data-fr="Jours bleus = dispo. Clique pour voir les créneaux."
-                       data-en="Blue days = available. Click to see times.">Jours bleus = dispo. Clique pour voir les créneaux.</small>
-              </div>
-            </div>
-
             <div class="p-month-head">
               <button class="p-btn" id="prevMonth" type="button" aria-label="Previous month">←</button>
               <div class="p-month-title" id="monthTitle">—</div>
@@ -512,36 +477,12 @@
             <div id="calendar" class="p-month"></div>
 
             <div id="slotsError" class="p-error"></div>
-
-            <div class="p-muted"
-              data-fr="Astuce : si aucun jour n’est bleu, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall."
-              data-en="Tip: if no day is blue, the expert may not have opened RunCall availability yet.">
-              Astuce : si aucun jour n’est bleu, l’intervenant n’a peut-être pas encore ouvert ses disponibilités RunCall.
-            </div>
           </div>
 
-          <!-- Times (right panel) -->
+          <!-- Slots -->
           <div class="p-panel slots">
-            <div class="p-slots-head">
-              <div>
-                <div class="p-slots-title" data-fr="Créneaux" data-en="Times">Créneaux</div>
-                <div id="slotsSub" class="p-slots-sub"
-                     data-fr="Sélectionne un jour à gauche."
-                     data-en="Select a day on the left.">
-                  Sélectionne un jour à gauche.
-                </div>
-              </div>
-              <button class="p-btn" id="clearDay" type="button" style="padding:10px 10px;"
-                      data-fr="Réinitialiser" data-en="Reset">Réinitialiser</button>
-            </div>
-
+            <div id="slotsDate" class="p-slots-date">—</div>
             <div id="slotList" class="p-slot-list"></div>
-
-            <div class="p-muted" style="margin-top:12px;"
-              data-fr="En réservant, tu reçois un email de confirmation. L’intervenant est notifié aussi."
-              data-en="When you book, you receive a confirmation email. The expert is notified too.">
-              En réservant, tu reçois un email de confirmation. L’intervenant est notifié aussi.
-            </div>
           </div>
 
         </div>
@@ -602,8 +543,8 @@
     });
     buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     localStorage.setItem('runcall_lang', lang);
-    renderDow();       // keep DOW consistent if you switch language
-    renderCalendar();  // re-render labels
+    renderDow();
+    renderCalendar();
   }
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
@@ -631,19 +572,27 @@
     el.textContent = "";
   }
 
-  // Month title
   function fmtMonthTitle(d){
     return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"long", year:"numeric" }).format(d);
   }
 
-  // Weekday labels (Mon..Sun in FR/EN)
+  function fmtSlotsHeader(d){
+    // centered above times
+    return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
+  }
+
+  // Always AM/PM
+  function fmtTime(d){
+    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
+  }
+
   function renderDow(){
     const el = document.getElementById("dow");
     if (!el) return;
     el.innerHTML = "";
 
     // Monday-first
-    const base = new Date(Date.UTC(2026, 0, 5)); // Monday sample (Jan 5, 2026)
+    const base = new Date(Date.UTC(2026, 0, 5)); // Monday
     for (let i=0;i<7;i++){
       const d = new Date(base);
       d.setUTCDate(base.getUTCDate()+i);
@@ -652,18 +601,6 @@
       cell.textContent = label.replace(".","").toUpperCase();
       el.appendChild(cell);
     }
-  }
-
-  // Always AM/PM even in FR
-  function fmtTime(d){
-    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
-  }
-
-  function fmtDayLine(d){
-    // ex: "Mon Jan 5" / "lun. 5 janv."
-    const a = new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"short" }).format(d);
-    const b = new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { month:"short", day:"numeric" }).format(d);
-    return `${a} ${b}`;
   }
 
   // ---------- Load expert profile ----------
@@ -776,38 +713,27 @@
       days.push(new Date(cur));
       cur.setDate(cur.getDate() + 1);
     }
-    return days; // 35 or 42
+    return days;
   }
 
   function setSlotsPanel(dayKey){
     const list = document.getElementById("slotList");
-    const sub = document.getElementById("slotsSub");
+    const header = document.getElementById("slotsDate");
     list.innerHTML = "";
+
     selectedDayKey = dayKey;
 
     if (!dayKey){
-      sub.textContent = (lang === "fr" ? "Sélectionne un jour à gauche." : "Select a day on the left.");
       gridRoot.classList.remove("has-day");
       return;
     }
 
     const daySlots = latestGrouped.get(dayKey) || [];
 
-    if (daySlots.length === 0){
-      sub.textContent = (lang === "fr" ? "Aucun créneau ce jour-là." : "No times on this day.");
-      const empty = document.createElement("div");
-      empty.className = "p-muted";
-      empty.style.marginTop = "8px";
-      empty.textContent = (lang === "fr" ? "Essaie un autre jour bleu ✨" : "Try another blue day ✨");
-      list.appendChild(empty);
-      gridRoot.classList.add("has-day");
-      return;
-    }
-
-    const any = new Date(daySlots[0].start);
-    sub.textContent = (lang === "fr"
-      ? `${fmtDayLine(any)} • ${daySlots.length} créneau(x)`
-      : `${fmtDayLine(any)} • ${daySlots.length} time(s)`);
+    // date centered above times
+    const parts = dayKey.split("-").map(Number);
+    const d = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0, 0);
+    header.textContent = fmtSlotsHeader(d);
 
     daySlots.forEach(s => {
       const a = document.createElement("a");
@@ -862,79 +788,40 @@
 
     latestGrouped = groupSlotsByDay(slots);
 
-    // Auto-select: if selected day not in current grid -> clear it
-    const gridKeys = new Set(days.map(d => localKey(d)));
-    if (selectedDayKey && !gridKeys.has(selectedDayKey)) selectedDayKey = null;
-
-    // Render cells
     const currentMonth = viewMonth.getMonth();
+
+    // If selected day is not visible anymore, clear it and return to centered calendar
+    const gridKeys = new Set(days.map(d => localKey(d)));
+    if (selectedDayKey && !gridKeys.has(selectedDayKey)) {
+      selectedDayKey = null;
+      gridRoot.classList.remove("has-day");
+    }
+
     days.forEach(d => {
       const key = localKey(d);
       const daySlots = latestGrouped.get(key) || [];
       const hasAny = daySlots.length > 0;
 
       const cell = document.createElement("div");
-      cell.className = "p-mday";
+      cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
       cell.setAttribute("data-daykey", key);
+      cell.textContent = String(d.getDate());
 
-      // Out-of-month styling
       if (d.getMonth() !== currentMonth) cell.classList.add("is-out");
 
-      // Dots: 0..3 density (Calendly style)
-      const density = Math.min(3, daySlots.length);
-
-      const num = document.createElement("div");
-      num.className = "p-mday-num";
-      num.textContent = String(d.getDate());
-
-      const dots = document.createElement("div");
-      dots.className = "p-mday-dots";
-      for (let i=0;i<3;i++){
-        const dot = document.createElement("div");
-        dot.className = "p-dot-pill" + (i < density ? " on" : "");
-        dots.appendChild(dot);
-      }
-
-      const meta = document.createElement("div");
-      meta.className = "p-mday-meta";
-      meta.textContent = hasAny
-        ? (lang === "fr" ? `${daySlots.length}` : `${daySlots.length}`)
-        : " ";
-
-      cell.appendChild(num);
-      cell.appendChild(dots);
-      cell.appendChild(meta);
-
-      // Click behavior: only meaningful if availability exists
-      if (!hasAny){
-        cell.classList.add("is-disabled");
-        cell.addEventListener("click", () => {
-          // still allow selecting to show "no slots" if you want:
-          setSlotsPanel(key);
-          highlightSelectedDay();
-        });
-      } else {
-        cell.addEventListener("click", () => {
-          setSlotsPanel(key);
-          highlightSelectedDay();
-        });
-      }
+      cell.addEventListener("click", () => {
+        setSlotsPanel(key);
+        highlightSelectedDay();
+      });
 
       cal.appendChild(cell);
     });
 
-    // Auto-pick first available day if none selected (nice UX)
+    // initial state: centered calendar only
     if (!selectedDayKey){
-      const first = days.map(d => localKey(d)).find(k => (latestGrouped.get(k) || []).length > 0);
-      if (first) selectedDayKey = first;
-    }
-
-    if (selectedDayKey){
-      setSlotsPanel(selectedDayKey);
-      gridRoot.classList.add("has-day");
-    } else {
-      setSlotsPanel(null);
       gridRoot.classList.remove("has-day");
+    } else {
+      setSlotsPanel(selectedDayKey);
     }
 
     highlightSelectedDay();
@@ -951,13 +838,14 @@
 
   function openModal(slot){
     selectedSlot = slot;
-    clearError(modalError);
+    modalError.style.display = "none";
+    modalError.textContent = "";
 
     const start = new Date(slot.start);
     const end = new Date(slot.end);
 
     modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
-    modalWhen.textContent = `${fmtDayLine(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
+    modalWhen.textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
 
     backdrop.style.display = "flex";
     document.getElementById("bookName").focus();
@@ -973,17 +861,21 @@
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
   goSupportBtn.addEventListener("click", () => {
-    clearError(modalError);
+    modalError.style.display = "none";
+    modalError.textContent = "";
+
     const name = document.getElementById("bookName").value.trim();
     const email = document.getElementById("bookEmail").value.trim();
     const note = document.getElementById("bookNote").value.trim();
 
     if (!selectedSlot) {
-      showError(modalError, lang === "fr" ? "Créneau invalide." : "Invalid slot.");
+      modalError.style.display = "block";
+      modalError.textContent = (lang === "fr" ? "Créneau invalide." : "Invalid slot.");
       return;
     }
     if (!name || !email) {
-      showError(modalError, lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
+      modalError.style.display = "block";
+      modalError.textContent = (lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
       return;
     }
 
@@ -1002,19 +894,15 @@
   // ---------- Month nav ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+    selectedDayKey = null;                 // go back to centered calendar
+    gridRoot.classList.remove("has-day");
     renderCalendar();
   });
   document.getElementById("nextMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
-    renderCalendar();
-  });
-
-  // Reset selection (hide right panel)
-  document.getElementById("clearDay").addEventListener("click", () => {
-    selectedDayKey = null;
+    selectedDayKey = null;                 // go back to centered calendar
     gridRoot.classList.remove("has-day");
-    setSlotsPanel(null);
-    highlightSelectedDay();
+    renderCalendar();
   });
 
   // Init
