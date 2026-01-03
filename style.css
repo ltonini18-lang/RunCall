@@ -779,3 +779,108 @@ a {
   box-shadow: none !important;
 }
 
+/* =========================
+   Mobile tweaks: sticky header row + collapsible bio
+   ========================= */
+@media (max-width: 640px){
+
+  /* 1) Hero: keep avatar + badge + name aligned at top */
+  .p-hero{
+    align-items:flex-start;          /* instead of centered */
+    padding: 18px 16px 14px;
+    gap: 12px;
+  }
+
+  .p-avatar{
+    width:64px;
+    height:64px;
+    border-radius:18px;
+    flex:0 0 auto;
+  }
+
+  .p-hero-main{
+    min-width:0;
+  }
+
+  .p-badge{
+    margin-top: 2px;
+  }
+
+  .p-title{
+    margin-top: 8px;
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  /* 2) Collapsible bio container */
+  .p-bio-wrap{
+    position: relative;
+    margin-top: 8px;
+  }
+
+  /* default collapsed (3 lines) */
+  .p-bio{
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    max-height: none;
+    padding-right: 40px; /* room for arrow */
+  }
+
+  /* fade at the bottom when collapsed */
+  .p-bio-wrap::after{
+    content:"";
+    position:absolute;
+    left:0; right:0;
+    bottom:0;
+    height: 22px;
+    pointer-events:none;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+    opacity: 1;
+    transition: opacity 160ms ease;
+  }
+
+  /* Toggle button (arrow) */
+  .p-bio-toggle{
+    position:absolute;
+    right: 4px;
+    bottom: 0px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(22,119,255,.25);
+    background: rgba(22,119,255,.08);
+    display:grid;
+    place-items:center;
+    cursor:pointer;
+    padding:0;
+    transition: transform 140ms ease, background-color 160ms ease, border-color 160ms ease;
+  }
+  .p-bio-toggle:active{ transform: scale(.98); }
+  .p-bio-arrow{
+    font-size: 18px;
+    line-height: 1;
+    color: #1677ff;
+    transform: translateY(1px);
+    transition: transform 180ms ease;
+  }
+
+  /* Expanded state */
+  .p-bio-wrap.is-open .p-bio{
+    -webkit-line-clamp: unset;
+    overflow: visible;
+    padding-right: 0;
+  }
+  .p-bio-wrap.is-open::after{
+    opacity: 0; /* remove fade */
+  }
+  .p-bio-wrap.is-open .p-bio-arrow{
+    transform: rotate(180deg) translateY(-1px);
+  }
+
+  /* 3) Keep calendar under bio (already), just tighten spacing */
+  .p-body{
+    padding: 14px 14px 18px;
+  }
+}
