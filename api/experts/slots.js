@@ -180,21 +180,22 @@ const isRunCall = (summary) => {
     for (const calId of readableCalendars) {
       const events = await googleListEvents({ accessToken, calendarId: calId, timeMin, timeMax });
 
-      for (const ev of events) {
-        if (ev.status === "cancelled") continue;
+ for (const ev of events) {
+  if (ev.status === "cancelled") continue;
 
-        const start = parseGoogleEventTime(ev.start);
-        const end = parseGoogleEventTime(ev.end);
-        if (!start || !end || end <= start) continue;
+  const start = parseGoogleEventTime(ev.start);
+  const end = parseGoogleEventTime(ev.end);
+  if (!start || !end || end <= start) continue;
 
-        const summary = ev.summary || "";
+  const summary = ev.summary || "";
 
-if (isRunCall(summary)) {
-  availabilityIntervals.push({ start, end });
-} else {
-  // Ne bloque pas les événements marqués "Libre" dans Google Calendar
-  if (ev.transparency !== "transparent") {
-    busyIntervals.push({ start, end });
+  if (isRunCall(summary)) {
+    availabilityIntervals.push({ start, end });
+  } else {
+    // Ne bloque pas les événements marqués "Libre" dans Google Calendar
+    if (ev.transparency !== "transparent") {
+      busyIntervals.push({ start, end });
+    }
   }
 }
 
