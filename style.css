@@ -1,11 +1,12 @@
 :root {
-  --blue: #0d5aff;
-  --blue-light: #e9f3ff;
-  --border-light: #dbe5ff;
+  --blue: #3b8cff;        /* plus clair */
+  --blue-light: #f0f7ff;  /* fond bleu ultra léger */
+  --border-light: #cfe3ff;/* bordure plus soft */
   --text-main: #1a1a1a;
   --bg-alt: #f7faff;
   --radius: 12px;
 }
+
 
 * {
   box-sizing: border-box;
