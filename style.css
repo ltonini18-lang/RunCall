@@ -778,3 +778,55 @@ a {
   background: rgba(22,119,255,.32);
   box-shadow: none !important;
 }
+@media (max-width: 640px){
+  /* Bio wrapper stays */
+  .p-bio-wrap{
+    position: relative;
+    margin-top: 2px;
+    padding-bottom: 18px; /* room for the arrow */
+  }
+
+  /* ✅ FORCE 3 lines by default (collapsed) */
+  .p-bio-wrap:not(.is-open) #expertBio{
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+
+  /* Fade on 4th line */
+  .p-bio-fade{
+    pointer-events: none;
+    position:absolute;
+    left:0; right:0;
+    bottom: 18px;              /* align with padding-bottom */
+    height: 2.2em;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+    opacity: 1;
+    transition: opacity 160ms ease;
+  }
+  .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
+
+  /* ✅ Arrow ALWAYS visible on mobile */
+  .p-bio-toggle{
+    position:absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(22,119,255,.20);
+    background: var(--rc-blue-grad);
+    display:grid;              /* force visible */
+    place-items:center;
+    cursor:pointer;
+    user-select:none;
+    box-shadow: 0 10px 20px rgba(22,119,255,.10);
+    transition: transform 140ms ease, box-shadow 160ms ease;
+  }
+  .p-bio-toggle:hover{ transform: translateY(-1px); box-shadow: 0 14px 24px rgba(22,119,255,.14); }
+  .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
+
+  /* Rotate arrow when open */
+  .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
+}
