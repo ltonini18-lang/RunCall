@@ -18,13 +18,20 @@
       --rc-text: #0f172a;
       --rc-muted: #64748b;
       --rc-blue: #1677ff;
-      --rc-blue-weak: rgba(22,119,255,.10);
-      --rc-blue-weak2: rgba(22,119,255,.14);
+
+      /* “Licorne” blue gradient (same vibe as avatar fallback) */
+      --rc-blue-grad:
+        radial-gradient(140px 110px at 30% 20%, rgba(22,119,255,.30), transparent 58%),
+        radial-gradient(140px 110px at 80% 60%, rgba(22,119,255,.20), transparent 58%),
+        #ffffff;
+
       --rc-shadow: 0 18px 40px rgba(15,23,42,.08);
     }
 
     .p-page{ background: var(--rc-bg); }
-    .p-wrap{ max-width: 1060px; margin: 0 auto; padding: 18px 0 52px; }
+
+    /* ✅ 20% narrower overall block */
+    .p-wrap{ max-width: 848px; margin: 0 auto; padding: 18px 0 52px; }
 
     .p-card{
       background:var(--rc-card);
@@ -66,9 +73,7 @@
       width:100%; height:100%;
       display:grid;
       place-items:center;
-      background: radial-gradient(120px 90px at 30% 20%, rgba(22,119,255,.28), transparent 55%),
-                  radial-gradient(120px 90px at 80% 60%, rgba(22,119,255,.18), transparent 55%),
-                  #ffffff;
+      background: var(--rc-blue-grad);
       color: var(--rc-blue);
       font-weight: 900;
       letter-spacing: -.02em;
@@ -95,7 +100,7 @@
     }
     .p-title{
       margin: 10px 0 6px;
-      font-size: 1.75rem;
+      font-size: 1.65rem;
       line-height:1.2;
       letter-spacing:-.03em;
       color:var(--rc-text);
@@ -104,30 +109,26 @@
       margin:0;
       color:#475569;
       line-height:1.6;
-      font-size:1.02rem;
-      max-width: 85ch;
+      font-size:1.0rem;
+      max-width: 80ch;
     }
 
     .p-body{ padding: 18px 24px 24px; }
 
     /* =========================
-       Calendar area (ONLY changed part)
+       Calendar area
        ========================= */
 
-    /* Container for calendar + slots */
     .p-grid{
       display:flex;
       align-items:stretch;
       gap:16px;
       margin-top: 14px;
       min-width: 0;
-
-      /* initial state: center calendar */
-      justify-content:center;
+      justify-content:center; /* initial centered */
     }
     .p-grid.has-day{
-      /* when a day is picked: calendar left + slots right */
-      justify-content:space-between;
+      justify-content:space-between; /* calendar left + slots right */
     }
 
     .p-panel{
@@ -138,26 +139,18 @@
       min-width:0;
     }
 
-    /* Calendar takes ~half width and stays same size */
+    /* Calendar stays ~half width */
     .p-panel.calendar{
       flex: 0 0 50%;
-      max-width: 520px;      /* keeps it “calendly compact” */
-      min-width: 340px;
-      transition: transform 220ms ease;
-    }
-    .p-grid:not(.has-day) .p-panel.calendar{
-      /* keep centered look */
-      margin: 0 auto;
-    }
-    .p-grid.has-day .p-panel.calendar{
-      margin: 0;
+      max-width: 460px;
+      min-width: 320px;
     }
 
     /* Slots panel hidden until day selected */
     .p-panel.slots{
       flex: 0 0 50%;
-      max-width: 520px;
-      min-width: 340px;
+      max-width: 460px;
+      min-width: 320px;
 
       opacity: 0;
       transform: translateX(10px);
@@ -176,14 +169,13 @@
       transform: translateX(0);
       pointer-events: auto;
 
-      max-width: 520px;
-      min-width: 340px;
+      max-width: 460px;
+      min-width: 320px;
       padding:16px;
       border-color: var(--rc-border);
       background:#fff;
     }
 
-    /* Month header */
     .p-month-head{
       display:flex;
       justify-content:space-between;
@@ -210,9 +202,8 @@
       border:1px solid var(--rc-border);
       background:#fff;
       color:var(--rc-text);
-      text-decoration:none;
       cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
       user-select:none;
       font-weight:800;
       letter-spacing:-.01em;
@@ -223,9 +214,7 @@
       border-color: var(--rc-blue);
       background: rgba(22,119,255,.06);
     }
-    .p-btn:active{ transform: translateY(0); }
 
-    /* DOW row */
     .p-dow{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
@@ -241,7 +230,6 @@
       text-transform: uppercase;
     }
 
-    /* Month grid */
     .p-month{
       display:grid;
       grid-template-columns: repeat(7, 1fr);
@@ -249,10 +237,9 @@
       user-select:none;
     }
 
-    /* Day cells: simple (blue if any, grey if none) */
+    /* ✅ Days: more rounded, number color depends on availability */
     .p-mday{
-      border:1px solid var(--rc-border);
-      border-radius: 14px;
+      border-radius: 18px;            /* more rounded */
       padding: 12px 8px;
       min-height: 52px;
 
@@ -260,55 +247,47 @@
       align-items:center;
       justify-content:center;
 
-      font-weight: 900;
-      color: var(--rc-text);
-      background:#fff;
+      font-weight: 950;
+      letter-spacing: -.01em;
 
-      transition: border-color 160ms ease, background-color 160ms ease, transform 140ms ease, box-shadow 180ms ease;
+      transition: transform 140ms ease, background-color 160ms ease, box-shadow 180ms ease;
       cursor:pointer;
+      background:#fff;
     }
-    .p-mday:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.40);
-      background: rgba(22,119,255,.03);
-    }
+    .p-mday:hover{ transform: translateY(-1px); }
 
-    /* Out-of-month: lighter */
-    .p-mday.is-out{
-      opacity: .45;
-      background: #fbfdff;
-    }
+    .p-mday.is-out{ opacity: .45; }
 
-    /* No availability => grey */
+    /* ✅ No availability: grey number + NO border */
     .p-mday.no-any{
-      background:#f1f5f9;
-      color:#334155;
+      border: none;
+      color: #9aa6b2;
+      background: transparent;
     }
     .p-mday.no-any:hover{
-      border-color: var(--rc-border);
-      background:#eef2f7;
       transform:none;
+      background: transparent;
+      box-shadow:none;
     }
 
-    /* Has availability => blue */
+    /* ✅ Has availability: blue number + gradient background + rounded border look */
     .p-mday.has-any{
-      background: rgba(22,119,255,.14);
-      border-color: rgba(22,119,255,.35);
-      color: #0b1b3a;
+      border: 1px solid rgba(22,119,255,.25);
+      background: var(--rc-blue-grad); /* same “licorne” blue gradient */
+      color: var(--rc-blue);
+      box-shadow: 0 10px 22px rgba(22,119,255,.08);
     }
     .p-mday.has-any:hover{
-      background: rgba(22,119,255,.18);
-      border-color: rgba(22,119,255,.55);
-      box-shadow: 0 10px 22px rgba(22,119,255,.10);
+      border-color: rgba(22,119,255,.45);
+      box-shadow: 0 14px 26px rgba(22,119,255,.12);
     }
 
-    /* Selected day */
     .p-mday.is-selected{
       border-color: var(--rc-blue);
-      box-shadow: 0 12px 26px rgba(22,119,255,.12);
+      box-shadow: 0 16px 30px rgba(22,119,255,.14);
     }
 
-    /* Slots side: date centered */
+    /* Slots side */
     .p-slots-date{
       text-align:center;
       font-weight: 950;
@@ -317,36 +296,36 @@
       font-size: 1.05rem;
       margin: 4px 0 12px;
     }
-
     .p-slot-list{
       display:flex;
       flex-direction:column;
       gap:10px;
       margin-top: 6px;
     }
+
+    /* ✅ Slots: border + text same blue as available days */
     .p-slot{
       display:flex;
       justify-content:center;
       align-items:center;
       padding:10px 12px;
       border-radius: 14px;
-      border:1px solid var(--rc-border);
+      border:1px solid rgba(22,119,255,.35);
       background:#fff;
       cursor:pointer;
       transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      font-weight:900;
-      color: var(--rc-text);
+      font-weight:950;
+      color: var(--rc-blue);
       text-decoration:none;
       user-select:none;
       letter-spacing:-.01em;
     }
     .p-slot:hover{
       transform: translateY(-1px);
-      border-color: var(--rc-blue);
+      border-color: rgba(22,119,255,.65);
       background: rgba(22,119,255,.06);
-      box-shadow: 0 10px 22px rgba(22,119,255,.10);
+      box-shadow: 0 12px 24px rgba(22,119,255,.12);
     }
-    .p-slot:active{ transform: translateY(0); }
 
     .p-error{
       display:none;
@@ -403,10 +382,10 @@
     }
     .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
 
-    /* Responsive: stack */
     @media (max-width: 980px){
+      .p-wrap{ max-width: 92vw; }
       .p-grid{ flex-direction: column; justify-content:flex-start; }
-      .p-panel.calendar{
+      .p-panel.calendar, .p-panel.slots{
         flex: 1 1 auto;
         width: 100%;
         max-width: none;
@@ -416,11 +395,11 @@
         opacity:1;
         transform:none;
         pointer-events:auto;
-        max-width: none;
-        min-width: 0;
         padding:16px;
         border-color: var(--rc-border);
         background:#fff;
+        max-width:none;
+        min-width:0;
       }
     }
   </style>
@@ -577,7 +556,6 @@
   }
 
   function fmtSlotsHeader(d){
-    // centered above times
     return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
   }
 
@@ -730,7 +708,6 @@
 
     const daySlots = latestGrouped.get(dayKey) || [];
 
-    // date centered above times
     const parts = dayKey.split("-").map(Number);
     const d = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0, 0);
     header.textContent = fmtSlotsHeader(d);
@@ -769,7 +746,7 @@
     if (!expertId){
       showError(err, lang === "fr" ? "Lien invalide (expert_id manquant)." : "Invalid link (missing expert_id).");
       latestGrouped = new Map();
-      setSlotsPanel(null);
+      if (!selectedDayKey) setSlotsPanel(null);
       return;
     }
 
@@ -789,13 +766,6 @@
     latestGrouped = groupSlotsByDay(slots);
 
     const currentMonth = viewMonth.getMonth();
-
-    // If selected day is not visible anymore, clear it and return to centered calendar
-    const gridKeys = new Set(days.map(d => localKey(d)));
-    if (selectedDayKey && !gridKeys.has(selectedDayKey)) {
-      selectedDayKey = null;
-      gridRoot.classList.remove("has-day");
-    }
 
     days.forEach(d => {
       const key = localKey(d);
@@ -817,14 +787,16 @@
       cal.appendChild(cell);
     });
 
-    // initial state: centered calendar only
+    /* ✅ IMPORTANT: once a day has been clicked, we keep the right panel visible
+       even when changing months. So we do NOT clear selectedDayKey here. */
     if (!selectedDayKey){
       gridRoot.classList.remove("has-day");
     } else {
-      setSlotsPanel(selectedDayKey);
+      gridRoot.classList.add("has-day");
+      // Keep the previously selected day's list (even if it's not in this month grid)
+      // No need to call setSlotsPanel again — it stays as-is until user clicks another day.
+      highlightSelectedDay();
     }
-
-    highlightSelectedDay();
   }
 
   // ---------- Modal booking ----------
@@ -894,14 +866,12 @@
   // ---------- Month nav ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
-    selectedDayKey = null;                 // go back to centered calendar
-    gridRoot.classList.remove("has-day");
+    // ✅ Do NOT clear selectedDayKey; keep slots panel visible
     renderCalendar();
   });
   document.getElementById("nextMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
-    selectedDayKey = null;                 // go back to centered calendar
-    gridRoot.classList.remove("has-day");
+    // ✅ Do NOT clear selectedDayKey; keep slots panel visible
     renderCalendar();
   });
 
