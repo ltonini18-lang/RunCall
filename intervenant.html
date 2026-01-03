@@ -998,57 +998,42 @@
   // - default collapsed on <=640px
   // - if bio is short, hides the toggle
   // ======================================================
-  (function initMobileBio(){
-    const wrap = document.getElementById("bioWrap");
-    const btn = document.getElementById("bioToggle");
-    const bio = document.getElementById("expertBio");
-    if (!wrap || !btn || !bio) return;
+(function initMobileBio(){
+  const wrap = document.getElementById("bioWrap");
+  const btn  = document.getElementById("bioToggle");
+  if (!wrap || !btn) return;
 
-    const mq = window.matchMedia("(max-width: 640px)");
+  const mq = window.matchMedia("(max-width: 640px)");
 
-    function setOpen(open){
-      wrap.classList.toggle("is-open", open);
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
+  function setOpen(open){
+    wrap.classList.toggle("is-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
 
-    function needsToggle(){
-      // Temporarily open to measure full height vs clamped height
-      const wasOpen = wrap.classList.contains("is-open");
+  function apply(){
+    if (!mq.matches){
+      // Desktop/tablet: don't force clamp, keep it "open"
       setOpen(true);
-      const full = bio.scrollHeight;
-      setOpen(false);
-      const clamped = bio.scrollHeight;
-      if (wasOpen) setOpen(true);
-      return full > clamped + 6;
+      btn.style.display = "none";
+      return;
     }
+    // Mobile: always start collapsed
+    btn.style.display = "grid";
+    setOpen(false);
+  }
 
-    function apply(){
-      if (!mq.matches){
-        // desktop/tablet: keep as-is visually (no forced clamp)
-        wrap.classList.add("is-open");
-        btn.style.display = "none";
-        return;
-      }
-      // mobile: default collapsed
-      const toggle = needsToggle();
-      btn.style.display = toggle ? "grid" : "none";
-      setOpen(!toggle); // if no toggle needed, keep open
-      if (toggle) setOpen(false);
-    }
+  btn.addEventListener("click", () => {
+    setOpen(!wrap.classList.contains("is-open"));
+    // calendar moves down naturally when bio expands
+  });
 
-    btn.addEventListener("click", () => {
-      const open = wrap.classList.contains("is-open");
-      setOpen(!open);
-      // calendar will naturally move down because bio grows
-    });
+  apply();
+  window.addEventListener("resize", apply);
 
-    // Run once now, and again after profile loads (bio text set)
-    apply();
-    window.addEventListener("resize", apply);
+  // Re-apply after profile text loads (in case layout changes)
+  window.__rcBioApply = apply;
+})();
 
-    // expose a tiny hook so loadExpert can trigger re-eval after setting bio
-    window.__rcBioApply = apply;
-  })();
 
   // Init
   loadExpert().then(() => {
