@@ -30,29 +30,8 @@
 
     .p-page{ background: var(--rc-bg); }
 
-    /* ✅ NEW: header tagline next to logo */
-    .site-header .header-inner{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-    .rc-tagline{
-      font-style: italic;
-      color: #94a3b8;
-      font-weight: 700;
-      letter-spacing: -.01em;
-      line-height: 1.2;
-      white-space: nowrap;          /* single line */
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 72ch;
-    }
-    @media (max-width: 640px){
-      .rc-tagline{ max-width: calc(100vw - 160px); } /* keep on one line on phones */
-    }
-
-    /* ✅ 20% narrower overall block */
-    .p-wrap{ max-width: 848px; margin: 0 auto; padding: 18px 0 52px; }
+    /* ✅ CHANGED: reduce top “grey” space */
+    .p-wrap{ max-width: 848px; margin: 0 auto; padding: 8px 0 52px; }
 
     .p-card{
       background:var(--rc-card);
@@ -62,15 +41,47 @@
       overflow:hidden;
     }
 
+    /* ✅ Header tagline next to logo (premium typography + single-line on mobile) */
+    .site-header .header-inner{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .rc-tagline{
+      font-style: italic;
+      color: rgba(15,23,42,.55);
+      font-weight: 650;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      white-space: nowrap;     /* keep on one line */
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+      font-size: 0.98rem;
+    }
+    @media (max-width: 640px){
+      /* give tagline full width under logo so it still fits on one line */
+      .site-header .header-inner{
+        flex-direction: column;
+        align-items:flex-start;
+        gap:6px;
+      }
+      .rc-tagline{
+        width: 100%;
+        font-size: clamp(0.78rem, 3.2vw, 0.92rem); /* always fits */
+        letter-spacing: -.03em;
+      }
+    }
+
     .p-hero{
-      padding: 26px 24px 20px;
+      padding: 22px 24px 18px;
       border-bottom:1px solid var(--rc-border);
       background:
         radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%),
         radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%);
       display:flex;
       gap:16px;
-      align-items:flex-start; /* ✅ CHANGED: web view photo top-left next to badge/name */
+      align-items:flex-start; /* ✅ keep avatar top-left on web */
     }
 
     /* Avatar */
@@ -84,7 +95,7 @@
       display:grid;
       place-items:center;
       position:relative;
-      margin-top: 2px; /* subtle top alignment with badge */
+      margin-top: 2px;
     }
     .p-avatar img{
       width:100%; height:100%;
@@ -135,13 +146,12 @@
       max-width: 80ch;
     }
 
-    .p-body{ padding: 18px 24px 24px; }
+    .p-body{ padding: 14px 24px 24px; } /* ✅ slightly tighter */
 
     /* =========================
        Calendar area
        ========================= */
 
-    /* ✅ Headline above calendar */
     .p-book-head{
       margin: 0 0 10px;
       text-align:center;
@@ -157,10 +167,10 @@
       gap:16px;
       margin-top: 14px;
       min-width: 0;
-      justify-content:center; /* initial centered */
+      justify-content:center;
     }
     .p-grid.has-day{
-      justify-content:space-between; /* calendar left + slots right */
+      justify-content:space-between;
     }
 
     .p-panel{
@@ -171,14 +181,12 @@
       min-width:0;
     }
 
-    /* Calendar stays ~half width */
     .p-panel.calendar{
       flex: 0 0 50%;
       max-width: 460px;
       min-width: 320px;
     }
 
-    /* Slots panel hidden until day selected */
     .p-panel.slots{
       flex: 0 0 50%;
       max-width: 460px;
@@ -269,9 +277,8 @@
       user-select:none;
     }
 
-    /* ✅ Days: more rounded, number color depends on availability */
     .p-mday{
-      border-radius: 18px;            /* more rounded */
+      border-radius: 18px;
       padding: 12px 8px;
       min-height: 52px;
 
@@ -288,7 +295,6 @@
     }
     .p-mday:hover{ transform: translateY(-1px); }
 
-    /* ✅ CHANGED: out-of-month cells are blank, keep space (no number shown) */
     .p-mday.is-out{
       background: transparent;
       cursor: default;
@@ -299,7 +305,6 @@
       box-shadow:none;
     }
 
-    /* ✅ No availability: grey number + NO border */
     .p-mday.no-any{
       border: none;
       color: #9aa6b2;
@@ -311,11 +316,10 @@
       box-shadow:none;
     }
 
-    /* ✅ CHANGED: Has availability => circle + much lighter translucent blue, NO border */
     .p-mday.has-any{
       border: none;
-      border-radius: 999px;                 /* circle */
-      background: rgba(22,119,255,.18);     /* lighter + more transparent */
+      border-radius: 999px;
+      background: rgba(22,119,255,.18);
       color: var(--rc-blue);
       box-shadow: none;
     }
@@ -325,13 +329,12 @@
     }
 
     .p-mday.is-selected{
-      border: none;                         /* no border */
-      border-radius: 999px;                 /* keep circle */
-      background: rgba(22,119,255,.30);     /* slightly stronger selected */
+      border: none;
+      border-radius: 999px;
+      background: rgba(22,119,255,.30);
       box-shadow: none;
     }
 
-    /* Slots side */
     .p-slots-date{
       text-align:center;
       font-weight: 950;
@@ -347,7 +350,6 @@
       margin-top: 6px;
     }
 
-    /* ✅ Slots: border + text same blue as available days */
     .p-slot{
       display:flex;
       justify-content:center;
@@ -448,20 +450,15 @@
     }
 
     /* ======================================================
-       ✅ MOBILE-ONLY MODS (desktop untouched)
-       - sticky hero top (avatar + badge + name)
-       - bio collapses to 3 lines with fade + unicorn arrow
-       - calendar moves under bio; expands pushes calendar down
+       MOBILE-ONLY MODS
        ====================================================== */
     @media (max-width: 640px){
-
-      /* Make the hero a sticky “header card” */
       .p-hero{
         position: sticky;
         top: 0;
         z-index: 40;
         align-items:flex-start;
-        padding: 14px 14px 12px;
+        padding: 12px 14px 10px;
         gap: 12px;
         backdrop-filter: blur(10px);
         background:
@@ -470,24 +467,19 @@
           rgba(248,250,252,.88);
       }
 
-      /* Smaller avatar on mobile so it stays “next to” badge/name */
       .p-avatar{ width:56px; height:56px; border-radius:18px; margin-top: 0; }
 
-      /* Tighten title spacing so it doesn’t “sink” into the bio */
       .p-title{ margin: 8px 0 6px; font-size: 1.25rem; }
       .p-badge{ font-size:.85rem; padding:5px 9px; }
       .p-dot{ box-shadow: 0 0 0 3px rgba(22,119,255,.10); }
 
-      /* Body spacing under sticky hero */
       .p-body{ padding: 12px 14px 18px; }
 
-      /* Bio wrapper + toggle */
       .p-bio-wrap{
         position: relative;
         margin-top: 2px;
       }
 
-      /* Clamp bio to 3 lines by default */
       .p-bio-wrap:not(.is-open) #expertBio{
         display: -webkit-box;
         -webkit-box-orient: vertical;
@@ -495,7 +487,6 @@
         overflow: hidden;
       }
 
-      /* Fade at the bottom (4th line melting) */
       .p-bio-fade{
         pointer-events: none;
         position:absolute;
@@ -507,7 +498,6 @@
       }
       .p-bio-wrap:not(.is-open) .p-bio-fade{ opacity: 1; }
 
-      /* Unicorn arrow button (discreet) */
       .p-bio-toggle{
         position:absolute;
         right: 2px;
@@ -529,10 +519,8 @@
       .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
       .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
 
-      /* If bio is open, remove fade */
       .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
 
-      /* Calendar should be visible under bio */
       .p-grid{ gap: 12px; }
       .p-panel{ padding: 14px; border-radius: 18px; }
 
@@ -549,7 +537,7 @@
       <div class="logo">RunCall</div>
     </a>
 
-    <!-- ✅ MOVED + SHORTENED: tagline near logo (FR/EN), single-line on mobile -->
+    <!-- ✅ Premium, single-line on mobile (fits because full width under logo on mobile) -->
     <div class="rc-tagline"
          data-fr="Un échange en visio pour poser toutes tes questions et progresser"
          data-en="A video chat to ask all your questions and improve">
@@ -581,12 +569,10 @@
 
           <h1 class="p-title" id="expertName">—</h1>
 
-          <!-- ✅ MOBILE: wrap bio + fade + toggle (desktop unchanged) -->
           <div class="p-bio-wrap" id="bioWrap">
             <p class="p-subtitle" id="expertBio">—</p>
             <div class="p-bio-fade" aria-hidden="true"></div>
             <button class="p-bio-toggle" id="bioToggle" type="button" aria-label="Toggle bio" aria-expanded="false">
-              <!-- tiny chevron-down -->
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6.7 9.3a1 1 0 0 1 1.4 0L12 13.2l3.9-3.9a1 1 0 1 1 1.4 1.4l-4.6 4.6a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4z"/>
               </svg>
@@ -605,9 +591,8 @@
 
         <div class="p-grid" id="gridRoot">
 
-          <!-- Calendar -->
           <div class="p-panel calendar" id="calendarPanel">
-            <div class="p-month-head">
+            <div class="p-month-head" id="monthHead">
               <button class="p-btn" id="prevMonth" type="button" aria-label="Previous month">←</button>
               <div class="p-month-title" id="monthTitle">—</div>
               <button class="p-btn" id="nextMonth" type="button" aria-label="Next month">→</button>
@@ -619,7 +604,6 @@
             <div id="slotsError" class="p-error"></div>
           </div>
 
-          <!-- Slots -->
           <div class="p-panel slots" id="slotsPanel">
             <div id="slotsDate" class="p-slots-date">—</div>
             <div id="slotList" class="p-slot-list"></div>
@@ -632,7 +616,6 @@
   </div>
 </section>
 
-<!-- Modal -->
 <div id="modalBackdrop" class="p-modal-backdrop" role="dialog" aria-modal="true">
   <div class="p-modal">
     <div class="p-modal-head">
@@ -721,12 +704,10 @@
     return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
   }
 
-  // Always AM/PM
   function fmtTime(d){
     return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
   }
 
-  // “Réserver…” headline helper
   function firstNameFromFullName(full){
     const s = String(full || "").trim();
     if (!s) return "";
@@ -741,10 +722,9 @@
     const frTpl = h.dataset.fr || "Réserver un échange avec PRENOM";
     const enTpl = h.dataset.en || "Book a conversation with FIRST NAME";
 
-    const fr = frTpl.replace("PRENOM", first);
-    const en = enTpl.replace("FIRST NAME", first);
-
-    h.textContent = (lang === "fr") ? fr : en;
+    h.textContent = (lang === "fr")
+      ? frTpl.replace("PRENOM", first)
+      : enTpl.replace("FIRST NAME", first);
   }
 
   function renderDow(){
@@ -752,7 +732,7 @@
     if (!el) return;
     el.innerHTML = "";
 
-    const base = new Date(2026, 0, 5, 12, 0, 0, 0); // Jan 5 2026 = Monday
+    const base = new Date(2026, 0, 5, 12, 0, 0, 0); // Monday
     for (let i=0;i<7;i++){
       const d = new Date(base);
       d.setDate(base.getDate()+i);
@@ -847,8 +827,8 @@
 
   function startOfWeekMonday(d){
     const x = new Date(d);
-    const day = x.getDay(); // 0 Sun..6 Sat
-    const diff = (day === 0 ? -6 : 1) - day; // to Monday
+    const day = x.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
     x.setDate(x.getDate() + diff);
     x.setHours(0,0,0,0);
     return x;
@@ -879,31 +859,40 @@
     return days;
   }
 
-  // ✅ MOBILE-ONLY: scroll so calendar month stays visible while slots appear
+  // ✅ MOBILE: scroll down, but stop so month header (title + arrows) stays visible
   function isMobile(){
     return window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
   }
-  function scrollSlotsIntoViewMobile(){
+  function scrollToShowSlotsButKeepMonthHeader(){
     if (!isMobile()) return;
 
-    const calPanel = document.getElementById("calendarPanel");
     const slotsPanel = document.getElementById("slotsPanel");
-    if (!calPanel || !slotsPanel) return;
+    const monthHead = document.getElementById("monthHead");
+    if (!slotsPanel || !monthHead) return;
 
-    // goal: reveal slots without pushing the calendar month header out of view
-    requestAnimationFrame(() => {
-      // If slots already visible, do nothing
-      const slotsRect = slotsPanel.getBoundingClientRect();
-      if (slotsRect.top >= 0 && slotsRect.top < window.innerHeight) return;
+    const y0 = window.scrollY;
+    const slotsTop = slotsPanel.getBoundingClientRect().top;     // relative to viewport
+    const headTop  = monthHead.getBoundingClientRect().top;      // relative to viewport
 
-      // Scroll just enough so slots become visible (minimal movement),
-      // keeping the calendar panel still in view above.
-      slotsPanel.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    // We want slots to come into view (around middle), BUT month header must stay visible near top.
+    const desiredSlotsTop = Math.round(window.innerHeight * 0.58);
+    let delta = slotsTop - desiredSlotsTop; // positive => scroll down
 
-      // Nudge slightly upward to keep more of the calendar visible.
-      // (This is the “stop higher” you asked for.)
-      setTimeout(() => window.scrollBy({ top: -80, left: 0, behavior: "smooth" }), 0);
-    });
+    // If delta <= 0, slots already visible enough; still do a tiny scroll to "confirm" the action
+    // but don't move month head out.
+    if (delta <= 0) delta = 12;
+
+    // Cap delta so month header stays visible (>= 10px from top)
+    const minHeadTop = 10;
+    const headTopAfter = headTop - delta;
+    if (headTopAfter < minHeadTop){
+      delta = headTop - minHeadTop; // scroll just enough to pin header at 10px
+    }
+
+    // If delta is tiny/negative after cap, no-op
+    if (delta > 2){
+      window.scrollTo({ top: y0 + delta, behavior: "smooth" });
+    }
   }
 
   function setSlotsPanel(dayKey){
@@ -938,7 +927,10 @@
 
     gridRoot.classList.add("has-day");
 
-    if (daySlots.length > 0) scrollSlotsIntoViewMobile();
+    // ✅ scroll AFTER slots have rendered (ensures it actually scrolls)
+    if (daySlots.length > 0){
+      requestAnimationFrame(() => scrollToShowSlotsButKeepMonthHeader());
+    }
   }
 
   function highlightSelectedDay(){
@@ -1090,7 +1082,7 @@
   });
 
   // ======================================================
-  // ✅ MOBILE-ONLY: bio collapse/expand (desktop untouched)
+  // MOBILE bio collapse/expand
   // ======================================================
 (function initMobileBio(){
   const wrap = document.getElementById("bioWrap");
