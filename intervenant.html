@@ -54,29 +54,25 @@
 .site-header .logo{ line-height: 1; }
 
 .rc-tagline{
-  /* ✅ “written by hand / calligraphy” stack (no external font needed) */
-  font-family:
-    "Snell Roundhand",
-    "Apple Chancery",
-    "Bradley Hand",
-    "Segoe Script",
-    "Lucida Handwriting",
-    cursive;
+  /* ✅ Premium SaaS / "licorne" typography, very readable */
+  font-family: ui-sans-serif, system-ui, -apple-system,
+               "SF Pro Display", "SF Pro Text",
+               Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  font-style: normal;                 /* calligraphy font already implies it */
-  font-weight: 500;
-  color: rgba(15,23,42,.58);
-  letter-spacing: .01em;
+  font-style: italic;
+  font-weight: 650;
+  font-size: 1.02rem;                 /* desktop size */
+  color: rgba(15,23,42,.72);          /* darker, readable */
+
+  letter-spacing: -.02em;
   line-height: 1;
 
-  white-space: nowrap;                 /* always a single line */
-  margin-left: 2px;                    /* ✅ visually “stuck” to the logo */
-  transform: translateY(1px);          /* subtle baseline alignment */
-  font-size: 1.05rem;
-
-  -webkit-font-smoothing: antialiased;
-  text-rendering: geometricPrecision;
+  white-space: nowrap;
+  margin-left: 2px;                   /* glued to logo */
+  transform: translateY(1px);
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
 }
+
 
 @media (max-width: 640px){
   .site-header .header-inner{
