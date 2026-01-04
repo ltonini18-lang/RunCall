@@ -30,6 +30,27 @@
 
     .p-page{ background: var(--rc-bg); }
 
+    /* ✅ NEW: header tagline next to logo */
+    .site-header .header-inner{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .rc-tagline{
+      font-style: italic;
+      color: #94a3b8;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      line-height: 1.2;
+      white-space: nowrap;          /* single line */
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 72ch;
+    }
+    @media (max-width: 640px){
+      .rc-tagline{ max-width: calc(100vw - 160px); } /* keep on one line on phones */
+    }
+
     /* ✅ 20% narrower overall block */
     .p-wrap{ max-width: 848px; margin: 0 auto; padding: 18px 0 52px; }
 
@@ -49,7 +70,7 @@
         radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%);
       display:flex;
       gap:16px;
-      align-items:center;
+      align-items:flex-start; /* ✅ CHANGED: web view photo top-left next to badge/name */
     }
 
     /* Avatar */
@@ -63,6 +84,7 @@
       display:grid;
       place-items:center;
       position:relative;
+      margin-top: 2px; /* subtle top alignment with badge */
     }
     .p-avatar img{
       width:100%; height:100%;
@@ -113,23 +135,13 @@
       max-width: 80ch;
     }
 
-    /* ✅ NEW: hero one-liner */
-    .p-one-liner{
-      margin: 8px 0 0;
-      color:#334155;
-      font-weight: 850;
-      letter-spacing:-.02em;
-      line-height:1.5;
-      font-size: .98rem;
-    }
-
     .p-body{ padding: 18px 24px 24px; }
 
     /* =========================
        Calendar area
        ========================= */
 
-    /* ✅ NEW: headline above calendar */
+    /* ✅ Headline above calendar */
     .p-book-head{
       margin: 0 0 10px;
       text-align:center;
@@ -448,7 +460,7 @@
         position: sticky;
         top: 0;
         z-index: 40;
-        align-items:flex-start;            /* keep avatar aligned with badge/name */
+        align-items:flex-start;
         padding: 14px 14px 12px;
         gap: 12px;
         backdrop-filter: blur(10px);
@@ -459,7 +471,7 @@
       }
 
       /* Smaller avatar on mobile so it stays “next to” badge/name */
-      .p-avatar{ width:56px; height:56px; border-radius:18px; }
+      .p-avatar{ width:56px; height:56px; border-radius:18px; margin-top: 0; }
 
       /* Tighten title spacing so it doesn’t “sink” into the bio */
       .p-title{ margin: 8px 0 6px; font-size: 1.25rem; }
@@ -520,12 +532,10 @@
       /* If bio is open, remove fade */
       .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
 
-      /* Calendar should be visible under bio (already stacks in your 980px media rule)
-         We just tighten spacing so it feels intentional */
+      /* Calendar should be visible under bio */
       .p-grid{ gap: 12px; }
       .p-panel{ padding: 14px; border-radius: 18px; }
 
-      /* ✅ NEW: tighten headline spacing on mobile */
       .p-book-head{ font-size: 1.05rem; margin-bottom: 8px; }
     }
   </style>
@@ -538,6 +548,13 @@
     <a href="index.html" class="logo-link">
       <div class="logo">RunCall</div>
     </a>
+
+    <!-- ✅ MOVED + SHORTENED: tagline near logo (FR/EN), single-line on mobile -->
+    <div class="rc-tagline"
+         data-fr="Un échange en visio pour poser toutes tes questions et progresser"
+         data-en="A video chat to ask all your questions and improve">
+      Un échange en visio pour poser toutes tes questions et progresser
+    </div>
   </div>
 </header>
 
@@ -564,12 +581,6 @@
 
           <h1 class="p-title" id="expertName">—</h1>
 
-          <!-- ✅ NEW: premium one-liner (FR/EN) -->
-          <p class="p-one-liner" data-fr="Profite d’un échange en visio pour poser toutes tes questions, en une seule fois."
-             data-en="Book a quick video chat to ask all your questions, in one go.">
-            Profite d’un échange en visio pour poser toutes tes questions, en une seule fois.
-          </p>
-
           <!-- ✅ MOBILE: wrap bio + fade + toggle (desktop unchanged) -->
           <div class="p-bio-wrap" id="bioWrap">
             <p class="p-subtitle" id="expertBio">—</p>
@@ -586,7 +597,6 @@
 
       <div class="p-body">
 
-        <!-- ✅ NEW: headline between description and calendar (FR/EN) -->
         <div class="p-book-head" id="bookHeadline"
              data-fr="Réserver un échange avec PRENOM"
              data-en="Book a conversation with FIRST NAME">
@@ -596,7 +606,7 @@
         <div class="p-grid" id="gridRoot">
 
           <!-- Calendar -->
-          <div class="p-panel calendar">
+          <div class="p-panel calendar" id="calendarPanel">
             <div class="p-month-head">
               <button class="p-btn" id="prevMonth" type="button" aria-label="Previous month">←</button>
               <div class="p-month-title" id="monthTitle">—</div>
@@ -675,7 +685,6 @@
     localStorage.setItem('runcall_lang', lang);
     renderDow();
     renderCalendar();
-    // ✅ keep headline in sync with name (language switch can overwrite it)
     updateBookHeadline();
   }
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
@@ -717,7 +726,7 @@
     return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
   }
 
-  // ✅ NEW: “Réserver…” headline helper
+  // “Réserver…” headline helper
   function firstNameFromFullName(full){
     const s = String(full || "").trim();
     if (!s) return "";
@@ -743,8 +752,6 @@
     if (!el) return;
     el.innerHTML = "";
 
-    /* ✅ CHANGED: robust Monday-first, locale-safe
-       We generate labels for Mon..Sun using a known Monday in local time. */
     const base = new Date(2026, 0, 5, 12, 0, 0, 0); // Jan 5 2026 = Monday
     for (let i=0;i<7;i++){
       const d = new Date(base);
@@ -761,7 +768,7 @@
     if (!expertId) {
       document.getElementById("expertName").textContent = (lang === "fr" ? "Profil introuvable" : "Profile not found");
       document.getElementById("expertBio").textContent = (lang === "fr" ? "Lien invalide." : "Invalid link.");
-      updateBookHeadline(); // ✅
+      updateBookHeadline();
       return;
     }
 
@@ -773,7 +780,7 @@
       const name = d?.name || "—";
       document.getElementById("expertName").textContent = name;
       document.getElementById("expertBio").textContent = d?.presentation || "—";
-      updateBookHeadline(); // ✅
+      updateBookHeadline();
 
       const img = document.getElementById("expertPhoto");
       const fallback = document.getElementById("avatarFallback");
@@ -794,7 +801,7 @@
       document.getElementById("expertBio").textContent = (lang === "fr"
         ? "Ce profil est en cours de configuration."
         : "This profile is being set up.");
-      updateBookHeadline(); // ✅
+      updateBookHeadline();
 
       const fallback = document.getElementById("avatarFallback");
       fallback.textContent = "R";
@@ -872,17 +879,30 @@
     return days;
   }
 
-  // ✅ NEW: mobile-only auto-center to slots panel after day click
+  // ✅ MOBILE-ONLY: scroll so calendar month stays visible while slots appear
   function isMobile(){
     return window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
   }
   function scrollSlotsIntoViewMobile(){
     if (!isMobile()) return;
-    const panel = document.getElementById("slotsPanel");
-    if (!panel) return;
-    // next frame -> DOM updated with slots
+
+    const calPanel = document.getElementById("calendarPanel");
+    const slotsPanel = document.getElementById("slotsPanel");
+    if (!calPanel || !slotsPanel) return;
+
+    // goal: reveal slots without pushing the calendar month header out of view
     requestAnimationFrame(() => {
-      panel.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      // If slots already visible, do nothing
+      const slotsRect = slotsPanel.getBoundingClientRect();
+      if (slotsRect.top >= 0 && slotsRect.top < window.innerHeight) return;
+
+      // Scroll just enough so slots become visible (minimal movement),
+      // keeping the calendar panel still in view above.
+      slotsPanel.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+
+      // Nudge slightly upward to keep more of the calendar visible.
+      // (This is the “stop higher” you asked for.)
+      setTimeout(() => window.scrollBy({ top: -80, left: 0, behavior: "smooth" }), 0);
     });
   }
 
@@ -918,7 +938,6 @@
 
     gridRoot.classList.add("has-day");
 
-    // ✅ NEW: only if there is availability (has-any days)
     if (daySlots.length > 0) scrollSlotsIntoViewMobile();
   }
 
@@ -971,11 +990,9 @@
       cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
       cell.setAttribute("data-daykey", key);
 
-      /* ✅ CHANGED: out-of-month days should be blank */
       if (d.getMonth() !== currentMonth) {
         cell.classList.add("is-out");
-        cell.textContent = "";              // blank
-        // no click
+        cell.textContent = "";
         cal.appendChild(cell);
         return;
       }
@@ -990,7 +1007,6 @@
       cal.appendChild(cell);
     });
 
-    /* ✅ Keep right panel visible once a day has been clicked */
     if (!selectedDayKey){
       gridRoot.classList.remove("has-day");
     } else {
@@ -1075,8 +1091,6 @@
 
   // ======================================================
   // ✅ MOBILE-ONLY: bio collapse/expand (desktop untouched)
-  // - default collapsed on <=640px
-  // - if bio is short, hides the toggle
   // ======================================================
 (function initMobileBio(){
   const wrap = document.getElementById("bioWrap");
@@ -1092,36 +1106,31 @@
 
   function apply(){
     if (!mq.matches){
-      // Desktop/tablet: don't force clamp, keep it "open"
       setOpen(true);
       btn.style.display = "none";
       return;
     }
-    // Mobile: always start collapsed
     btn.style.display = "grid";
     setOpen(false);
   }
 
   btn.addEventListener("click", () => {
     setOpen(!wrap.classList.contains("is-open"));
-    // calendar moves down naturally when bio expands
   });
 
   apply();
   window.addEventListener("resize", () => {
     const wasOpen = wrap.classList.contains("is-open");
     apply();
-    if (wasOpen) setOpen(true); // ✅ garde l'état ouvert même si resize = scroll mobile
+    if (wasOpen) setOpen(true);
   });
 
-  // Re-apply after profile text loads (in case layout changes)
   window.__rcBioApply = apply;
 })();
 
-
   // Init
   loadExpert().then(() => {
-    updateBookHeadline();   // ✅ ensure proper placeholder replacement
+    updateBookHeadline();
     renderCalendar();
     if (window.__rcBioApply) window.__rcBioApply();
   });
