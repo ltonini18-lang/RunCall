@@ -57,10 +57,10 @@ a {
 }
 /* ✅ RunCall header tagline (intervenant.html) — premium + readable */
 .rc-tagline{
-  font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "Segoe UI",
-               Inter, Roboto, Helvetica, Arial;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  
   font-style: italic;
-  font-weight: 650;
+  font-weight: 600;
   color: rgba(15,23,42,.58);
   letter-spacing: -.02em;
   line-height: 1;
