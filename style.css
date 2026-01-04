@@ -950,3 +950,9 @@ body.modal-open {
     font-size: 16px;
   }
 }
+html.modal-open,
+body.modal-open {
+  overflow: hidden;
+  height: 100%;
+}
+
