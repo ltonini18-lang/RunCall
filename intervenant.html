@@ -1052,48 +1052,29 @@
   const modalWhen = document.getElementById("modalWhen");
   const modalError = document.getElementById("modalError");
 
-function openModal(slot){
-  selectedSlot = slot;
-  modalError.style.display = "none";
-  modalError.textContent = "";
+  function openModal(slot){
+    selectedSlot = slot;
+    modalError.style.display = "none";
+    modalError.textContent = "";
 
-  const start = new Date(slot.start);
-  const end = new Date(slot.end);
+    const start = new Date(slot.start);
+    const end = new Date(slot.end);
 
-  modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
-  modalWhen.textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
+    modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
+    modalWhen.textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
 
-  // Open modal
-  backdrop.classList.add("is-open");
+    backdrop.style.display = "flex";
+    document.getElementById("bookName").focus();
+  }
 
-  // Lock background scroll
-  document.documentElement.classList.add("modal-open");
-  document.body.classList.add("modal-open");
-
-  // Focus (small delay avoids iOS weirdness)
-  setTimeout(() => {
-    document.getElementById("bookName").focus({ preventScroll: true });
-  }, 50);
-}
-
-function closeModal(){
-  // Close modal
-  backdrop.classList.remove("is-open");
-
-  // Unlock background scroll
-  document.documentElement.classList.remove("modal-open");
-  document.body.classList.remove("modal-open");
-
-  selectedSlot = null;
-}
-
+  function closeModal(){
+    backdrop.style.display = "none";
+    selectedSlot = null;
+  }
 
   closeModalBtn.addEventListener("click", closeModal);
   cancelModalBtn.addEventListener("click", closeModal);
-  backdrop.addEventListener("click", (e) => {
-  if (e.target.classList.contains("modal-backdrop")) closeModal();
-});
-
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
   goSupportBtn.addEventListener("click", () => {
     modalError.style.display = "none";
