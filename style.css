@@ -57,24 +57,19 @@ a {
 }
 /* ✅ RunCall header tagline (intervenant.html) — premium + readable */
 .rc-tagline{
-    font-family: ui-sans-serif, system-ui, -apple-system,
-             "SF Pro Display", "SF Pro Text",
-             Inter, "Segoe UI", Roboto, Helvetica, Arial;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 0.92rem;
+  color: #64748b;
 
-  
-  font-style: italic;
-  font-weight: 650;
-  font-size: 1.2rem;
-  color: rgba(15,23,42,.72);
-  letter-spacing: -.02em;
+  letter-spacing: -0.01em;
   line-height: 1;
 
-  white-space: nowrap;      /* stays on one line (desktop) */
-  margin-left: -2px;        /* visually glued to logo */
-  transform: translateY(1px);
-  text-shadow: 0 1px 0 rgba(255,255,255,.4);
-
+  white-space: nowrap;
+  margin-left: 6px;        /* respiration naturelle avec le logo */
 }
+
 
 /* Mobile: guarantee it fits on one line */
 @media (max-width: 640px){
