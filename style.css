@@ -63,15 +63,17 @@ a {
 
   
   font-style: italic;
-  font-weight: 600;
-  color: rgba(15,23,42,.58);
+  font-weight: 650;
+  font-size: 1.05rem;
+  color: rgba(15,23,42,.72);
   letter-spacing: -.02em;
   line-height: 1;
 
   white-space: nowrap;      /* stays on one line (desktop) */
   margin-left: -2px;        /* visually glued to logo */
   transform: translateY(1px);
-  text-shadow: 0 1px 0 rgba(255,255,255,.65);
+  text-shadow: 0 1px 0 rgba(255,255,255,.4);
+
 }
 
 /* Mobile: guarantee it fits on one line */
