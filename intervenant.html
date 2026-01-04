@@ -42,36 +42,57 @@
     }
 
     /* ✅ Header tagline next to logo (premium typography + single-line on mobile) */
-    .site-header .header-inner{
-      display:flex;
-      align-items:center;
-      gap:12px;
-    }
-    .rc-tagline{
-      font-style: italic;
-      color: rgba(15,23,42,.55);
-      font-weight: 650;
-      letter-spacing: -.02em;
-      line-height: 1.1;
-      white-space: nowrap;     /* keep on one line */
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      -webkit-font-smoothing: antialiased;
-      text-rendering: geometricPrecision;
-      font-size: 0.98rem;
-    }
-    @media (max-width: 640px){
-      /* give tagline full width under logo so it still fits on one line */
-      .site-header .header-inner{
-        flex-direction: column;
-        align-items:flex-start;
-        gap:6px;
-      }
-      .rc-tagline{
-        width: 100%;
-        font-size: clamp(0.78rem, 3.2vw, 0.92rem); /* always fits */
-        letter-spacing: -.03em;
-      }
-    }
+    /* ✅ Header tagline next to logo (handwritten/calligraphy vibe + tighter spacing) */
+.site-header .header-inner{
+  display:flex;
+  align-items:baseline;     /* feels more “logo + signature” */
+  gap:6px;                 /* ✅ less space between logo and phrase */
+}
+
+/* in case style.css adds spacing somewhere */
+.site-header .logo-link{ display:inline-flex; align-items:baseline; }
+.site-header .logo{ line-height: 1; }
+
+.rc-tagline{
+  /* ✅ “written by hand / calligraphy” stack (no external font needed) */
+  font-family:
+    "Snell Roundhand",
+    "Apple Chancery",
+    "Bradley Hand",
+    "Segoe Script",
+    "Lucida Handwriting",
+    cursive;
+
+  font-style: normal;                 /* calligraphy font already implies it */
+  font-weight: 500;
+  color: rgba(15,23,42,.58);
+  letter-spacing: .01em;
+  line-height: 1;
+
+  white-space: nowrap;                 /* always a single line */
+  margin-left: 2px;                    /* ✅ visually “stuck” to the logo */
+  transform: translateY(1px);          /* subtle baseline alignment */
+  font-size: 1.05rem;
+
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+@media (max-width: 640px){
+  /* On mobile: keep it single line and make sure it fits */
+  .site-header .header-inner{
+    flex-direction: column;
+    align-items:flex-start;
+    gap:6px;
+  }
+  .rc-tagline{
+    width: 100%;
+    margin-left: 0;
+    transform: none;
+    font-size: clamp(0.80rem, 3.15vw, 0.95rem);
+    letter-spacing: .005em;
+  }
+}
 
     .p-hero{
       padding: 22px 24px 18px;
