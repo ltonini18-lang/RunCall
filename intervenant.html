@@ -113,11 +113,31 @@
       max-width: 80ch;
     }
 
+    /* ✅ NEW: hero one-liner */
+    .p-one-liner{
+      margin: 8px 0 0;
+      color:#334155;
+      font-weight: 850;
+      letter-spacing:-.02em;
+      line-height:1.5;
+      font-size: .98rem;
+    }
+
     .p-body{ padding: 18px 24px 24px; }
 
     /* =========================
        Calendar area
        ========================= */
+
+    /* ✅ NEW: headline above calendar */
+    .p-book-head{
+      margin: 0 0 10px;
+      text-align:center;
+      font-weight: 950;
+      letter-spacing:-.03em;
+      color: var(--rc-text);
+      font-size: 1.15rem;
+    }
 
     .p-grid{
       display:flex;
@@ -504,6 +524,9 @@
          We just tighten spacing so it feels intentional */
       .p-grid{ gap: 12px; }
       .p-panel{ padding: 14px; border-radius: 18px; }
+
+      /* ✅ NEW: tighten headline spacing on mobile */
+      .p-book-head{ font-size: 1.05rem; margin-bottom: 8px; }
     }
   </style>
 </head>
@@ -541,6 +564,12 @@
 
           <h1 class="p-title" id="expertName">—</h1>
 
+          <!-- ✅ NEW: premium one-liner (FR/EN) -->
+          <p class="p-one-liner" data-fr="Profite d’un échange en visio pour poser toutes tes questions, en une seule fois."
+             data-en="Book a quick video chat to ask all your questions, in one go.">
+            Profite d’un échange en visio pour poser toutes tes questions, en une seule fois.
+          </p>
+
           <!-- ✅ MOBILE: wrap bio + fade + toggle (desktop unchanged) -->
           <div class="p-bio-wrap" id="bioWrap">
             <p class="p-subtitle" id="expertBio">—</p>
@@ -556,6 +585,14 @@
       </div>
 
       <div class="p-body">
+
+        <!-- ✅ NEW: headline between description and calendar (FR/EN) -->
+        <div class="p-book-head" id="bookHeadline"
+             data-fr="Réserver un échange avec PRENOM"
+             data-en="Book a conversation with FIRST NAME">
+          Réserver un échange avec PRENOM
+        </div>
+
         <div class="p-grid" id="gridRoot">
 
           <!-- Calendar -->
@@ -573,7 +610,7 @@
           </div>
 
           <!-- Slots -->
-          <div class="p-panel slots">
+          <div class="p-panel slots" id="slotsPanel">
             <div id="slotsDate" class="p-slots-date">—</div>
             <div id="slotList" class="p-slot-list"></div>
           </div>
@@ -638,6 +675,8 @@
     localStorage.setItem('runcall_lang', lang);
     renderDow();
     renderCalendar();
+    // ✅ keep headline in sync with name (language switch can overwrite it)
+    updateBookHeadline();
   }
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
@@ -678,6 +717,27 @@
     return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
   }
 
+  // ✅ NEW: “Réserver…” headline helper
+  function firstNameFromFullName(full){
+    const s = String(full || "").trim();
+    if (!s) return "";
+    return s.split(/\s+/)[0];
+  }
+  function updateBookHeadline(){
+    const h = document.getElementById("bookHeadline");
+    if (!h) return;
+    const fullName = document.getElementById("expertName")?.textContent || "";
+    const first = firstNameFromFullName(fullName) || (lang === "fr" ? "cet intervenant" : "this expert");
+
+    const frTpl = h.dataset.fr || "Réserver un échange avec PRENOM";
+    const enTpl = h.dataset.en || "Book a conversation with FIRST NAME";
+
+    const fr = frTpl.replace("PRENOM", first);
+    const en = enTpl.replace("FIRST NAME", first);
+
+    h.textContent = (lang === "fr") ? fr : en;
+  }
+
   function renderDow(){
     const el = document.getElementById("dow");
     if (!el) return;
@@ -701,6 +761,7 @@
     if (!expertId) {
       document.getElementById("expertName").textContent = (lang === "fr" ? "Profil introuvable" : "Profile not found");
       document.getElementById("expertBio").textContent = (lang === "fr" ? "Lien invalide." : "Invalid link.");
+      updateBookHeadline(); // ✅
       return;
     }
 
@@ -712,6 +773,7 @@
       const name = d?.name || "—";
       document.getElementById("expertName").textContent = name;
       document.getElementById("expertBio").textContent = d?.presentation || "—";
+      updateBookHeadline(); // ✅
 
       const img = document.getElementById("expertPhoto");
       const fallback = document.getElementById("avatarFallback");
@@ -732,6 +794,7 @@
       document.getElementById("expertBio").textContent = (lang === "fr"
         ? "Ce profil est en cours de configuration."
         : "This profile is being set up.");
+      updateBookHeadline(); // ✅
 
       const fallback = document.getElementById("avatarFallback");
       fallback.textContent = "R";
@@ -809,6 +872,20 @@
     return days;
   }
 
+  // ✅ NEW: mobile-only auto-center to slots panel after day click
+  function isMobile(){
+    return window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
+  }
+  function scrollSlotsIntoViewMobile(){
+    if (!isMobile()) return;
+    const panel = document.getElementById("slotsPanel");
+    if (!panel) return;
+    // next frame -> DOM updated with slots
+    requestAnimationFrame(() => {
+      panel.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+    });
+  }
+
   function setSlotsPanel(dayKey){
     const list = document.getElementById("slotList");
     const header = document.getElementById("slotsDate");
@@ -840,6 +917,9 @@
     });
 
     gridRoot.classList.add("has-day");
+
+    // ✅ NEW: only if there is availability (has-any days)
+    if (daySlots.length > 0) scrollSlotsIntoViewMobile();
   }
 
   function highlightSelectedDay(){
@@ -1029,11 +1109,10 @@
 
   apply();
   window.addEventListener("resize", () => {
-  const wasOpen = wrap.classList.contains("is-open");
-  apply();
-  if (wasOpen) setOpen(true); // ✅ garde l'état ouvert même si resize = scroll mobile
-});
-
+    const wasOpen = wrap.classList.contains("is-open");
+    apply();
+    if (wasOpen) setOpen(true); // ✅ garde l'état ouvert même si resize = scroll mobile
+  });
 
   // Re-apply after profile text loads (in case layout changes)
   window.__rcBioApply = apply;
@@ -1042,6 +1121,7 @@
 
   // Init
   loadExpert().then(() => {
+    updateBookHeadline();   // ✅ ensure proper placeholder replacement
     renderCalendar();
     if (window.__rcBioApply) window.__rcBioApply();
   });
