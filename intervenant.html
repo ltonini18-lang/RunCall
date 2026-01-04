@@ -79,20 +79,30 @@
 }
 
 @media (max-width: 640px){
-  /* On mobile: keep it single line and make sure it fits */
   .site-header .header-inner{
-    flex-direction: column;
-    align-items:flex-start;
-    gap:6px;
+    flex-direction: row;                 /* ✅ reste en ligne */
+    align-items: baseline;
+    justify-content: flex-start !important;
+    gap: 6px;
   }
+
+  /* Empêche le logo de casser la ligne */
+  .site-header .logo-link{ flex: 0 0 auto; }
+  .site-header .logo{ white-space: nowrap; }
+
+  /* La phrase reste collée, et s’adapte en taille pour rentrer */
   .rc-tagline{
-    width: 100%;
-    margin-left: 0;
-    transform: none;
-    font-size: clamp(0.80rem, 3.15vw, 0.95rem);
-    letter-spacing: .005em;
+    flex: 1 1 auto;                      /* ✅ prend l'espace restant */
+    min-width: 0;                        /* ✅ permet de shrink */
+    margin-left: -2px;
+    transform: translateY(1px);
+    white-space: nowrap;                 /* ✅ jamais sur 2 lignes */
+    font-size: clamp(0.72rem, 2.8vw, 0.92rem); /* ✅ rentre mieux */
+    overflow: hidden;
+    text-overflow: ellipsis;             /* filet de sécurité */
   }
 }
+
 
     .p-hero{
       padding: 22px 24px 18px;
