@@ -87,16 +87,24 @@
   .site-header .logo{ white-space: nowrap; }
 
   /* La phrase reste collée, et s’adapte en taille pour rentrer */
-  .rc-tagline{
-    flex: 1 1 auto;                      /* ✅ prend l'espace restant */
-    min-width: 0;                        /* ✅ permet de shrink */
-    margin-left: 0;
-    transform: translateY(1px);
-    white-space: nowrap;                 /* ✅ jamais sur 2 lignes */
-    font-size: clamp(0.74rem, 2.55vw, 0.90rem); /* ✅ rentre mieux */
-    overflow: hidden;
-    text-overflow: ellipsis;             /* filet de sécurité */
-  }
+ .rc-tagline{
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 0;
+  white-space: nowrap;
+
+  /* ✅ smaller so it fits (no missing letters) */
+  font-size: clamp(0.64rem, 2.2vw, 0.86rem);
+
+  /* ✅ fix cut descenders (g, q, y, p) */
+  line-height: 1.18;
+  padding-bottom: 2px;
+  transform: none;
+
+  overflow: hidden;
+  text-overflow: clip; /* ✅ don't hide extra letters behind ellipsis */
+}
+
 }
 
 
