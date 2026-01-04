@@ -57,7 +57,10 @@ a {
 }
 /* ✅ RunCall header tagline (intervenant.html) — premium + readable */
 .rc-tagline{
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system,
+             "SF Pro Display", "SF Pro Text",
+             Inter, "Segoe UI", Roboto, Helvetica, Arial;
+
   
   font-style: italic;
   font-weight: 600;
