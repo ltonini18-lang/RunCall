@@ -48,19 +48,19 @@
            data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."></p>
 
         <div class="support-grid">
-          <!-- Remplace ces liens par tes Stripe Payment Links -->
-          <a class="support-btn" href="https://buy.stripe.com/fZu9AVdye6Ci8IT9AI6Ri00">
-            <span class="price" data-fr="$29" data-en="$29"></span>
-          </a>
+  <button class="support-btn" type="button" data-tier="29">
+    <span class="price" data-fr="$29" data-en="$29"></span>
+  </button>
 
-          <a class="support-btn featured" href="https://buy.stripe.com/4gM5kF51I4ua3oz28g6Ri02">
-            <span class="price" data-fr="$49" data-en="$49"></span>
-          </a>
+  <button class="support-btn featured" type="button" data-tier="49">
+    <span class="price" data-fr="$49" data-en="$49"></span>
+  </button>
 
-          <a class="support-btn" href="https://buy.stripe.com/28E5kFfGm4uaaR15ks6Ri03">
-            <span class="price" data-fr="$79" data-en="$79"></span>
-          </a>
-        </div>
+  <button class="support-btn" type="button" data-tier="79">
+    <span class="price" data-fr="$79" data-en="$79"></span>
+  </button>
+</div>
+
 
         <div class="checkout-footer">
           <div class="secure">
@@ -104,6 +104,54 @@
   });
 
   applyLanguage(lang);
+})();
+</script>
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const bookingId = params.get("booking_id");
+
+  const buttons = document.querySelectorAll(".support-btn[data-tier]");
+
+  function setDisabled(disabled) {
+    buttons.forEach(b => b.disabled = disabled);
+  }
+
+  async function createCheckout(priceTier) {
+    if (!bookingId) {
+      alert("Missing booking_id. Please go back and select a slot again.");
+      return;
+    }
+
+    try {
+      setDisabled(true);
+
+      const resp = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: bookingId, price_tier: Number(priceTier) })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok) {
+        alert(json?.error || "Stripe error. Please try again.");
+        setDisabled(false);
+        return;
+      }
+
+      window.location.href = json.checkout_url;
+    } catch (e) {
+      alert("Network error. Please try again.");
+      setDisabled(false);
+    }
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tier = btn.getAttribute("data-tier");
+      createCheckout(tier);
+    });
+  });
 })();
 </script>
 
