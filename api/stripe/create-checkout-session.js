@@ -1,5 +1,7 @@
 // /api/stripe/create-checkout-session.js
 const Stripe = require("stripe");
+const { supabaseAdmin } = require("../_lib/supabase");
+
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 const PRICE_MAP = {
@@ -11,6 +13,7 @@ const PRICE_MAP = {
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.statusCode = 405;
+    res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
@@ -21,13 +24,43 @@ module.exports = async function handler(req, res) {
 
     if (!booking_id || !PRICE_MAP[tier]) {
       res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
       return res.end(JSON.stringify({ error: "Invalid booking_id or price_tier" }));
     }
 
-    // NOTE: for now we just create the checkout session.
-    // We'll attach Supabase validation (hold, expiry, store session_id) right after.
+    const sb = supabaseAdmin();
+
+    // 1) Load booking
+    const { data: booking, error: readErr } = await sb
+      .from("bookings")
+      .select("id,status,expires_at,user_email")
+      .eq("id", booking_id)
+      .single();
+
+    if (readErr || !booking) {
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ error: "Booking not found" }));
+    }
+
+    // 2) Validate status & expiry
+    const expiresAt = new Date(booking.expires_at).getTime();
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+      res.statusCode = 410;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ error: "This hold expired. Please pick another slot." }));
+    }
+
+    if (booking.status !== "hold") {
+      res.statusCode = 409;
+      res.setHeader("Content-Type", "application/json");
+      return res.end(JSON.stringify({ error: `Booking is not payable (status: ${booking.status})` }));
+    }
+
+    // 3) Create Stripe Checkout session (attach booking_id to metadata)
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer_email: booking.user_email || undefined,
       line_items: [
         {
           price_data: {
@@ -42,6 +75,22 @@ module.exports = async function handler(req, res) {
       success_url: `https://run-call.vercel.app/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://run-call.vercel.app/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`
     });
+
+    // 4) Persist session + status
+    const { error: updErr } = await sb
+      .from("bookings")
+      .update({
+        price_tier: tier,
+        stripe_session_id: session.id,
+        status: "pending_payment"
+      })
+      .eq("id", booking_id);
+
+    if (updErr) {
+      // If DB update fails, still return the session URL (user can pay),
+      // webhook will finalize using metadata.booking_id anyway.
+      console.error("Supabase update failed:", updErr);
+    }
 
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ checkout_url: session.url, session_id: session.id }));
