@@ -1,8 +1,9 @@
 // /api/stripe/webhook.js
 const Stripe = require("stripe");
-const { supabaseAdmin } = require("../_lib/supabase");
-
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+const { supabaseAdmin } = require("../_lib/supabase");
+const { getGoogleAccessToken } = require("../_lib/google");
 
 function buffer(req) {
   return new Promise((resolve, reject) => {
@@ -11,6 +12,68 @@ function buffer(req) {
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
+}
+
+async function createCalendarEventWithMeet({ accessToken, calendarId, booking, expertGoogleEmail }) {
+  // Google Calendar API: insert event + conferenceData (Meet)
+  const endpoint = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`;
+
+  const startISO = new Date(booking.slot_start).toISOString();
+  const endISO = new Date(booking.slot_end).toISOString();
+
+  const summary =
+    booking.user_name
+      ? `RunCall — ${booking.user_name}`
+      : "RunCall — Booking";
+
+  const descriptionLines = [
+    "RunCall booking confirmed.",
+    "",
+    `Client: ${booking.user_name || ""}`.trim(),
+    `Email: ${booking.user_email || ""}`.trim(),
+    booking.user_note ? `Note: ${booking.user_note}` : null,
+    "",
+    "Booked via RunCall.",
+  ].filter(Boolean);
+
+  const body = {
+    summary,
+    description: descriptionLines.join("\n"),
+    start: { dateTime: startISO },
+    end: { dateTime: endISO },
+    attendees: [
+      booking.user_email ? { email: booking.user_email } : null,
+      expertGoogleEmail ? { email: expertGoogleEmail } : null,
+    ].filter(Boolean),
+    // Creates a Google Meet
+    conferenceData: {
+      createRequest: {
+        requestId: `runcall-${booking.id}-${Date.now()}`, // must be unique-ish
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    },
+  };
+
+  const r = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const d = await r.json();
+  if (!r.ok) {
+    throw new Error(d?.error?.message || "Failed to create Google Calendar event");
+  }
+
+  const meetLink =
+    d?.hangoutLink ||
+    d?.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri ||
+    null;
+
+  return { eventId: d.id, htmlLink: d.htmlLink || null, meetLink };
 }
 
 module.exports = async function handler(req, res) {
@@ -31,85 +94,86 @@ module.exports = async function handler(req, res) {
     return res.end(`Webhook Error: ${err.message}`);
   }
 
-  // Always ACK Stripe quickly (but we still do work here; if it fails we log it and still return 200)
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-
       const bookingId = session?.metadata?.booking_id || null;
-      const sessionId = session?.id || null;
-
-      console.log("✅ checkout.session.completed", { sessionId, bookingId });
 
       if (!bookingId) {
-        console.error("Missing booking_id in session.metadata");
+        console.log("⚠️ checkout.session.completed with missing booking_id metadata", { sessionId: session?.id });
         res.setHeader("Content-Type", "application/json");
         return res.end(JSON.stringify({ received: true }));
       }
 
       const sb = supabaseAdmin();
 
-      // 1) Mark booking as paid (idempotent: ok if already paid/confirmed)
-      const { data: booking, error: readErr } = await sb
+      // 1) Load booking (need slot + expert)
+      const { data: booking, error: bErr } = await sb
         .from("bookings")
-        .select("id,status")
+        .select("id,status,expert_id,slot_start,slot_end,timezone,user_name,user_email,user_note,source_calendar_id")
         .eq("id", bookingId)
         .single();
 
-      if (readErr || !booking) {
-        console.error("Booking not found in DB for webhook", { bookingId, readErr });
+      if (bErr || !booking) throw new Error("Booking not found in DB");
+
+      // Idempotency: if already confirmed, do nothing
+      if (booking.status === "confirmed") {
+        console.log("ℹ️ Booking already confirmed", { bookingId });
         res.setHeader("Content-Type", "application/json");
         return res.end(JSON.stringify({ received: true }));
       }
 
-      // Only update to paid if not already confirmed/paid
-      if (booking.status !== "confirmed") {
-        const { error: updErr } = await sb
-          .from("bookings")
-          .update({
-            status: "paid",
-            stripe_session_id: sessionId,
-            paid_at: new Date().toISOString(),
-          })
-          .eq("id", bookingId);
+      // 2) Load expert Google account (refresh_token, calendar_id, google_email)
+      const { data: acct, error: aErr } = await sb
+        .from("expert_google_accounts")
+        .select("expert_id,refresh_token,calendar_id,google_email")
+        .eq("expert_id", booking.expert_id)
+        .single();
 
-        if (updErr) {
-          console.error("Failed to update booking to paid", { bookingId, updErr });
-          // continue anyway
-        }
+      if (aErr || !acct?.refresh_token) {
+        throw new Error("Expert Google account not connected (missing refresh_token)");
       }
 
-      // 2) Confirm booking => create Google Calendar event + Meet (idempotent route)
-      const BASE_URL = process.env.BASE_URL || "https://run-call.vercel.app";
+      const calendarId = booking.source_calendar_id || acct.calendar_id || "primary";
 
-      const confirmResp = await fetch(`${BASE_URL}/api/bookings/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: bookingId }),
+      // 3) Get access token & create event with Meet
+      const accessToken = await getGoogleAccessToken(acct.refresh_token);
+
+      const { eventId, meetLink } = await createCalendarEventWithMeet({
+        accessToken,
+        calendarId,
+        booking,
+        expertGoogleEmail: acct.google_email || null,
       });
 
-      const confirmJson = await confirmResp.json().catch(() => ({}));
+      // 4) Update booking
+      const { error: uErr } = await sb
+        .from("bookings")
+        .update({
+          status: "confirmed",
+          stripe_session_id: session.id,
+          google_calendar_id: calendarId,
+          google_event_id: eventId,
+          meet_link: meetLink,
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId);
 
-      if (!confirmResp.ok) {
-        console.error("Confirm booking failed", {
-          bookingId,
-          status: confirmResp.status,
-          confirmJson,
-        });
-        // IMPORTANT: still return 200 to Stripe (avoid retries storm)
-      } else {
-        console.log("✅ Booking confirmed + Meet created", {
-          bookingId,
-          meet_url: confirmJson?.meet_url,
-          google_event_id: confirmJson?.google_event_id,
-        });
+      if (uErr) {
+        console.error("Supabase update failed:", uErr);
+        // We still don't want webhook to fail hard if Meet is created.
       }
-    }
-  } catch (err) {
-    console.error("Webhook handler error:", err);
-    // still ACK Stripe
-  }
 
-  res.setHeader("Content-Type", "application/json");
-  return res.end(JSON.stringify({ received: true }));
+      console.log("✅ Booking confirmed + event created", { bookingId, eventId, meetLink });
+    }
+
+    res.setHeader("Content-Type", "application/json");
+    return res.end(JSON.stringify({ received: true }));
+  } catch (e) {
+    console.error("❌ Webhook finalize error:", e?.message || e);
+    // IMPORTANT: Return 200 to Stripe or 500?
+    // For now, return 200 so Stripe doesn't retry infinitely while you're testing.
+    res.setHeader("Content-Type", "application/json");
+    return res.end(JSON.stringify({ received: true, error: e?.message || "webhook error" }));
+  }
 };
