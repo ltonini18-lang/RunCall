@@ -4,10 +4,13 @@ const { supabaseAdmin } = require("../_lib/supabase");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
+// Prefer env BASE_URL, fallback to prod
+const BASE_URL = process.env.BASE_URL || "https://run-call.vercel.app";
+
 const PRICE_MAP = {
   29: { amount: 2900, label: "RunCall support" },
   49: { amount: 4900, label: "RunCall support" },
-  79: { amount: 7900, label: "RunCall support" }
+  79: { amount: 7900, label: "RunCall support" },
 };
 
 module.exports = async function handler(req, res) {
@@ -30,10 +33,10 @@ module.exports = async function handler(req, res) {
 
     const sb = supabaseAdmin();
 
-    // 1) Load booking
+    // 1) Load booking (added expert_id for metadata/debug)
     const { data: booking, error: readErr } = await sb
       .from("bookings")
-      .select("id,status,expires_at,user_email")
+      .select("id,expert_id,status,expires_at,user_email")
       .eq("id", booking_id)
       .single();
 
@@ -57,23 +60,36 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: `Booking is not payable (status: ${booking.status})` }));
     }
 
-    // 3) Create Stripe Checkout session (attach booking_id to metadata)
+    // 3) Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+
+      // helps in Stripe dashboard search + linking
+      client_reference_id: booking_id,
+
       customer_email: booking.user_email || undefined,
+
       line_items: [
         {
           price_data: {
             currency: "usd",
             product_data: { name: PRICE_MAP[tier].label },
-            unit_amount: PRICE_MAP[tier].amount
+            unit_amount: PRICE_MAP[tier].amount,
           },
-          quantity: 1
-        }
+          quantity: 1,
+        },
       ],
-      metadata: { booking_id },
-      success_url: `https://run-call.vercel.app/success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `https://run-call.vercel.app/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`
+
+      // ✅ IMPORTANT: webhook will use this to reconcile
+      metadata: {
+        booking_id,
+        expert_id: booking.expert_id || "",
+        price_tier: String(tier),
+      },
+
+      // ✅ use BASE_URL so preview/prod both work
+      success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${BASE_URL}/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`,
     });
 
     // 4) Persist session + status
@@ -82,7 +98,7 @@ module.exports = async function handler(req, res) {
       .update({
         price_tier: tier,
         stripe_session_id: session.id,
-        status: "pending_payment"
+        status: "pending_payment",
       })
       .eq("id", booking_id);
 
