@@ -26,14 +26,33 @@ function esc(s) {
     .replace(/'/g, "&#039;");
 }
 
+// ✅ MODIF EXACTE ICI : normalise + valide RESEND_FROM (le problème venait de ça)
+function normalizeFrom(fromRaw) {
+  const from = String(fromRaw || "").trim();
+
+  // enlever d'éventuels guillemets copiés/collés
+  const cleaned = from.replace(/^"+|"+$/g, "").replace(/^'+|'+$/g, "").trim();
+
+  // formats acceptés :
+  // - email@example.com
+  // - Name <email@example.com>
+  const emailOnly = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
+  const nameEmail = /^.+\s<[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>$/;
+
+  if (emailOnly.test(cleaned) || nameEmail.test(cleaned)) return cleaned;
+
+  return null;
+}
+
 async function resendSend({ to, subject, html }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM;
+  const fromNormalized = normalizeFrom(process.env.RESEND_FROM);
 
-  if (!apiKey || !from) {
-    console.log("⚠️ Email not sent: missing RESEND_API_KEY or RESEND_FROM", {
+  if (!apiKey || !fromNormalized) {
+    console.log("⚠️ Email not sent: missing/invalid RESEND_API_KEY or RESEND_FROM", {
       hasKey: !!apiKey,
-      hasFrom: !!from,
+      resendFromRaw: process.env.RESEND_FROM || null,
+      resendFromNormalized: fromNormalized,
     });
     return { skipped: true };
   }
@@ -44,7 +63,7 @@ async function resendSend({ to, subject, html }) {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify({ from: fromNormalized, to, subject, html }),
   });
 
   const d = await r.json().catch(() => ({}));
@@ -224,7 +243,6 @@ module.exports = async function handler(req, res) {
       }
 
       // 5) Email expert (RunCall)
-      // (Même si Google ne notifie pas l’organizer, RunCall le fera.)
       const start = new Date(booking.slot_start);
       const end = new Date(booking.slot_end);
 
