@@ -5,6 +5,11 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const { supabaseAdmin } = require("../_lib/supabase");
 const { getGoogleAccessToken } = require("../_lib/google");
 
+// Needed on Vercel for Stripe signature verification
+module.exports.config = {
+  api: { bodyParser: false }
+};
+
 function buffer(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -14,17 +19,46 @@ function buffer(req) {
   });
 }
 
+async function sendResendEmail({ to, subject, html }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM;
+
+  if (!apiKey || !from) {
+    console.log("⚠️ Email not sent: missing RESEND_API_KEY or RESEND_FROM");
+    return { skipped: true };
+  }
+
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      subject,
+      html,
+    }),
+  });
+
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    console.error("❌ Resend error:", d);
+    throw new Error(d?.message || "Resend failed");
+  }
+  return d;
+}
+
 async function createCalendarEventWithMeet({ accessToken, calendarId, booking, expertEmail }) {
-  // FORCE email invites
-  const endpoint =
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}` +
-    `/events?conferenceDataVersion=1&sendUpdates=all`;
+  const endpoint = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+    calendarId
+  )}/events?conferenceDataVersion=1`;
 
   const startISO = new Date(booking.slot_start).toISOString();
   const endISO = new Date(booking.slot_end).toISOString();
 
-  // DO NOT include "RunCall" here (otherwise you re-create "availability" by mistake)
-  const summary = booking.user_name ? `Call with ${booking.user_name}` : "Call booked";
+  const summary = booking.user_name ? `RunCall — ${booking.user_name}` : "RunCall — Booking";
 
   const descriptionLines = [
     "RunCall booking confirmed.",
@@ -36,18 +70,19 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
     "Booked via RunCall.",
   ].filter(Boolean);
 
-  const attendees = [
-    booking.user_email ? { email: booking.user_email } : null,
-    expertEmail ? { email: expertEmail } : null,
-  ].filter(Boolean);
-
   const body = {
     summary,
     description: descriptionLines.join("\n"),
     start: { dateTime: startISO },
     end: { dateTime: endISO },
-    transparency: "opaque",
-    attendees,
+
+    // IMPORTANT:
+    // Google often doesn't "email the organizer" (the calendar owner).
+    // We still include the client as attendee so they receive the invite.
+    attendees: [
+      booking.user_email ? { email: booking.user_email } : null,
+    ].filter(Boolean),
+
     conferenceData: {
       createRequest: {
         requestId: `runcall-${booking.id}-${Date.now()}`,
@@ -55,12 +90,6 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
       },
     },
   };
-
-  console.log("📅 Creating calendar event", {
-    calendarId,
-    bookingId: booking.id,
-    attendees: attendees.map((a) => a.email),
-  });
 
   const r = await fetch(endpoint, {
     method: "POST",
@@ -73,7 +102,6 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
 
   const d = await r.json();
   if (!r.ok) {
-    console.error("❌ Google Calendar create failed", { status: r.status, d });
     throw new Error(d?.error?.message || "Failed to create Google Calendar event");
   }
 
@@ -81,13 +109,6 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
     d?.hangoutLink ||
     d?.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri ||
     null;
-
-  console.log("✅ Calendar event created", {
-    eventId: d.id,
-    meetLink,
-    htmlLink: d.htmlLink || null,
-    attendees: (d.attendees || []).map((a) => a.email),
-  });
 
   return { eventId: d.id, htmlLink: d.htmlLink || null, meetLink };
 }
@@ -113,15 +134,12 @@ module.exports = async function handler(req, res) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const bookingId = session?.metadata?.booking_id || null;
 
-      console.log("🔔 checkout.session.completed", {
-        sessionId: session?.id,
-        bookingId,
-        paymentIntent: session?.payment_intent || null,
-      });
+      const bookingId = session?.metadata?.booking_id || null;
+      const paymentIntentId = session?.payment_intent || null;
 
       if (!bookingId) {
+        console.log("⚠️ Missing booking_id in metadata", { sessionId: session?.id });
         res.setHeader("Content-Type", "application/json");
         return res.end(JSON.stringify({ received: true }));
       }
@@ -131,14 +149,15 @@ module.exports = async function handler(req, res) {
       // 1) Load booking
       const { data: booking, error: bErr } = await sb
         .from("bookings")
-        .select("id,status,expert_id,slot_start,slot_end,timezone,user_name,user_email,user_note,source_calendar_id")
+        .select("id,status,expert_id,slot_start,slot_end,timezone,user_name,user_email,user_note,source_calendar_id,meet_link,stripe_payment_intent_id")
         .eq("id", bookingId)
         .single();
 
       if (bErr || !booking) throw new Error("Booking not found in DB");
 
-      if (booking.status === "confirmed") {
-        console.log("ℹ️ Booking already confirmed", { bookingId });
+      // Idempotency: if already confirmed AND has meet_link + payment_intent, do nothing
+      if (booking.status === "confirmed" && booking.meet_link && booking.stripe_payment_intent_id) {
+        console.log("ℹ️ Booking already confirmed (idempotent)", { bookingId });
         res.setHeader("Content-Type", "application/json");
         return res.end(JSON.stringify({ received: true }));
       }
@@ -146,7 +165,7 @@ module.exports = async function handler(req, res) {
       // 2) Load expert Google account
       const { data: acct, error: aErr } = await sb
         .from("expert_google_accounts")
-        .select("expert_id,refresh_token,calendar_id")
+        .select("expert_id,refresh_token,calendar_id,google_email")
         .eq("expert_id", booking.expert_id)
         .single();
 
@@ -154,24 +173,19 @@ module.exports = async function handler(req, res) {
         throw new Error("Expert Google account not connected (missing refresh_token)");
       }
 
-      // 3) Load expert email from experts table
+      // 3) Load expert email from experts table (THIS is what we'll use to email the expert)
       const { data: expert, error: eErr } = await sb
         .from("experts")
-        .select("email")
+        .select("email,name")
         .eq("id", booking.expert_id)
         .single();
 
-      const expertEmail = (!eErr && expert?.email) ? expert.email : null;
-
-      console.log("👤 Expert email lookup", {
-        expertId: booking.expert_id,
-        expertEmail,
-        expertsErr: eErr ? (eErr.message || eErr) : null,
-      });
+      const expertEmail = expert?.email || acct.google_email || null;
+      const expertName = expert?.name || "RunCall expert";
 
       const calendarId = booking.source_calendar_id || acct.calendar_id || "primary";
 
-      // 4) Create event
+      // 4) Create event with Meet
       const accessToken = await getGoogleAccessToken(acct.refresh_token);
 
       const { eventId, meetLink } = await createCalendarEventWithMeet({
@@ -181,46 +195,78 @@ module.exports = async function handler(req, res) {
         expertEmail,
       });
 
-      // 5) Update booking (try full patch, then fallback minimal patch)
-      const fullPatch = {
+      // 5) Update booking in DB
+      const updatePayload = {
         status: "confirmed",
         stripe_session_id: session.id,
-        stripe_payment_intent_id: session.payment_intent || null,
+        stripe_payment_intent_id: paymentIntentId || booking.stripe_payment_intent_id || null,
         google_calendar_id: calendarId,
         google_event_id: eventId,
         meet_link: meetLink,
         paid_at: new Date().toISOString(),
       };
 
-      console.log("🧾 Updating booking with patch keys", {
-        bookingId,
-        keys: Object.keys(fullPatch),
-      });
-
-      let { error: uErr } = await sb.from("bookings").update(fullPatch).eq("id", bookingId);
+      const { error: uErr } = await sb
+        .from("bookings")
+        .update(updatePayload)
+        .eq("id", bookingId);
 
       if (uErr) {
-        console.error("❌ Supabase update failed (fullPatch):", uErr);
+        console.error("Supabase update failed:", uErr);
+        // We still proceed (Meet already created)
+      }
 
-        const minimalPatch = {
-          status: "confirmed",
-          stripe_session_id: session.id,
-        };
+      // 6) Email the expert ourselves (solves your "expert gets nothing" issue)
+      if (expertEmail) {
+        const start = new Date(booking.slot_start);
+        const end = new Date(booking.slot_end);
 
-        console.log("🧾 Retrying booking update with minimal patch", {
-          bookingId,
-          keys: Object.keys(minimalPatch),
-        });
+        const subject =
+          `RunCall — New booking confirmed (${start.toLocaleString("en-US", { hour: "numeric", minute: "2-digit" })})`;
 
-        const retry = await sb.from("bookings").update(minimalPatch).eq("id", bookingId);
+        const html = `
+          <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+            <h2 style="margin:0 0 10px;">New RunCall booking confirmed ✅</h2>
+            <p style="margin:0 0 10px;color:#334155;">
+              Expert: <b>${escapeHtml(expertName)}</b><br/>
+              Client: <b>${escapeHtml(booking.user_name || "")}</b> (${escapeHtml(booking.user_email || "")})
+            </p>
 
-        if (retry.error) {
-          console.error("❌ Supabase update failed (minimalPatch):", retry.error);
-        } else {
-          console.log("✅ Supabase update succeeded with minimalPatch", { bookingId });
+            <p style="margin:0 0 12px;color:#334155;">
+              When: <b>${escapeHtml(start.toString())}</b> → <b>${escapeHtml(end.toString())}</b><br/>
+              Timezone: <b>${escapeHtml(booking.timezone || "")}</b>
+            </p>
+
+            <p style="margin:0 0 12px;">
+              Google Meet link:<br/>
+              <a href="${meetLink || "#"}" style="font-weight:700;">${meetLink || "Meet link unavailable"}</a>
+            </p>
+
+            ${
+              booking.user_note
+                ? `<p style="margin:0 0 12px;color:#475569;"><b>Client note:</b><br/>${escapeHtml(booking.user_note)}</p>`
+                : ""
+            }
+
+            <p style="margin-top:18px;color:#64748b;font-size:12px;">
+              Booking ID: ${escapeHtml(bookingId)}<br/>
+              Payment Intent: ${escapeHtml(paymentIntentId || "")}
+            </p>
+          </div>
+        `;
+
+        try {
+          await sendResendEmail({
+            to: expertEmail,
+            subject,
+            html,
+          });
+          console.log("✅ Expert email sent", { bookingId, expertEmail });
+        } catch (mailErr) {
+          console.error("❌ Failed to send expert email:", mailErr?.message || mailErr);
         }
       } else {
-        console.log("✅ Supabase update succeeded (fullPatch)", { bookingId });
+        console.log("⚠️ No expert email found; skipping email", { bookingId });
       }
 
       console.log("✅ Booking confirmed + event created", { bookingId, eventId, meetLink });
@@ -230,7 +276,20 @@ module.exports = async function handler(req, res) {
     return res.end(JSON.stringify({ received: true }));
   } catch (e) {
     console.error("❌ Webhook finalize error:", e?.message || e);
+
+    // Return 200 to avoid endless retries while you're iterating.
+    // Once stable, you can switch to 500 for true retry behavior.
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ received: true, error: e?.message || "webhook error" }));
   }
 };
+
+// tiny helper to avoid breaking HTML emails
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
