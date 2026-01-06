@@ -1076,26 +1076,82 @@
   cancelModalBtn.addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
-  goSupportBtn.addEventListener("click", () => {
-    modalError.style.display = "none";
-    modalError.textContent = "";
+  goSupportBtn.addEventListener("click", async () => {
+  modalError.style.display = "none";
+  modalError.textContent = "";
 
-    const name = document.getElementById("bookName").value.trim();
-    const email = document.getElementById("bookEmail").value.trim();
-    const note = document.getElementById("bookNote").value.trim();
+  const name = document.getElementById("bookName").value.trim();
+  const email = document.getElementById("bookEmail").value.trim();
+  const note = document.getElementById("bookNote").value.trim();
 
-    if (!selectedSlot) {
+  if (!selectedSlot) {
+    modalError.style.display = "block";
+    modalError.textContent = (lang === "fr" ? "Créneau invalide." : "Invalid slot.");
+    return;
+  }
+  if (!name || !email) {
+    modalError.style.display = "block";
+    modalError.textContent = (lang === "fr"
+      ? "Merci de remplir ton nom et ton email."
+      : "Please enter your name and email.");
+    return;
+  }
+
+  try {
+    goSupportBtn.disabled = true;
+
+    const resp = await fetch("/api/bookings/create-pending", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expert_id: expertId || "",
+        slot_start: selectedSlot.start,
+        slot_end: selectedSlot.end,
+        timezone: tz,
+        user_name: name,
+        user_email: email,
+        user_note: note || null,
+        source_calendar_id: "primary"
+      })
+    });
+
+    const json = await resp.json();
+
+    if (!resp.ok || !json.booking_id) {
       modalError.style.display = "block";
-      modalError.textContent = (lang === "fr" ? "Créneau invalide." : "Invalid slot.");
+      modalError.textContent = json?.error || (lang === "fr"
+        ? "Impossible de créer la réservation. Réessaie."
+        : "Unable to create booking. Please try again.");
+      goSupportBtn.disabled = false;
       return;
     }
-    if (!name || !email) {
-      modalError.style.display = "block";
-      modalError.textContent = (lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
-      return;
-    }
 
-    const url = new URL("support.html", window.location.origin);
+    window.location.href = `support.html?booking_id=${encodeURIComponent(json.booking_id)}`;
+  } catch (e) {
+    modalError.style.display = "block";
+    modalError.textContent = (lang === "fr"
+      ? "Erreur réseau. Réessaie."
+      : "Network error. Please try again.");
+    goSupportBtn.disabled = false;
+  }
+});
+
+
+  const json = await resp.json();
+
+  if (!resp.ok || !json.booking_id) {
+    modalError.style.display = "block";
+    modalError.textContent = json?.error || "Unable to create booking. Please try again.";
+    return;
+  }
+
+  window.location.href = `support.html?booking_id=${encodeURIComponent(json.booking_id)}`;
+
+} catch (e) {
+  modalError.style.display = "block";
+  modalError.textContent = "Network error. Please try again.";
+}
+, window.location.origin);
     url.searchParams.set("expert_id", expertId || "");
     url.searchParams.set("slot_start", selectedSlot.start);
     url.searchParams.set("slot_end", selectedSlot.end);
@@ -1106,6 +1162,7 @@
 
     window.location.href = url.toString();
   });
+
 
   // ---------- Month nav ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
