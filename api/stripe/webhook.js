@@ -26,7 +26,6 @@ function esc(s) {
     .replace(/'/g, "&#039;");
 }
 
-// ✅ normalise + valide RESEND_FROM
 function normalizeFrom(fromRaw) {
   const from = String(fromRaw || "").trim();
   const cleaned = from.replace(/^"+|"+$/g, "").replace(/^'+|'+$/g, "").trim();
@@ -70,6 +69,52 @@ async function resendSend({ to, subject, html }) {
   return d;
 }
 
+// Format a date in a specific timeZone (avoid UTC on Vercel)
+function fmtInTz(date, timeZone, locale = "en-US") {
+  const tz = timeZone || "UTC";
+  const d = date instanceof Date ? date : new Date(date);
+
+  const dtf = new Intl.DateTimeFormat(locale, {
+    timeZone: tz,
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  return dtf.format(d);
+}
+
+// ✅ Get expert calendar timezone (most robust for expert display)
+async function getCalendarTimeZone({ accessToken, calendarId }) {
+  try {
+    const url = `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(
+      calendarId
+    )}`;
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      // fallback to null if calendarList.get fails
+      console.warn("⚠️ calendarList.get failed, fallback to booking timezone", {
+        calendarId,
+        status: r.status,
+        message: d?.error?.message || null,
+      });
+      return null;
+    }
+    return d?.timeZone || null;
+  } catch (e) {
+    console.warn("⚠️ calendar timezone lookup error, fallback to booking timezone", e?.message || e);
+    return null;
+  }
+}
+
 async function createCalendarEventWithMeet({ accessToken, calendarId, booking, expertEmail }) {
   const endpoint = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
     calendarId
@@ -90,34 +135,28 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
     "Booked via RunCall.",
   ].filter(Boolean);
 
-  // ✅ IMPORTANT: tag machine-readable + force busy
   const body = {
     summary,
     description: descriptionLines.join("\n"),
     start: { dateTime: startISO },
     end: { dateTime: endISO },
-
-    // ✅ Force the event to block time
-    transparency: "opaque",
-
     attendees: [
       booking.user_email ? { email: booking.user_email } : null,
       expertEmail ? { email: expertEmail } : null,
     ].filter(Boolean),
 
-    // ✅ ROBUST TAG: slots.js will treat this as "busy" even if text contains "RunCall"
-    extendedProperties: {
-      private: {
-        runcall_type: "booking",
-        runcall_booking_id: booking.id,
-        runcall_expert_id: booking.expert_id,
-      },
-    },
-
     conferenceData: {
       createRequest: {
         requestId: `runcall-${booking.id}-${Date.now()}`,
         conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    },
+
+    transparency: "opaque",
+    extendedProperties: {
+      private: {
+        runcall_type: "booking",
+        runcall_booking_id: String(booking.id),
       },
     },
   };
@@ -181,7 +220,7 @@ module.exports = async function handler(req, res) {
       const { data: booking, error: bErr } = await sb
         .from("bookings")
         .select(
-          "id,status,expert_id,slot_start,slot_end,timezone,user_name,user_email,user_note,source_calendar_id,source_event_id,calendar_event_id,meet_link,stripe_payment_intent_id"
+          "id,status,expert_id,slot_start,slot_end,timezone,user_name,user_email,user_note,source_calendar_id,calendar_event_id,meet_link,stripe_payment_intent_id"
         )
         .eq("id", bookingId)
         .single();
@@ -195,7 +234,7 @@ module.exports = async function handler(req, res) {
         return res.end(JSON.stringify({ received: true }));
       }
 
-      // 2) Load expert email + google account
+      // 2) Load expert + google account
       const { data: expert, error: eErr } = await sb
         .from("experts")
         .select("id,name,email")
@@ -226,6 +265,10 @@ module.exports = async function handler(req, res) {
         expertEmail: expert.email || acct.google_email || null,
       });
 
+      // ✅ determine timezones
+      const clientTz = booking.timezone || "UTC";
+      const expertTz = (await getCalendarTimeZone({ accessToken, calendarId })) || clientTz;
+
       // 4) Update booking
       const { error: updErr } = await sb
         .from("bookings")
@@ -240,18 +283,19 @@ module.exports = async function handler(req, res) {
         })
         .eq("id", bookingId);
 
-      if (updErr) {
-        console.error("❌ Supabase update failed:", updErr);
-      } else {
-        console.log("✅ Booking updated confirmed", { bookingId });
-      }
+      if (updErr) console.error("❌ Supabase update failed:", updErr);
+      else console.log("✅ Booking updated confirmed", { bookingId });
 
-      // 5) Email expert (RunCall)
+      // 5) Emails with correct timezone per recipient
       const start = new Date(booking.slot_start);
       const end = new Date(booking.slot_end);
 
-      const subject = "RunCall — New booking confirmed ✅";
-      const html = `
+      const whenClient = `${fmtInTz(start, clientTz)} → ${fmtInTz(end, clientTz)} (${clientTz})`;
+      const whenExpert = `${fmtInTz(start, expertTz)} → ${fmtInTz(end, expertTz)} (${expertTz})`;
+
+      // ---- Email to EXPERT (expert timezone)
+      const expertSubject = "RunCall — New booking confirmed ✅";
+      const expertHtml = `
         <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
           <h2 style="margin:0 0 10px;">New booking confirmed ✅</h2>
 
@@ -261,8 +305,8 @@ module.exports = async function handler(req, res) {
           </p>
 
           <p style="margin:0 0 12px;color:#334155;">
-            When: <b>${esc(start.toString())}</b> → <b>${esc(end.toString())}</b><br/>
-            Timezone: <b>${esc(booking.timezone)}</b>
+            Your time: <b>${esc(whenExpert)}</b><br/>
+            <span style="color:#64748b;font-size:12px;">Client time: ${esc(whenClient)}</span>
           </p>
 
           <p style="margin:0 0 12px;">
@@ -285,17 +329,48 @@ module.exports = async function handler(req, res) {
         </div>
       `;
 
-      await resendSend({ to: expert.email, subject, html });
+      await resendSend({ to: expert.email, subject: expertSubject, html: expertHtml });
       console.log("✅ Expert email sent", { bookingId, expertEmail: expert.email });
 
-      console.log("✅ Booking confirmed + event created", { bookingId, eventId, meetLink });
+      // ---- Email to CLIENT (client timezone)
+      // (si tu veux pas envoyer au client, supprime ce bloc)
+      const clientSubject = "RunCall — Your booking is confirmed ✅";
+      const clientHtml = `
+        <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+          <h2 style="margin:0 0 10px;">Your booking is confirmed ✅</h2>
+
+          <p style="margin:0 0 12px;color:#334155;">
+            When (your time): <b>${esc(whenClient)}</b><br/>
+            <span style="color:#64748b;font-size:12px;">Expert time: ${esc(whenExpert)}</span>
+          </p>
+
+          <p style="margin:0 0 12px;">
+            Google Meet:<br/>
+            <a href="${meetLink || "#"}" style="font-weight:700;">${esc(meetLink || "")}</a>
+          </p>
+
+          <p style="margin-top:18px;color:#64748b;font-size:12px;">
+            Booking ID: ${esc(bookingId)}
+          </p>
+        </div>
+      `;
+
+      await resendSend({ to: booking.user_email, subject: clientSubject, html: clientHtml });
+      console.log("✅ Client email sent", { bookingId, clientEmail: booking.user_email });
+
+      console.log("✅ Booking confirmed + event created", {
+        bookingId,
+        eventId,
+        meetLink,
+        clientTz,
+        expertTz,
+      });
     }
 
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ received: true }));
   } catch (e) {
     console.error("❌ Webhook finalize error:", e?.message || e);
-    // Return 200 to avoid endless retries during testing
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ received: true, error: e?.message || "webhook error" }));
   }
