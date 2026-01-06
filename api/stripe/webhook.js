@@ -26,21 +26,15 @@ function esc(s) {
     .replace(/'/g, "&#039;");
 }
 
-// ✅ MODIF EXACTE ICI : normalise + valide RESEND_FROM (le problème venait de ça)
+// ✅ normalise + valide RESEND_FROM
 function normalizeFrom(fromRaw) {
   const from = String(fromRaw || "").trim();
-
-  // enlever d'éventuels guillemets copiés/collés
   const cleaned = from.replace(/^"+|"+$/g, "").replace(/^'+|'+$/g, "").trim();
 
-  // formats acceptés :
-  // - email@example.com
-  // - Name <email@example.com>
   const emailOnly = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
   const nameEmail = /^.+\s<[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>$/;
 
   if (emailOnly.test(cleaned) || nameEmail.test(cleaned)) return cleaned;
-
   return null;
 }
 
@@ -77,7 +71,6 @@ async function resendSend({ to, subject, html }) {
 }
 
 async function createCalendarEventWithMeet({ accessToken, calendarId, booking, expertEmail }) {
-  // Google Calendar API: insert event + conferenceData (Meet)
   const endpoint = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
     calendarId
   )}/events?conferenceDataVersion=1`;
@@ -97,17 +90,30 @@ async function createCalendarEventWithMeet({ accessToken, calendarId, booking, e
     "Booked via RunCall.",
   ].filter(Boolean);
 
+  // ✅ IMPORTANT: tag machine-readable + force busy
   const body = {
     summary,
     description: descriptionLines.join("\n"),
     start: { dateTime: startISO },
     end: { dateTime: endISO },
+
+    // ✅ Force the event to block time
+    transparency: "opaque",
+
     attendees: [
       booking.user_email ? { email: booking.user_email } : null,
-      // Optionnel : mettre l'expert en attendee aussi (souvent inutile car c'est son calendrier),
-      // mais ça peut aider à déclencher des emails chez certains comptes.
       expertEmail ? { email: expertEmail } : null,
     ].filter(Boolean),
+
+    // ✅ ROBUST TAG: slots.js will treat this as "busy" even if text contains "RunCall"
+    extendedProperties: {
+      private: {
+        runcall_type: "booking",
+        runcall_booking_id: booking.id,
+        runcall_expert_id: booking.expert_id,
+      },
+    },
+
     conferenceData: {
       createRequest: {
         requestId: `runcall-${booking.id}-${Date.now()}`,
@@ -182,7 +188,7 @@ module.exports = async function handler(req, res) {
 
       if (bErr || !booking) throw new Error("Booking not found in DB");
 
-      // Idempotency: if already confirmed, do nothing
+      // Idempotency
       if (booking.status === "confirmed" && booking.meet_link && booking.stripe_payment_intent_id) {
         console.log("ℹ️ Booking already confirmed (idempotent)", { bookingId });
         res.setHeader("Content-Type", "application/json");
@@ -190,8 +196,6 @@ module.exports = async function handler(req, res) {
       }
 
       // 2) Load expert email + google account
-      // NOTE: bookings.expert_id est TEXT chez toi, experts.id est UUID.
-      // Ça marche si bookings.expert_id contient bien une string UUID.
       const { data: expert, error: eErr } = await sb
         .from("experts")
         .select("id,name,email")
@@ -222,7 +226,7 @@ module.exports = async function handler(req, res) {
         expertEmail: expert.email || acct.google_email || null,
       });
 
-      // 4) Update booking (COLONNES EXACTES de ton schéma)
+      // 4) Update booking
       const { error: updErr } = await sb
         .from("bookings")
         .update({
@@ -291,7 +295,7 @@ module.exports = async function handler(req, res) {
     return res.end(JSON.stringify({ received: true }));
   } catch (e) {
     console.error("❌ Webhook finalize error:", e?.message || e);
-    // On répond 200 pour éviter des retries infinis pendant les tests
+    // Return 200 to avoid endless retries during testing
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ received: true, error: e?.message || "webhook error" }));
   }
