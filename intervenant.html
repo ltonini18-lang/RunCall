@@ -910,22 +910,17 @@
     const slotsTop = slotsPanel.getBoundingClientRect().top;     // relative to viewport
     const headTop  = monthHead.getBoundingClientRect().top;      // relative to viewport
 
-    // We want slots to come into view (around middle), BUT month header must stay visible near top.
     const desiredSlotsTop = Math.round(window.innerHeight * 0.58);
-    let delta = slotsTop - desiredSlotsTop; // positive => scroll down
+    let delta = slotsTop - desiredSlotsTop;
 
-    // If delta <= 0, slots already visible enough; still do a tiny scroll to "confirm" the action
-    // but don't move month head out.
     if (delta <= 0) delta = 12;
 
-    // Cap delta so month header stays visible (>= 10px from top)
     const minHeadTop = 10;
     const headTopAfter = headTop - delta;
     if (headTopAfter < minHeadTop){
-      delta = headTop - minHeadTop; // scroll just enough to pin header at 10px
+      delta = headTop - minHeadTop;
     }
 
-    // If delta is tiny/negative after cap, no-op
     if (delta > 2){
       window.scrollTo({ top: y0 + delta, behavior: "smooth" });
     }
@@ -963,7 +958,6 @@
 
     gridRoot.classList.add("has-day");
 
-    // ✅ scroll AFTER slots have rendered (ensures it actually scrolls)
     if (daySlots.length > 0){
       requestAnimationFrame(() => scrollToShowSlotsButKeepMonthHeader());
     }
@@ -1076,7 +1070,8 @@
   cancelModalBtn.addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
-  goSupportBtn.addEventListener("click", () => {
+  // ✅ CHANGED: Create a pending booking in backend, then redirect to support.html with booking_id
+  goSupportBtn.addEventListener("click", async () => {
     modalError.style.display = "none";
     modalError.textContent = "";
 
@@ -1095,16 +1090,41 @@
       return;
     }
 
-    const url = new URL("support.html", window.location.origin);
-    url.searchParams.set("expert_id", expertId || "");
-    url.searchParams.set("slot_start", selectedSlot.start);
-    url.searchParams.set("slot_end", selectedSlot.end);
-    url.searchParams.set("tz", tz);
-    url.searchParams.set("name", name);
-    url.searchParams.set("email", email);
-    if (note) url.searchParams.set("note", note);
+    try {
+      goSupportBtn.disabled = true;
 
-    window.location.href = url.toString();
+      const resp = await fetch("/api/bookings/create-pending", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expert_id: expertId || "",
+          slot_start: selectedSlot.start,
+          slot_end: selectedSlot.end,
+          timezone: tz,
+          user_name: name,
+          user_email: email,
+          user_note: note || null,
+          source_calendar_id: "primary"
+        })
+      });
+
+      const json = await resp.json();
+
+      if (!resp.ok || !json.booking_id) {
+        modalError.style.display = "block";
+        modalError.textContent = json?.error || (lang === "fr"
+          ? "Impossible de créer la réservation. Réessaie."
+          : "Unable to create booking. Please try again.");
+        goSupportBtn.disabled = false;
+        return;
+      }
+
+      window.location.href = `support.html?booking_id=${encodeURIComponent(json.booking_id)}`;
+    } catch (e) {
+      modalError.style.display = "block";
+      modalError.textContent = (lang === "fr" ? "Erreur réseau. Réessaie." : "Network error. Please try again.");
+      goSupportBtn.disabled = false;
+    }
   });
 
   // ---------- Month nav ----------
