@@ -11,7 +11,6 @@ function parseGoogleEventTime(t) {
   return null;
 }
 
-
 async function refreshAccessToken(refreshToken) {
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -24,8 +23,8 @@ async function refreshAccessToken(refreshToken) {
       client_id: CLIENT_ID,
       client_secret: CLIENT_SECRET,
       refresh_token: refreshToken,
-      grant_type: "refresh_token"
-    })
+      grant_type: "refresh_token",
+    }),
   });
 
   const text = await r.text();
@@ -36,7 +35,7 @@ async function refreshAccessToken(refreshToken) {
     access_token: data.access_token,
     expires_in: data.expires_in || null,
     token_type: data.token_type || "Bearer",
-    scope: data.scope || null
+    scope: data.scope || null,
   };
 }
 
@@ -51,7 +50,7 @@ async function supabaseGetGoogleAccount(expertId) {
     `expert_id=eq.${encodeURIComponent(expertId)}&limit=1`;
 
   const r = await fetch(url, {
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
   });
 
   const text = await r.text();
@@ -65,7 +64,9 @@ async function supabaseUpdateGoogleAccount(expertId, patch) {
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!SUPABASE_URL || !KEY) throw new Error("Missing SUPABASE env vars");
 
-  const url = `${SUPABASE_URL}/rest/v1/expert_google_accounts?expert_id=eq.${encodeURIComponent(expertId)}`;
+  const url = `${SUPABASE_URL}/rest/v1/expert_google_accounts?expert_id=eq.${encodeURIComponent(
+    expertId
+  )}`;
 
   const r = await fetch(url, {
     method: "PATCH",
@@ -73,9 +74,9 @@ async function supabaseUpdateGoogleAccount(expertId, patch) {
       "Content-Type": "application/json",
       apikey: KEY,
       Authorization: `Bearer ${KEY}`,
-      Prefer: "return=minimal"
+      Prefer: "return=minimal",
     },
-    body: JSON.stringify(patch)
+    body: JSON.stringify(patch),
   });
 
   const text = await r.text();
@@ -85,7 +86,7 @@ async function supabaseUpdateGoogleAccount(expertId, patch) {
 async function googleListCalendars(accessToken) {
   const url = "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250";
   const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const text = await r.text();
@@ -96,7 +97,9 @@ async function googleListCalendars(accessToken) {
 }
 
 async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
+  const url = new URL(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`
+  );
   url.searchParams.set("timeMin", timeMin);
   url.searchParams.set("timeMax", timeMax);
   url.searchParams.set("singleEvents", "true");
@@ -104,8 +107,15 @@ async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
   url.searchParams.set("maxResults", "2500");
   url.searchParams.set("showDeleted", "false");
 
+  // ✅ IMPORTANT: we want extendedProperties back (Google includes it by default,
+  // but setting fields makes it explicit and avoids surprises)
+  url.searchParams.set(
+    "fields",
+    "items(id,status,summary,description,transparency,start,end,extendedProperties)"
+  );
+
   const r = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` }
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const text = await r.text();
@@ -113,6 +123,28 @@ async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
 
   const data = JSON.parse(text);
   return Array.isArray(data.items) ? data.items : [];
+}
+
+function normalizeText(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// ✅ Expert can type: "runcall", "run-call", "run call", etc. (in title or description)
+function isRunCallAvailability(haystack) {
+  const s = normalizeText(haystack);
+  const run = s.indexOf("run");
+  const call = s.indexOf("call");
+  return run !== -1 && call !== -1 && run < call;
+}
+
+// ✅ NEW: robust machine-readable tag set by webhook.js on confirmed bookings
+function isRunCallBookingEvent(ev) {
+  const t = ev?.extendedProperties?.private?.runcall_type;
+  return String(t || "").toLowerCase() === "booking";
 }
 
 export default async function handler(req, res) {
@@ -137,42 +169,31 @@ export default async function handler(req, res) {
     const refreshToken = account.refresh_token;
 
     const expiry = account.expiry_date ? Number(account.expiry_date) : null;
-    const isExpired = !expiry || Date.now() > (expiry - 60_000);
+    const isExpired = !expiry || Date.now() > expiry - 60_000;
 
     if (!accessToken || isExpired) {
-      if (!refreshToken) return res.status(401).json({ error: "Missing refresh_token (reconnect Google Calendar)" });
+      if (!refreshToken)
+        return res.status(401).json({ error: "Missing refresh_token (reconnect Google Calendar)" });
+
       const refreshed = await refreshAccessToken(refreshToken);
       accessToken = refreshed.access_token;
 
-      const newExpiry = refreshed.expires_in ? (Date.now() + refreshed.expires_in * 1000) : null;
+      const newExpiry = refreshed.expires_in ? Date.now() + refreshed.expires_in * 1000 : null;
 
       await supabaseUpdateGoogleAccount(expertId, {
         access_token: accessToken,
         scope: refreshed.scope || account.scope || null,
-        expiry_date: newExpiry
+        expiry_date: newExpiry,
       });
     }
-
-const isRunCall = (summary) => {
-  const s = String(summary || "")
-    .toLowerCase()
-    .normalize("NFD")                     // enlève les accents
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");           // enlève espaces, tirets, symboles
-
-  // accepte runcall, run-call, run call, etc.
-  return s.includes("run") && s.includes("call") && s.indexOf("run") < s.indexOf("call");
-};
-
-
 
     // 1) Get all calendars
     const calendars = await googleListCalendars(accessToken);
 
-    // Only calendars you can read (and that are "selected" typically)
+    // Only calendars you can read
     const readableCalendars = calendars
-      .filter(c => c && c.id && (c.accessRole === "owner" || c.accessRole === "writer" || c.accessRole === "reader"))
-      .map(c => c.id);
+      .filter((c) => c && c.id && (c.accessRole === "owner" || c.accessRole === "writer" || c.accessRole === "reader"))
+      .map((c) => c.id);
 
     // 2) Fetch events across calendars (sequential to keep it robust)
     const availabilityIntervals = [];
@@ -181,28 +202,35 @@ const isRunCall = (summary) => {
     for (const calId of readableCalendars) {
       const events = await googleListEvents({ accessToken, calendarId: calId, timeMin, timeMax });
 
- for (const ev of events) {
-  if (ev.status === "cancelled") continue;
+      for (const ev of events) {
+        if (!ev || ev.status === "cancelled") continue;
 
-  const start = parseGoogleEventTime(ev.start);
-  const end = parseGoogleEventTime(ev.end);
-  if (!start || !end || end <= start) continue;
+        const start = parseGoogleEventTime(ev.start);
+        const end = parseGoogleEventTime(ev.end);
+        if (!start || !end || end <= start) continue;
 
-  const summary = ev.summary || "";
-const description = ev.description || "";
-const haystack = `${summary} ${description}`; // on check titre + description
+        // ✅ PRIORITY RULE:
+        // - If event is a RunCall BOOKING (tagged by webhook), it MUST block time.
+        if (isRunCallBookingEvent(ev)) {
+          busyIntervals.push({ start, end });
+          continue;
+        }
 
-if (isRunCall(haystack)) {
-  availabilityIntervals.push({ start, end });
-} else {
-  // Ne bloque pas les événements marqués "Libre" dans Google Calendar
-  if (ev.transparency !== "transparent") {
-    busyIntervals.push({ start, end });
-  }
-}
+        // Otherwise, RunCall "availability" is detected by text (title or description).
+        const summary = ev.summary || "";
+        const description = ev.description || "";
+        const haystack = `${summary} ${description}`;
 
-}
-}
+        if (isRunCallAvailability(haystack)) {
+          availabilityIntervals.push({ start, end });
+        } else {
+          // Do not block events marked "Free" in Google Calendar
+          if (ev.transparency !== "transparent") {
+            busyIntervals.push({ start, end });
+          }
+        }
+      }
+    }
 
     // 3) Split availability into 30-min slots and remove conflicts with busy
     const SLOT_MIN = 30;
