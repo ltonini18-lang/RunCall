@@ -1,33 +1,27 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Merci – RunCall</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title data-fr="Réservation confirmée – RunCall" data-en="Booking confirmed – RunCall">
+    Réservation confirmée – RunCall
+  </title>
+
+  <link rel="stylesheet" href="style.css" />
 
   <style>
-    /* Scoped to this page */
-    .thanks-page{
-      background: #f8fafc;
+    body { background:#f8fafc; }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 90px 16px; }
+
+    .card{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:20px;
+      box-shadow: 0 18px 40px rgba(15,23,42,.08);
+      padding: 26px;
     }
-    .thanks-wrap{
-      max-width: 760px;
-      margin: 0 auto;
-      padding: 18px 0 42px;
-    }
-    .thanks-card{
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 18px;
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-      overflow: hidden;
-    }
-    .thanks-hero{
-      padding: 26px 24px 18px;
-      border-bottom: 1px solid #e5e7eb;
-      background: radial-gradient(800px 300px at 20% 0%, rgba(22,119,255,0.10), transparent 55%);
-    }
+
     .badge{
       display:inline-flex;
       align-items:center;
@@ -36,54 +30,53 @@
       border-radius:999px;
       border:1px solid #e5e7eb;
       background:#fff;
+      color:#334155;
+      font-size:.92rem;
+      font-weight:800;
+    }
+
+    .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#1677ff;
+      box-shadow:0 0 0 4px rgba(22,119,255,.10);
+    }
+
+    h1{
+      margin:14px 0 10px;
+      font-size:1.7rem;
+      letter-spacing:-.03em;
+      color:#0f172a;
+    }
+
+    p{
+      margin:0;
       color:#475569;
-      font-size:.9rem;
+      line-height:1.7;
     }
-    .badge-dot{
-      width:8px;height:8px;border-radius:999px;background:#1677ff;
+
+    .muted{
+      margin-top:10px;
+      color:#64748b;
+      font-size:.95rem;
     }
-    .thanks-title{
-      margin: 14px 0 6px;
-      font-size: 1.7rem;
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-      color: #0f172a;
-    }
-    .thanks-subtitle{
-      margin: 0;
-      color: #475569;
-      line-height: 1.5;
-      font-size: 1.02rem;
-      max-width: 60ch;
-    }
-    .thanks-body{
-      padding: 20px 24px 24px;
-      color: #0f172a;
-    }
-    .steps{
-      margin: 14px 0 0;
-      padding-left: 18px;
-      color: #475569;
-      line-height: 1.7;
-    }
-    .steps li{
-      margin: 6px 0;
-    }
-    .note{
-      margin-top: 16px;
-      color: #64748b;
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
+
+    /* =========================
+       ✅ SAME BUTTONS AS thanks.html
+       ========================= */
+
     .actions{
       display:flex;
       gap:12px;
       flex-wrap:wrap;
-      margin-top: 18px;
+      margin-top:18px;
     }
+
     .actions a{
       text-decoration:none;
     }
+
     .btn-clean{
       display:inline-flex;
       align-items:center;
@@ -93,124 +86,102 @@
       border: 1px solid #e5e7eb;
       background:#fff;
       color:#0f172a;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      font-weight:900;
+      transition:
+        transform 140ms ease,
+        border-color 160ms ease,
+        background-color 160ms ease,
+        box-shadow 160ms ease;
     }
+
     .btn-clean:hover{
       transform: translateY(-1px);
       border-color:#1677ff;
       background: rgba(22,119,255,0.06);
       box-shadow: 0 10px 24px rgba(22,119,255,0.10);
     }
+
     .btn-primary-clean{
       border-color:#1677ff;
       background: rgba(22,119,255,0.08);
     }
 
-    /* Optional: tiny session_id text */
-    .session{
-      margin-top: 10px;
-      font-size: .9rem;
-      color:#94a3b8;
+    /* language switch */
+    .lang-switch{
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      display:flex;
+      gap:8px;
+      z-index: 60;
     }
-    .session code{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: .85rem;
-      color:#64748b;
+    .lang-switch button{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 900;
+      cursor:pointer;
     }
-
-    @media (max-width: 720px){
-      .thanks-title{ font-size: 1.45rem; }
+    .lang-switch button.active{
+      border-color:#1677ff;
+      background: rgba(22,119,255,.06);
     }
   </style>
 </head>
 
 <body>
 
-<!-- HEADER -->
 <header class="site-header">
   <div class="container header-inner">
-    <a href="/" class="logo-link">
+    <a href="index.html" class="logo-link">
       <div class="logo">RunCall</div>
     </a>
   </div>
 </header>
 
-<!-- LANGUAGE SWITCH -->
 <div class="lang-switch">
   <button type="button" data-lang="fr">FR</button>
   <button type="button" data-lang="en">EN</button>
 </div>
 
-<section class="section thanks-page">
-  <div class="container thanks-wrap">
+<div class="wrap">
+  <div class="card">
 
-    <div class="thanks-card">
-      <div class="thanks-hero">
-        <div class="badge">
-          <span class="badge-dot"></span>
-          <span data-fr="Paiement reçu" data-en="Payment received"></span>
-        </div>
+    <div class="badge">
+      <span class="dot"></span>
+      <span data-fr="Paiement reçu" data-en="Payment received">Paiement reçu</span>
+    </div>
 
-        <h1 class="thanks-title"
-            data-fr="Merci — ta réservation est confirmée"
-            data-en="Thank you — your booking is confirmed"></h1>
+    <h1 data-fr="C’est bon ✅" data-en="You’re all set ✅">C’est bon ✅</h1>
 
-        <p class="thanks-subtitle"
-           data-fr="Tu vas recevoir les informations de l’entretien par email."
-           data-en="You’ll receive the call details by email."></p>
+    <p
+      data-fr="Ta réservation est en cours de confirmation. Le lien Google Meet sera envoyé par email."
+      data-en="Your booking is being confirmed. The Google Meet link will be sent by email."
+    >
+      Ta réservation est en cours de confirmation. Le lien Google Meet sera envoyé par email.
+    </p>
 
-        <div class="session" id="sessionLine" style="display:none;">
-          <span data-fr="Session :" data-en="Session:"></span>
-          <code id="sessionIdText"></code>
-        </div>
-      </div>
+    <p class="muted"
+       data-fr="Tu peux fermer cette page."
+       data-en="You can close this page.">
+      Tu peux fermer cette page.
+    </p>
 
-      <div class="thanks-body">
-        <ol class="steps">
-          <li
-            data-fr="Tu recevras un email avec les détails du créneau (vérifie aussi tes spams)."
-            data-en="You’ll receive an email with the scheduled details (also check spam)."
-          ></li>
-          <li
-            data-fr="Le lien Google Meet sera inclus dans l’invitation."
-            data-en="The Google Meet link will be included in the invite."
-          ></li>
-          <li
-            data-fr="Si tu ne reçois rien d’ici quelques minutes, écris-nous et on règle ça rapidement."
-            data-en="If you don’t receive anything within a few minutes, contact us and we’ll fix it quickly."
-          ></li>
-        </ol>
-
-        <p class="note"
-           data-fr="En cas de souci : reply au reçu Stripe ou contacte-nous via RunCall."
-           data-en="If anything goes wrong: reply to your Stripe receipt or contact us via RunCall."></p>
-
-        <div class="actions">
-          <a class="btn-clean btn-primary-clean" href="/" data-fr="Retour à RunCall" data-en="Back to RunCall"></a>
-          <a class="btn-clean" href="/#experts" data-fr="Voir d’autres profils" data-en="Browse other profiles"></a>
-        </div>
-      </div>
+    <div class="actions">
+      <a
+        class="btn-clean btn-primary-clean"
+        href="index.html"
+        data-fr="Retour à RunCall"
+        data-en="Back to RunCall"
+      >
+        Retour à RunCall
+      </a>
     </div>
 
   </div>
-</section>
+</div>
 
-<!-- Show session_id if present -->
-<script>
-(function () {
-  const qs = new URLSearchParams(window.location.search);
-  const sid = qs.get("session_id");
-  if (!sid) return;
-  const line = document.getElementById("sessionLine");
-  const text = document.getElementById("sessionIdText");
-  if (line && text) {
-    text.textContent = sid;
-    line.style.display = "block";
-  }
-})();
-</script>
-
-<!-- LANGUAGE SCRIPT -->
 <script>
 (function () {
   const buttons = document.querySelectorAll('.lang-switch button');
@@ -221,21 +192,28 @@
     lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
   }
 
-  function applyLanguage(lang) {
+  function applyLanguage(nextLang) {
+    lang = nextLang;
+
     document.querySelectorAll('[data-fr][data-en]').forEach(el => {
       el.textContent = el.dataset[lang];
     });
 
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
+    const t = document.querySelector('title');
+    if (t?.dataset?.fr && t?.dataset?.en) {
+      t.textContent = t.dataset[lang];
+    }
+
+    buttons.forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.lang === lang)
+    );
 
     localStorage.setItem('runcall_lang', lang);
   }
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
-  });
+  buttons.forEach(btn =>
+    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang))
+  );
 
   applyLanguage(lang);
 })();
