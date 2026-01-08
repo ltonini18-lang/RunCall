@@ -65,7 +65,6 @@
       margin-bottom:6px;
     }
     .join-form input[type="text"],
-    .join-form input[type="email"],
     .join-form textarea{
       width:100%;
       padding: 12px 12px;
@@ -98,12 +97,6 @@
       line-height:1.7;
     }
     .join-steps li{ margin: 7px 0; }
-
-    .join-cta{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
 
     .join-btn{
       display:inline-flex;
@@ -147,6 +140,7 @@
       color:#0f172a;
       text-decoration:none;
       transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+      cursor:pointer;
     }
     .join-secondary:hover{
       transform: translateY(-1px);
@@ -182,6 +176,17 @@
       background: #fff1f2;
       padding: 12px 12px;
       color:#881337;
+      font-size: .95rem;
+      line-height: 1.55;
+    }
+    .join-ok{
+      display:none;
+      margin-top: 12px;
+      border-radius: 14px;
+      border:1px solid #bbf7d0;
+      background: #ecfdf5;
+      padding: 12px 12px;
+      color:#065f46;
       font-size: .95rem;
       line-height: 1.55;
     }
@@ -223,8 +228,8 @@
             data-en="Share your experience on RunCall"></h1>
 
         <p class="join-subtitle"
-           data-fr="Crée ton profil en quelques minutes. Ensuite, connecte ton Google Calendar pour ouvrir tes disponibilités. Chaque échange est planifié automatiquement avec un lien Google Meet."
-           data-en="Create your profile in just a few minutes. Next, connect Google Calendar to open your availability. Each session is scheduled automatically with a Google Meet link."></p>
+           data-fr="Écris une présentation orientée sport, visible sur ton profil. Ensuite, connecte ton Google Calendar pour ouvrir tes disponibilités. Chaque échange est planifié automatiquement avec un lien Google Meet."
+           data-en="Write a sport-focused presentation visible on your profile. Next, connect Google Calendar to open your availability. Each session is scheduled automatically with a Google Meet link."></p>
       </div>
 
       <div class="join-body">
@@ -236,11 +241,9 @@
               <div class="form-row">
                 <label data-fr="Prénom et nom" data-en="Full name"></label>
                 <input id="name" type="text" name="name" autocomplete="name" required />
-              </div>
-
-              <div class="form-row">
-                <label>Email</label>
-                <input id="email" type="email" name="email" autocomplete="email" required />
+                <small class="join-small"
+                  data-fr="Tu peux mettre ton nom public (ex : “Camille, coach trail”)"
+                  data-en="Use your public name (e.g., “Camille, trail coach”)"></small>
               </div>
 
               <div class="form-row">
@@ -250,21 +253,22 @@
                   name="presentation"
                   rows="5"
                   required
-                  data-fr-placeholder="Explique qui tu es, ton parcours, et ce que les sportifs peuvent attendre d’un échange avec toi."
-                  data-en-placeholder="Explain who you are, your background, and what athletes can expect from a conversation with you."
+                  data-fr-placeholder="Explique qui tu es, ton niveau/expérience, tes spécialités (marathon, trail, nutrition, mental…), et ce que les sportifs vont obtenir en appel."
+                  data-en-placeholder="Explain who you are, your level/experience, your specialties (marathon, trail, nutrition, mindset…), and what athletes will get from the call."
                 ></textarea>
-              <label class="join-secondary" style="cursor:pointer; margin-top:10px;"
-  data-fr="Ajouter une photo de profil"
-  data-en="Add a profile photo">
-  Ajouter une photo de profil
-  <input id="photo" type="file" accept="image/*" style="display:none;" />
-</label>
 
-<small class="join-small"
-  data-fr="(JPG ou PNG. Tu pourras la changer plus tard.)"
-  data-en="(JPG or PNG. You can change it later.)"
->(JPG ou PNG. Tu pourras la changer plus tard.)</small>
+                <!-- Photo (placeholder) -->
+                <label class="join-secondary" style="cursor:pointer; margin-top:10px;"
+                  data-fr="Ajouter une photo de profil (bientôt)"
+                  data-en="Add a profile photo (soon)">
+                  <span data-fr="Ajouter une photo de profil (bientôt)" data-en="Add a profile photo (soon)"></span>
+                  <input id="photo" type="file" accept="image/*" style="display:none;" disabled />
+                </label>
 
+                <small class="join-small"
+                  data-fr="(Tu pourras la changer depuis ton dashboard quand il sera prêt.)"
+                  data-en="(You’ll be able to change it from your dashboard once it’s ready.)"
+                ></small>
               </div>
 
               <div class="join-alert">
@@ -275,6 +279,7 @@
                 ></span>
               </div>
 
+              <div id="joinOk" class="join-ok"></div>
               <div id="joinError" class="join-error"></div>
 
               <button id="continueBtn" type="submit" class="join-btn"
@@ -290,15 +295,15 @@
           <!-- SIDE INFO -->
           <div class="join-panel">
             <ol class="join-steps">
-              <li data-fr="Créer ton profil." data-en="Create your profile."></li>
+              <li data-fr="Créer ton profil RunCall (sport)." data-en="Create your RunCall (sport) profile."></li>
               <li data-fr="Connecter Google Calendar." data-en="Connect Google Calendar."></li>
               <li data-fr="Ouvrir tes disponibilités." data-en="Open your availability."></li>
               <li data-fr="Recevoir tes réservations." data-en="Receive your bookings."></li>
             </ol>
 
             <p class="join-small"
-              data-fr="Tu contrôles tes créneaux : tu ouvres ce que tu veux, quand tu veux."
-              data-en="You stay in control: open only the slots you want, when you want."
+              data-fr="Ta présentation est importante : elle doit dire clairement à qui tu t’adresses et ce que tu apportes."
+              data-en="Your presentation matters: be clear about who you help and what you provide."
             ></p>
 
             <a class="join-secondary" href="index.html"
@@ -313,9 +318,20 @@
   </div>
 </section>
 
+<!-- Supabase JS (UMD) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
 <script>
 (function () {
-  // ---------- Language ----------
+  // ---------- Supabase ----------
+  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- Helpers ----------
+  const qs = new URLSearchParams(window.location.search);
+  const expertId = qs.get("expert_id");
+
   const buttons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
 
@@ -324,7 +340,8 @@
     lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
   }
 
-  function applyLanguage(lang) {
+  function applyLanguage(nextLang) {
+    lang = nextLang;
     document.querySelectorAll('[data-fr][data-en]').forEach(el => {
       el.textContent = el.dataset[lang];
     });
@@ -342,81 +359,156 @@
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
 
-  // ---------- Form submit (internal) ----------
   const form = document.getElementById('joinForm');
   const btn = document.getElementById('continueBtn');
   const errBox = document.getElementById('joinError');
+  const okBox = document.getElementById('joinOk');
 
   function showError(message) {
     errBox.style.display = "block";
     errBox.textContent = message;
   }
-
   function clearError() {
     errBox.style.display = "none";
     errBox.textContent = "";
+  }
+  function showOk(message) {
+    okBox.style.display = "block";
+    okBox.textContent = message;
+  }
+  function clearOk() {
+    okBox.style.display = "none";
+    okBox.textContent = "";
   }
 
   function setLoading(isLoading) {
     btn.disabled = isLoading;
     btn.textContent = isLoading
-      ? (lang === 'fr' ? "Envoi..." : "Submitting...")
+      ? (lang === 'fr' ? "Envoi..." : "Saving...")
       : (lang === 'fr' ? "Continuer" : "Continue");
   }
+
+  async function requireAuthAndExpert() {
+    if (!expertId) {
+      showError(lang === 'fr'
+        ? "expert_id manquant dans l'URL."
+        : "Missing expert_id in URL.");
+      return null;
+    }
+
+    // session required (so random people can't edit profiles)
+    const { data: { session }, error: sErr } = await sb.auth.getSession();
+    if (sErr) {
+      showError("Erreur session: " + (sErr.message || "inconnue"));
+      return null;
+    }
+    if (!session?.user) {
+      showError(lang === 'fr'
+        ? "Tu dois être connecté. Reviens sur la page de démarrage expert."
+        : "You must be signed in. Go back to the expert start page.");
+      return null;
+    }
+
+    // fetch expert
+    const { data: expert, error: eErr } = await sb
+      .from("experts")
+      .select("id,name,email,presentation,auth_user_id,photo_url,status")
+      .eq("id", expertId)
+      .single();
+
+    if (eErr || !expert) {
+      showError(lang === 'fr'
+        ? "Impossible de charger ton profil."
+        : "Unable to load your profile.");
+      return null;
+    }
+
+    // basic ownership check: must match auth_user_id
+    if ((expert.auth_user_id || "") !== session.user.id) {
+      showError(lang === 'fr'
+        ? "Accès refusé (cet expert_id ne correspond pas à ton compte)."
+        : "Access denied (this expert_id does not match your account).");
+      return null;
+    }
+
+    return expert;
+  }
+
+  async function prefillForm() {
+    clearError();
+    clearOk();
+
+    const expert = await requireAuthAndExpert();
+    if (!expert) return;
+
+    const nameInput = document.getElementById('name');
+    const presInput = document.getElementById('presentation');
+
+    nameInput.value = expert.name || "";
+    presInput.value = expert.presentation || "";
+
+    // If empty presentation, keep placeholder guidance (already set via language)
+  }
+
+  // Load on start
+  prefillForm();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
+    clearOk();
 
     const name = document.getElementById('name').value.trim();
-    const email = document.getElementById('email').value.trim();
     const presentation = document.getElementById('presentation').value.trim();
 
-    if (!name || !email || !presentation) {
+    if (!expertId) {
       showError(lang === 'fr'
-        ? "Merci de remplir tous les champs."
-        : "Please fill in all fields.");
+        ? "expert_id manquant dans l'URL."
+        : "Missing expert_id in URL.");
+      return;
+    }
+
+    if (!name || !presentation) {
+      showError(lang === 'fr'
+        ? "Merci de remplir le nom et la présentation."
+        : "Please fill in name and presentation.");
+      return;
+    }
+
+    // optional: force sport-oriented minimum
+    if (presentation.length < 60) {
+      showError(lang === 'fr'
+        ? "Ta présentation est un peu courte — vise au moins 2-3 phrases."
+        : "Your presentation is a bit short — aim for at least 2–3 sentences.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const res = await fetch("/api/experts/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const expert = await requireAuthAndExpert();
+      if (!expert) throw new Error(lang === 'fr' ? "Non autorisé." : "Not authorized.");
+
+      const { error: uErr } = await sb
+        .from("experts")
+        .update({
           name,
-          email,
           presentation,
-          source: "v2_onboarding"
+          status: "draft",
+          updated_at: new Date().toISOString()
         })
-      });
+        .eq("id", expertId);
 
-      if (!res.ok) {
-        // Attempt to extract error message
-        let msg = "";
-        try {
-          const data = await res.json();
-          msg = data?.error || "";
-        } catch (_) {}
-        throw new Error(msg || (lang === 'fr'
-          ? "Impossible de créer le profil pour le moment."
-          : "Unable to create your profile right now."));
-      }
+      if (uErr) throw uErr;
 
-      const data = await res.json();
-      const expertId = data?.expert_id;
+      showOk(lang === 'fr'
+        ? "Profil enregistré. Redirection vers Google Calendar…"
+        : "Profile saved. Redirecting to Google Calendar…");
 
-      if (!expertId) {
-        throw new Error(lang === 'fr'
-          ? "Réponse invalide du serveur (expert_id manquant)."
-          : "Invalid server response (missing expert_id).");
-      }
-
-      // Redirect to next step
       window.location.href = `connect-calendar.html?expert_id=${encodeURIComponent(expertId)}`;
+
     } catch (err) {
+      console.error(err);
       showError(err?.message || (lang === 'fr'
         ? "Une erreur est survenue. Réessaie."
         : "Something went wrong. Please try again."));
