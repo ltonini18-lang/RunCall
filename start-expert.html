@@ -361,28 +361,60 @@
   }
 
   async function ensureIntervenantRowAndRedirect(user){
-    // Table name is "experts" internally, UX says "intervenant"
-    const payload = {
-      auth_user_id: user.id,
-      email: (user.email || "").trim().toLowerCase() || null,
-      name: getNameFromUser(user) || null,
-      source: "auth_onboarding",
-      status: "draft",
-      updated_at: new Date().toISOString()
-    };
+  const authUserId = user.id;
+  const email = (user.email || "").trim().toLowerCase() || null;
+  const name = getNameFromUser(user) || null;
 
-    // UPSERT by auth_user_id (you created the unique index + RLS policies)
-    const { data, error } = await supabase
+  // 1) Try to find existing row by auth_user_id
+  const { data: existing, error: findErr } = await supabase
+    .from("experts")
+    .select("id, auth_user_id")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (findErr) throw findErr;
+
+  // 2) If exists -> update (non destructif)
+  if (existing?.id) {
+    const { data: updated, error: updErr } = await supabase
       .from("experts")
-      .upsert(payload, { onConflict: "auth_user_id" })
+      .update({
+        email,
+        name,
+        source: "auth_onboarding",
+        status: "draft",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existing.id)
       .select("id")
       .single();
 
-    if (error) throw error;
-    if (!data?.id) throw new Error("Réponse invalide (id manquant).");
+    if (updErr) throw updErr;
 
-    window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(data.id)}`;
+    window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(updated.id)}`;
+    return;
   }
+
+  // 3) Else -> insert new
+  const { data: created, error: insErr } = await supabase
+    .from("experts")
+    .insert({
+      auth_user_id: authUserId,
+      email,
+      name,
+      presentation: null,
+      photo_url: null,
+      source: "auth_onboarding",
+      status: "draft"
+    })
+    .select("id")
+    .single();
+
+  if (insErr) throw insErr;
+
+  window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(created.id)}`;
+}
+
 
   async function finalizeIfAuthed(){
     if (inFlight) return;
