@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Démarrer (Expert)</title>
+  <title>RunCall – Démarrer (Intervenant)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
   <style>
@@ -96,6 +96,7 @@
       border-color:#1677ff;
       background: rgba(22,119,255,.06);
     }
+    .btn-secondary[disabled]{ opacity:.6; cursor:not-allowed; transform:none !important; }
 
     .row{ margin: 0 0 12px; }
     label{ display:block; font-weight:700; color:#0f172a; margin-bottom:6px; }
@@ -147,7 +148,7 @@
       <div class="join-hero">
         <div class="join-badge">
           <span class="join-dot"></span>
-          <span>Démarrer (Expert)</span>
+          <span>Démarrer (Intervenant)</span>
         </div>
 
         <h1 class="join-title">Partager ton expérience sur RunCall</h1>
@@ -195,14 +196,13 @@
   </div>
 </section>
 
-<!-- Supabase JS (UMD) -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <script>
 (function () {
   const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const REDIRECT_URL = "https://www.run-call.com/start-expert.html"; // important: stable, no edit
+  const REDIRECT_URL = "https://www.run-call.com/start-expert.html";
 
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -212,9 +212,20 @@
   const okBox = document.getElementById("okBox");
   const errBox = document.getElementById("errBox");
 
-  function showOk(msg){ okBox.style.display="block"; okBox.textContent=msg; }
-  function showErr(msg){ errBox.style.display="block"; errBox.textContent=msg; }
-  function clearBoxes(){ okBox.style.display="none"; okBox.textContent=""; errBox.style.display="none"; errBox.textContent=""; }
+  let inFlight = false;
+
+  function showOk(msg){
+    okBox.style.display="block";
+    okBox.textContent=msg;
+  }
+  function showErr(msg){
+    errBox.style.display="block";
+    errBox.textContent=msg;
+  }
+  function clearBoxes(){
+    okBox.style.display="none"; okBox.textContent="";
+    errBox.style.display="none"; errBox.textContent="";
+  }
 
   function setLoading(btn, isLoading, textLoading, textIdle){
     btn.disabled = isLoading;
@@ -222,12 +233,11 @@
   }
 
   function getNameFromUser(user){
-    // Supabase user metadata for Google usually contains full_name / name
     const md = user?.user_metadata || {};
     return (md.full_name || md.name || "").trim();
   }
 
-  async function ensureExpertRow(user){
+  async function ensureIntervenantRow(user){
     const authUserId = user.id;
     const email = (user.email || "").trim().toLowerCase();
     const name = getNameFromUser(user);
@@ -239,13 +249,16 @@
       .eq("auth_user_id", authUserId)
       .maybeSingle();
 
+    if (e1) throw e1;
+
     // if not found and we have email: try find by email to "attach" auth_user_id
     if (!existing && email) {
-      const { data: byEmail } = await sb
+      const { data: byEmail, error: eEmail } = await sb
         .from("experts")
         .select("id,name,email,presentation,photo_url,auth_user_id,status")
         .eq("email", email)
         .maybeSingle();
+      if (eEmail) throw eEmail;
       existing = byEmail || null;
     }
 
@@ -253,8 +266,8 @@
     if (existing?.id) {
       const patch = {
         auth_user_id: existing.auth_user_id || authUserId,
-        email: existing.email || email,
-        name: existing.name || name,
+        email: existing.email || email || null,
+        name: existing.name || name || null,
         updated_at: new Date().toISOString()
       };
 
@@ -262,7 +275,7 @@
         .from("experts")
         .update(patch)
         .eq("id", existing.id)
-        .select("id,name,email,presentation,photo_url,auth_user_id,status")
+        .select("id")
         .single();
 
       if (e2) throw e2;
@@ -283,36 +296,47 @@
     const { data: created, error: e3 } = await sb
       .from("experts")
       .insert(insert)
-      .select("id,name,email,presentation,photo_url,auth_user_id,status")
+      .select("id")
       .single();
 
     if (e3) throw e3;
     return created;
   }
 
-  function redirectNext(expert){
-  window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(expert.id)}`;
-}
-
+  function redirectNext(row){
+    // On parle "intervenant" dans l’UX, mais la table reste "experts"
+    window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(row.id)}`;
+  }
 
   async function postLoginFlow(){
-    clearBoxes();
-
-    const { data: { session }, error } = await sb.auth.getSession();
-    if (error) {
-      showErr("Erreur session: " + (error.message || "inconnue"));
-      return;
-    }
-    if (!session?.user) return; // not logged in
-
-    showOk("Connexion réussie. Finalisation…");
+    if (inFlight) return;
+    inFlight = true;
 
     try {
-      const expert = await ensureExpertRow(session.user);
-      redirectNext(expert);
+      clearBoxes();
+
+      const { data: { session }, error } = await sb.auth.getSession();
+      if (error) throw error;
+      if (!session?.user) { inFlight = false; return; }
+
+      // UI: lock buttons while finalizing
+      setLoading(googleBtn, true, "Finalisation…", "Continuer avec Google");
+      setLoading(magicBtn, true, "Finalisation…", "M’envoyer le lien de connexion");
+
+      const row = await ensureIntervenantRow(session.user);
+
+      // Only show OK if everything succeeded (then redirect)
+      showOk("Connexion réussie. Redirection…");
+      redirectNext(row);
+
     } catch (e) {
       console.error(e);
-      showErr("Erreur création profil expert: " + (e?.message || "inconnue"));
+      // Unlock buttons on error
+      setLoading(googleBtn, false, "Finalisation…", "Continuer avec Google");
+      setLoading(magicBtn, false, "Finalisation…", "M’envoyer le lien de connexion");
+
+      showErr("Erreur finalisation compte intervenant : " + (e?.message || "inconnue"));
+      inFlight = false;
     }
   }
 
@@ -322,16 +346,12 @@
 
     const { error } = await sb.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: REDIRECT_URL,
-        // IMPORTANT: scopes calendar are handled by your separate Google Calendar OAuth flow.
-        // Here it's only "Sign in with Google" for Supabase Auth.
-      }
+      options: { redirectTo: REDIRECT_URL }
     });
 
     if (error) {
-      setLoading(googleBtn, false, "", "Continuer avec Google");
-      showErr("Erreur Google: " + (error.message || "inconnue"));
+      setLoading(googleBtn, false, "Redirection…", "Continuer avec Google");
+      showErr("Erreur Google : " + (error.message || "inconnue"));
     }
   });
 
@@ -354,7 +374,7 @@
     setLoading(magicBtn, false, "Envoi…", "M’envoyer le lien de connexion");
 
     if (error) {
-      showErr("Erreur envoi email: " + (error.message || "inconnue"));
+      showErr("Erreur envoi email : " + (error.message || "inconnue"));
       return;
     }
 
@@ -364,8 +384,8 @@
   // Run on load (handles OAuth / magic link return)
   postLoginFlow();
 
-  // Also listen to auth changes (just in case)
-  sb.auth.onAuthStateChange((_event, _session) => {
+  // Also listen to auth changes (prevents rare cases where session arrives after load)
+  sb.auth.onAuthStateChange(() => {
     postLoginFlow();
   });
 })();
