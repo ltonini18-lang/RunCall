@@ -13,20 +13,62 @@ async function fetchGoogleEmail(accessToken) {
   }
 }
 
+function safeJsonParse(maybeJson) {
+  try { return JSON.parse(maybeJson); } catch { return null; }
+}
+
+async function getExistingGoogleAccount({ expertId }) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/expert_google_accounts` +
+    `?expert_id=eq.${encodeURIComponent(expertId)}` +
+    `&select=refresh_token,calendar_id,google_email`;
+
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`
+    }
+  });
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    console.error("Supabase read failed", { status: resp.status, body: text });
+    throw new Error(`Supabase read failed (${resp.status})`);
+  }
+
+  const arr = safeJsonParse(text);
+  return Array.isArray(arr) && arr.length ? arr[0] : null;
+}
+
 async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+  if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
+
+  // Important: Google often does NOT return refresh_token except first consent
+  const existing = await getExistingGoogleAccount({ expertId });
+  const refreshToken =
+    tokenData.refresh_token ||
+    existing?.refresh_token ||
+    null;
+
   const payload = {
     expert_id: expertId,
     provider: "google",
-    google_email: googleEmail || null,
+    google_email: googleEmail || existing?.google_email || null,
     calendar_id: "primary",
     access_token: tokenData.access_token || null,
-    refresh_token: tokenData.refresh_token || null,
+    refresh_token: refreshToken,
     token_type: tokenData.token_type || null,
     scope: tokenData.scope || null,
-    expiry_date: tokenData.expires_in ? (Date.now() + tokenData.expires_in * 1000) : null
+    expiry_date: tokenData.expires_in ? (Date.now() + tokenData.expires_in * 1000) : null,
+    updated_at: new Date().toISOString()
   };
 
   const url = `${SUPABASE_URL}/rest/v1/expert_google_accounts?on_conflict=expert_id`;
@@ -42,7 +84,7 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
     body: JSON.stringify([payload])
   });
 
-  const text = await resp.text(); // IMPORTANT: we want the raw error message
+  const text = await resp.text();
   if (!resp.ok) {
     console.error("Supabase upsert failed", {
       status: resp.status,
@@ -60,6 +102,8 @@ export default async function handler(req, res) {
     const stateRaw = String(req.query.state || "");
     if (!code || !stateRaw) return res.status(400).send("Missing code/state");
 
+    // Your current connect endpoint sends JSON-encoded state.
+    // We'll keep compatibility with that.
     let expertId;
     try {
       const state = JSON.parse(decodeURIComponent(stateRaw));
@@ -67,6 +111,8 @@ export default async function handler(req, res) {
     } catch {
       return res.status(400).send("Invalid state");
     }
+
+    if (!expertId) return res.status(400).send("Missing expert_id in state");
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -95,10 +141,9 @@ export default async function handler(req, res) {
     });
 
     const tokenText = await tokenRes.text();
-    let tokenData = null;
-    try { tokenData = JSON.parse(tokenText); } catch {}
+    const tokenData = safeJsonParse(tokenText);
 
-    if (!tokenRes.ok) {
+    if (!tokenRes.ok || !tokenData) {
       console.error("Token exchange failed", { status: tokenRes.status, body: tokenText });
       return res.status(500).send("Token exchange failed");
     }
@@ -109,9 +154,10 @@ export default async function handler(req, res) {
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
+    // ✅ NEW: redirect to dashboard instead of open-calendar
     return res.redirect(
       302,
-      `/open-calendar.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
+      `/dashboard.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
     );
   } catch (err) {
     console.error("Callback crashed:", err);
