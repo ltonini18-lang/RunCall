@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>RunCall – Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Scoped to this page only */
+    .db-page{ background:#f8fafc; }
+    .db-wrap{ max-width: 980px; margin: 0 auto; padding: 18px 0 46px; }
+    .db-card{
+      background:#fff;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      box-shadow:0 18px 40px rgba(15,23,42,.08);
+      overflow:hidden;
+    }
+    .db-hero{
+      padding: 26px 24px 18px;
+      border-bottom:1px solid #e5e7eb;
+      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
+    }
+    .db-badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid #e5e7eb; background:#fff;
+      color:#475569; font-size:.9rem;
+    }
+    .db-dot{ width:8px; height:8px; border-radius:999px; background:#1677ff; }
+    .db-title{
+      margin: 14px 0 6px;
+      font-size: 1.7rem; line-height:1.2;
+      letter-spacing:-.02em; color:#0f172a;
+    }
+    .db-subtitle{
+      margin:0; color:#475569; line-height:1.55;
+      font-size:1.02rem; max-width: 78ch;
+    }
+
+    .db-body{ padding: 18px 24px 24px; }
+
+    .db-topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin: 0 0 14px;
+      flex-wrap:wrap;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#475569;
+      font-size:.92rem;
+    }
+    .pill .okdot{
+      width:8px; height:8px; border-radius:999px;
+      background:#22c55e;
+    }
+    .pill .grydot{
+      width:8px; height:8px; border-radius:999px;
+      background:#94a3b8;
+    }
+
+    .tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .tab{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#0f172a;
+      border-radius:999px;
+      padding:8px 12px;
+      cursor:pointer;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+      user-select:none;
+      font-weight:700;
+      letter-spacing:-.01em;
+      font-size:.92rem;
+    }
+    .tab:hover{
+      transform: translateY(-1px);
+      border-color:#1677ff;
+      background: rgba(22,119,255,.06);
+    }
+    .tab.is-active{
+      border-color:#1677ff;
+      background: rgba(22,119,255,.10);
+    }
+
+    .db-grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+      align-items:start;
+      margin-top: 12px;
+    }
+
+    .panel{
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      padding:16px;
+      background:#fff;
+    }
+
+    .kpi-row{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:12px;
+      margin-bottom: 14px;
+    }
+    .kpi{
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      padding:12px;
+      background: linear-gradient(180deg, rgba(22,119,255,.06), rgba(255,255,255,1));
+    }
+    .kpi .label{ color:#64748b; font-size:.88rem; margin-bottom:6px; }
+    .kpi .value{ color:#0f172a; font-size:1.05rem; font-weight:900; letter-spacing:-.02em; }
+
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:100%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border:1px solid #1677ff;
+      background: rgba(22,119,255,.10);
+      color:#0f172a;
+      text-decoration:none;
+      font-weight:800;
+      letter-spacing:-.01em;
+      cursor:pointer;
+      transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease;
+      user-select:none;
+      gap:10px;
+    }
+    .btn:hover{
+      transform: translateY(-1px);
+      background: rgba(22,119,255,.14);
+      box-shadow:0 12px 26px rgba(22,119,255,.12);
+    }
+    .btn:active{ transform: translateY(0); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+
+    .btn-secondary{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:100%;
+      padding: 11px 14px;
+      border-radius: 16px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#0f172a;
+      text-decoration:none;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+      cursor:pointer;
+      gap:10px;
+      margin-top:10px;
+    }
+    .btn-secondary:hover{
+      transform: translateY(-1px);
+      border-color:#1677ff;
+      background: rgba(22,119,255,.06);
+    }
+
+    .small{
+      display:block;
+      color:#64748b;
+      font-size:.95rem;
+      line-height:1.55;
+      margin-top:12px;
+    }
+
+    .alert{
+      margin-top: 14px;
+      border-radius: 14px;
+      border:1px solid #e5e7eb;
+      background: #ffffff;
+      padding: 12px 12px;
+      color:#475569;
+      font-size: .95rem;
+      line-height: 1.55;
+    }
+    .alert strong{ color:#0f172a; }
+
+    .msg{
+      display:none;
+      margin-top: 12px;
+      border-radius: 14px;
+      border:1px solid #e5e7eb;
+      background:#ffffff;
+      padding: 12px 12px;
+      color:#475569;
+      font-size:.95rem;
+      line-height:1.55;
+    }
+    .msg.is-error{
+      border-color:#fecaca;
+      background:#fff1f2;
+      color:#881337;
+    }
+    .msg.is-ok{
+      border-color:#bbf7d0;
+      background:#f0fdf4;
+      color:#166534;
+    }
+
+    .steps{
+      margin: 0;
+      padding-left: 18px;
+      color:#475569;
+      line-height:1.7;
+    }
+    .steps li{ margin: 7px 0; }
+
+    .ghost{
+      border:1px dashed #e5e7eb;
+      border-radius:16px;
+      padding:12px;
+      color:#64748b;
+      background:#fff;
+      font-size:.95rem;
+      line-height:1.55;
+    }
+
+    .row-inline{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .chip{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      border-radius:999px;
+      padding:8px 10px;
+      color:#0f172a;
+      font-weight:700;
+      font-size:.92rem;
+    }
+    .chip-muted{
+      color:#64748b;
+      font-weight:700;
+      font-size:.92rem;
+    }
+
+    @media (max-width: 900px){
+      .db-grid{ grid-template-columns: 1fr; }
+      .kpi-row{ grid-template-columns: 1fr; }
+      .db-title{ font-size: 1.45rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header class="site-header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo-link">
+      <div class="logo">RunCall</div>
+    </a>
+  </div>
+</header>
+
+<div class="lang-switch">
+  <button type="button" data-lang="fr">FR</button>
+  <button type="button" data-lang="en">EN</button>
+</div>
+
+<section class="section db-page">
+  <div class="container db-wrap">
+
+    <div class="db-card">
+      <div class="db-hero">
+        <div class="db-badge">
+          <span class="db-dot"></span>
+          <span data-fr="Dashboard intervenant" data-en="Creator dashboard"></span>
+        </div>
+
+        <h1 class="db-title"
+            data-fr="Ton dashboard RunCall"
+            data-en="Your RunCall dashboard"></h1>
+
+        <p class="db-subtitle"
+           data-fr="Tout est centralisé ici. Pour ouvrir tes créneaux, tu crées simplement des événements “RunCall” dans Google Calendar."
+           data-en="Everything is centralized here. To open slots, simply create “RunCall” events in Google Calendar."></p>
+      </div>
+
+      <div class="db-body">
+        <div class="db-topbar">
+          <div class="row-inline">
+            <span id="whoChip" class="chip">—</span>
+            <span id="statusPill" class="pill"><span class="grydot"></span><span data-fr="Statut : en cours" data-en="Status: in progress"></span></span>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Dashboard tabs">
+            <button class="tab is-active" type="button" data-tab="availability"
+              data-fr="Disponibilités" data-en="Availability"></button>
+            <button class="tab" type="button" data-tab="revenue"
+              data-fr="Revenus" data-en="Revenue"></button>
+            <button class="tab" type="button" data-tab="bookings"
+              data-fr="Réservations" data-en="Bookings"></button>
+            <button class="tab" type="button" data-tab="settings"
+              data-fr="Paramètres" data-en="Settings"></button>
+          </div>
+        </div>
+
+        <div id="globalMsg" class="msg"></div>
+
+        <!-- Tab: Availability -->
+        <div id="tab-availability" class="db-grid">
+          <div class="panel">
+            <div class="kpi-row">
+              <div class="kpi">
+                <div class="label" data-fr="Page RunCall" data-en="RunCall page"></div>
+                <div class="value" id="kpiPage">—</div>
+              </div>
+              <div class="kpi">
+                <div class="label" data-fr="Créneaux ouverts" data-en="Open slots"></div>
+                <div class="value" data-fr="— (bientôt)" data-en="— (soon)"></div>
+              </div>
+              <div class="kpi">
+                <div class="label" data-fr="Prochaine réservation" data-en="Next booking"></div>
+                <div class="value" data-fr="— (bientôt)" data-en="— (soon)"></div>
+              </div>
+            </div>
+
+            <a class="btn"
+               href="https://calendar.google.com/calendar/u/0/r"
+               target="_blank"
+               rel="noopener noreferrer"
+               data-fr="Ouvrir Google Calendar"
+               data-en="Open Google Calendar"></a>
+
+            <button id="copyProfileBtn" class="btn-secondary" type="button"
+              data-fr="Copier le lien de ma page RunCall"
+              data-en="Copy my RunCall page link"></button>
+
+            <span class="small"
+              data-fr="Astuce : crée un événement et mets “RunCall” (ou “Run-Call”) dans le titre. Ce créneau apparaîtra sur ta page."
+              data-en="Tip: create an event and put “RunCall” (or “Run-Call”) in the title. That slot will appear on your page.">
+            </span>
+
+            <div class="alert">
+              <strong data-fr="Règle simple :" data-en="Simple rule:"></strong>
+              <span
+                data-fr="RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé."
+                data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another calendar event, it won’t be offered."
+              ></span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <ol class="steps">
+              <li data-fr="Ouvre Google Calendar (bouton à gauche)." data-en="Open Google Calendar (left button)."></li>
+              <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event when you’re available."></li>
+              <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title."></li>
+              <li data-fr="Partage ta page RunCall pour recevoir tes premières réservations 🚀" data-en="Share your RunCall page to get your first bookings 🚀"></li>
+            </ol>
+
+            <div class="ghost" style="margin-top:12px;"
+              data-fr="À venir : aperçu des créneaux ouverts, historique des sessions, revenus, paiements."
+              data-en="Coming soon: open slots preview, session history, revenue, payouts."></div>
+
+            <button id="logoutBtn" class="btn-secondary" type="button"
+              data-fr="Se déconnecter"
+              data-en="Sign out"></button>
+
+            <span class="small"
+              data-fr="(Tu pourras déconnecter ton agenda à tout moment.)"
+              data-en="(You can disconnect your calendar anytime.)"></span>
+          </div>
+        </div>
+
+        <!-- Tab placeholders -->
+        <div id="tab-revenue" class="panel" style="display:none; margin-top:16px;">
+          <div class="ghost"
+            data-fr="Revenus — bientôt : suivi des paiements, historique, export, paramètres Stripe."
+            data-en="Revenue — coming soon: payouts, history, export, Stripe settings."></div>
+        </div>
+
+        <div id="tab-bookings" class="panel" style="display:none; margin-top:16px;">
+          <div class="ghost"
+            data-fr="Réservations — bientôt : sessions passées / à venir, notes, annulation, replanification."
+            data-en="Bookings — coming soon: past/upcoming sessions, notes, cancel/reschedule."></div>
+        </div>
+
+        <div id="tab-settings" class="panel" style="display:none; margin-top:16px;">
+          <div class="ghost"
+            data-fr="Paramètres — bientôt : photo, description, liens, notifications, compte, sécurité."
+            data-en="Settings — coming soon: photo, bio, links, notifications, account, security."></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<script>
+(function () {
+  // ---------- Supabase ----------
+  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------- Language ----------
+  const buttons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+  if (!lang) {
+    const browserLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
+  }
+
+  function applyLanguage(nextLang) {
+    lang = nextLang;
+
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+
+    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+  }
+  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+
+  // ---------- Elements ----------
+  const qs = new URLSearchParams(window.location.search);
+  const expertId = qs.get("expert_id");
+  const connected = qs.get("connected") === "1";
+
+  const whoChip = document.getElementById("whoChip");
+  const statusPill = document.getElementById("statusPill");
+  const kpiPage = document.getElementById("kpiPage");
+  const globalMsg = document.getElementById("globalMsg");
+  const copyProfileBtn = document.getElementById("copyProfileBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  function showMsg(type, text) {
+    globalMsg.className = "msg " + (type === "error" ? "is-error" : "is-ok");
+    globalMsg.style.display = "block";
+    globalMsg.textContent = text;
+  }
+  function clearMsg(){
+    globalMsg.style.display = "none";
+    globalMsg.textContent = "";
+    globalMsg.className = "msg";
+  }
+
+  function setStatusConnected() {
+    statusPill.innerHTML = connected
+      ? `<span class="okdot"></span><span>${lang === "fr" ? "Google Calendar connecté ✅" : "Google Calendar connected ✅"}</span>`
+      : `<span class="grydot"></span><span>${lang === "fr" ? "Statut : en cours" : "Status: in progress"}</span>`;
+  }
+
+  function buildProfileUrl() {
+    // force www + stable format
+    return `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
+  }
+
+  async function init() {
+    clearMsg();
+    setStatusConnected();
+
+    if (!expertId) {
+      showMsg("error", lang === "fr"
+        ? "expert_id manquant dans l’URL."
+        : "Missing expert_id in URL.");
+      return;
+    }
+
+    const { data: { session }, error: sErr } = await sb.auth.getSession();
+    if (sErr) {
+      showMsg("error", (lang === "fr" ? "Erreur session: " : "Session error: ") + (sErr.message || "unknown"));
+      return;
+    }
+    if (!session?.user) {
+      showMsg("error", lang === "fr"
+        ? "Tu dois être connecté. Reviens sur la page démarrer."
+        : "You must be signed in. Go back to the start page.");
+      return;
+    }
+
+    // Load expert and verify ownership
+    const { data: expert, error: eErr } = await sb
+      .from("experts")
+      .select("id,name,email,auth_user_id")
+      .eq("id", expertId)
+      .single();
+
+    if (eErr || !expert) {
+      showMsg("error", lang === "fr"
+        ? "Impossible de charger ton profil."
+        : "Unable to load your profile.");
+      return;
+    }
+
+    if ((expert.auth_user_id || "") !== session.user.id) {
+      showMsg("error", lang === "fr"
+        ? "Accès refusé (ce dashboard ne correspond pas à ton compte)."
+        : "Access denied (this dashboard does not match your account).");
+      return;
+    }
+
+    const display = (expert.name || expert.email || "—").trim();
+    whoChip.textContent = display;
+
+    const profileUrl = buildProfileUrl();
+    kpiPage.textContent = "Ready";
+
+    // Success toast on connect
+    if (connected) {
+      showMsg("ok", lang === "fr"
+        ? "Calendrier connecté. Tu peux maintenant ouvrir tes créneaux dans Google Calendar."
+        : "Calendar connected. You can now open slots in Google Calendar.");
+    }
+  }
+
+  // Tabs behavior
+  const tabs = Array.from(document.querySelectorAll(".tab"));
+  function setTab(id) {
+    tabs.forEach(t => t.classList.toggle("is-active", t.dataset.tab === id));
+    document.getElementById("tab-availability").style.display = (id === "availability") ? "grid" : "none";
+    document.getElementById("tab-revenue").style.display = (id === "revenue") ? "block" : "none";
+    document.getElementById("tab-bookings").style.display = (id === "bookings") ? "block" : "none";
+    document.getElementById("tab-settings").style.display = (id === "settings") ? "block" : "none";
+  }
+  tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
+
+  // Copy link
+  copyProfileBtn.addEventListener("click", async () => {
+    clearMsg();
+    if (!expertId) return;
+
+    const url = buildProfileUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      showMsg("ok", lang === "fr"
+        ? "Lien copié ✅ Partage-le pour recevoir tes premières réservations 🚀"
+        : "Link copied ✅ Share it to get your first bookings 🚀");
+    } catch {
+      // Fallback
+      const tmp = document.createElement("textarea");
+      tmp.value = url;
+      document.body.appendChild(tmp);
+      tmp.select();
+      document.execCommand("copy");
+      document.body.removeChild(tmp);
+      showMsg("ok", lang === "fr"
+        ? "Lien copié ✅"
+        : "Link copied ✅");
+    }
+  });
+
+  // Logout
+  logoutBtn.addEventListener("click", async () => {
+    clearMsg();
+    await sb.auth.signOut();
+    window.location.href = "start-expert.html";
+  });
+
+  // Re-apply status pill text on language switch
+  buttons.forEach(btn => btn.addEventListener("click", () => setStatusConnected()));
+
+  init();
+})();
+</script>
+
+</body>
+</html>
