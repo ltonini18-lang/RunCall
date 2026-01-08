@@ -86,6 +86,8 @@
       font-weight:700;
       letter-spacing:-.01em;
       transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease;
+      cursor:pointer;
+      user-select:none;
     }
     .cc-btn:hover{
       transform: translateY(-1px);
@@ -93,6 +95,13 @@
       box-shadow: 0 12px 26px rgba(22,119,255,.12);
     }
     .cc-btn:active{ transform: translateY(0); }
+    .cc-btn[aria-disabled="true"]{
+      opacity:.55;
+      cursor:not-allowed;
+      transform:none !important;
+      box-shadow:none !important;
+    }
+
     .cc-btn .icon{
       width: 26px; height: 26px;
       border-radius: 10px;
@@ -104,24 +113,7 @@
       color:#1677ff;
       flex: 0 0 auto;
     }
-    .cc-secondary{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:100%;
-      padding: 11px 14px;
-      border-radius: 16px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#0f172a;
-      text-decoration:none;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-    }
-    .cc-secondary:hover{
-      transform: translateY(-1px);
-      border-color:#1677ff;
-      background: rgba(22,119,255,.06);
-    }
+
     .cc-muted{
       margin-top: 8px;
       color:#64748b;
@@ -129,6 +121,7 @@
       line-height:1.5;
       text-align:center;
     }
+
     .cc-alert{
       margin-top: 14px;
       border-radius: 14px;
@@ -140,6 +133,7 @@
       line-height: 1.55;
     }
     .cc-alert strong{ color:#0f172a; }
+
     @media (max-width: 780px){
       .cc-grid{ grid-template-columns: 1fr; }
       .cc-title{ font-size: 1.45rem; }
@@ -190,46 +184,22 @@
                 data-fr="Clique sur « Connect Google Calendar » et autorise RunCall à accéder à ton agenda."
                 data-en="Click “Connect Google Calendar” and allow RunCall to access your calendar.">
               </li>
-
-              <li
-                data-fr="Une fois connecté, ouvre Google Calendar et crée tes disponibilités."
-                data-en="Once connected, open Google Calendar and create your availability.">
-              </li>
-
-              <li
-                data-fr="Ajoute simplement « RunCall » ou « Run-Call » dans le titre de l’événement pour le rendre disponible."
-                data-en="Simply add “RunCall” or “Run-Call” in the event title to make it available.">
-              </li>
-
-              <li
-                data-fr="Lorsqu’un créneau est réservé, tu es automatiquement informé."
-                data-en="When a slot is booked, you are automatically notified.">
-              </li>
             </ol>
 
             <div class="cc-alert">
-              <strong data-fr="Note :" data-en="Note:"></strong>
+              <strong data-fr="Ensuite :" data-en="Then:"></strong>
               <span
-                data-fr="RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé. Pour fermer des disponibilités (vacances, imprévus), il suffit de supprimer ou modifier l’événement RunCall dans Google Calendar."
-                data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another calendar event, it will not be offered. To close availability (vacation, conflicts), simply delete or edit the RunCall event in Google Calendar."
+                data-fr="tu seras redirigé vers ton dashboard RunCall, où tu pourras ouvrir Google Calendar et créer tes disponibilités."
+                data-en="you’ll be redirected to your RunCall dashboard, where you can open Google Calendar and create your availability."
               ></span>
             </div>
           </div>
 
-
-
-
           <div class="cc-cta">
-            <!-- V2 endpoint (placeholder). When ready, this will start OAuth. -->
             <a id="googleConnectBtn" class="cc-btn" href="#">
-  <span class="icon">G</span>
-  <span data-fr="Connect Google Calendar" data-en="Connect Google Calendar"></span>
-</a>
-
-
-            <a class="cc-secondary" href="index.html"
-               data-fr="Retour à RunCall"
-               data-en="Back to RunCall"></a>
+              <span class="icon">G</span>
+              <span data-fr="Connect Google Calendar" data-en="Connect Google Calendar"></span>
+            </a>
 
             <div class="cc-muted"
                  data-fr="(Tu pourras déconnecter ton agenda à tout moment.)"
@@ -245,15 +215,18 @@
 
 <script>
 (function () {
+  // --- lang state accessible everywhere in this script ---
   const buttons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
 
   if (!lang) {
-    const browserLang = navigator.language || navigator.userLanguage;
-    lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
+    const browserLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
   }
 
-  function applyLanguage(lang) {
+  function applyLanguage(nextLang) {
+    lang = nextLang;
+
     document.querySelectorAll('[data-fr][data-en]').forEach(el => {
       el.textContent = el.dataset[lang];
     });
@@ -267,15 +240,21 @@
 
   buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
-})();
 
   // ----- Google connect (must include expert_id) -----
   const params = new URLSearchParams(window.location.search);
   const expertId = params.get("expert_id");
   const googleBtn = document.getElementById("googleConnectBtn");
 
+  function disableGoogleBtn() {
+    if (!googleBtn) return;
+    googleBtn.setAttribute("aria-disabled", "true");
+    googleBtn.style.pointerEvents = "none";
+  }
+
   if (!expertId) {
     console.error("Missing expert_id in URL:", window.location.href);
+    disableGoogleBtn();
   }
 
   if (googleBtn) {
@@ -289,11 +268,11 @@
         return;
       }
 
+      // API will start Google Calendar OAuth, then SHOULD redirect to dashboard.html?expert_id=...
       window.location.href = `/api/google/connect?expert_id=${encodeURIComponent(expertId)}`;
     });
   }
-
-  
+})();
 </script>
 
 </body>
