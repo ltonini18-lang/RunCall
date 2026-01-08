@@ -1,272 +1,584 @@
+<!-- dashboard.html (ex open-calendar.html) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Dashboard</title>
+  <title>RunCall – Dashboard intervenant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* Scoped to this page only */
-    .db-page{ background:#f8fafc; }
-    .db-wrap{ max-width: 980px; margin: 0 auto; padding: 18px 0 46px; }
-    .db-card{
+    :root{
+      --bg:#f8fafc;
+      --card:#ffffff;
+      --border:#e5e7eb;
+      --text:#0f172a;
+      --muted:#475569;
+      --muted2:#64748b;
+      --brand:#1677ff;
+      --shadow: 0 18px 40px rgba(15,23,42,.08);
+      --radius:18px;
+    }
+
+    body{ background:var(--bg); }
+
+    /* Layout */
+    .dash-shell{
+      display:flex;
+      min-height: 100vh;
+    }
+    .dash-sidebar{
+      position:sticky;
+      top:0;
+      align-self:flex-start;
+      height: 100vh;
+      width: 270px;
       background:#fff;
-      border:1px solid #e5e7eb;
-      border-radius:18px;
-      box-shadow:0 18px 40px rgba(15,23,42,.08);
-      overflow:hidden;
+      border-right: 1px solid var(--border);
+      padding: 16px 14px;
+      box-sizing:border-box;
     }
-    .db-hero{
-      padding: 26px 24px 18px;
-      border-bottom:1px solid #e5e7eb;
-      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
+    .dash-main{
+      flex:1;
+      min-width: 0;
     }
-    .db-badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid #e5e7eb; background:#fff;
-      color:#475569; font-size:.9rem;
+    .dash-top{
+      position:sticky;
+      top:0;
+      z-index:20;
+      background: rgba(248,250,252,.86);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(229,231,235,.8);
     }
-    .db-dot{ width:8px; height:8px; border-radius:999px; background:#1677ff; }
-    .db-title{
-      margin: 14px 0 6px;
-      font-size: 1.7rem; line-height:1.2;
-      letter-spacing:-.02em; color:#0f172a;
-    }
-    .db-subtitle{
-      margin:0; color:#475569; line-height:1.55;
-      font-size:1.02rem; max-width: 78ch;
-    }
-
-    .db-body{ padding: 18px 24px 24px; }
-
-    .db-topbar{
+    .dash-top-inner{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 18px;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin: 0 0 14px;
-      flex-wrap:wrap;
+      box-sizing:border-box;
+    }
+    .dash-content{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 18px 46px;
+      box-sizing:border-box;
     }
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:7px 10px;
-      border-radius:999px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#475569;
-      font-size:.92rem;
-    }
-    .pill .okdot{
-      width:8px; height:8px; border-radius:999px;
-      background:#22c55e;
-    }
-    .pill .grydot{
-      width:8px; height:8px; border-radius:999px;
-      background:#94a3b8;
-    }
-
-    .tabs{
+    /* Sidebar header */
+    .sb-brand{
       display:flex;
-      gap:8px;
-      flex-wrap:wrap;
+      align-items:center;
+      gap:10px;
+      padding: 6px 8px 12px;
+      margin-bottom: 12px;
+      border-bottom:1px solid var(--border);
     }
-    .tab{
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#0f172a;
+    .sb-logo{
+      font-weight: 900;
+      letter-spacing:-.02em;
+      color: var(--text);
+      font-size: 1.05rem;
+    }
+    .sb-pill{
+      margin-left:auto;
+      font-size:.78rem;
+      padding:5px 8px;
       border-radius:999px;
-      padding:8px 12px;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      user-select:none;
-      font-weight:700;
-      letter-spacing:-.01em;
-      font-size:.92rem;
-    }
-    .tab:hover{
-      transform: translateY(-1px);
-      border-color:#1677ff;
-      background: rgba(22,119,255,.06);
-    }
-    .tab.is-active{
-      border-color:#1677ff;
-      background: rgba(22,119,255,.10);
-    }
-
-    .db-grid{
-      display:grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap:16px;
-      align-items:start;
-      margin-top: 12px;
-    }
-
-    .panel{
-      border:1px solid #e5e7eb;
-      border-radius:16px;
-      padding:16px;
+      border:1px solid var(--border);
+      color: var(--muted);
       background:#fff;
     }
 
-    .kpi-row{
+    /* Sidebar nav */
+    .sb-nav{ margin-top: 10px; }
+    .sb-item{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      color: var(--text);
+      text-decoration:none;
+      border: 1px solid transparent;
+      cursor:pointer;
+      user-select:none;
+    }
+    .sb-item:hover{
+      background: rgba(22,119,255,.06);
+      border-color: rgba(22,119,255,.18);
+    }
+    .sb-item.active{
+      background: rgba(22,119,255,.10);
+      border-color: rgba(22,119,255,.35);
+      font-weight: 800;
+    }
+    .sb-ico{
+      width: 28px; height: 28px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
       display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap:12px;
-      margin-bottom: 14px;
+      place-items:center;
+      color: var(--brand);
+      background:#fff;
+      flex:0 0 auto;
+      font-weight: 900;
+      font-size:.9rem;
     }
-    .kpi{
-      border:1px solid #e5e7eb;
-      border-radius:16px;
-      padding:12px;
-      background: linear-gradient(180deg, rgba(22,119,255,.06), rgba(255,255,255,1));
+    .sb-muted{
+      color: var(--muted2);
+      font-size: .9rem;
+      line-height:1.4;
+      padding: 10px 10px 0;
     }
-    .kpi .label{ color:#64748b; font-size:.88rem; margin-bottom:6px; }
-    .kpi .value{ color:#0f172a; font-size:1.05rem; font-weight:900; letter-spacing:-.02em; }
 
+    /* Profile card (top) */
+    .profile-row{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      min-width: 0;
+    }
+    .avatar{
+      width: 54px; height: 54px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #fff;
+      overflow:hidden;
+      display:grid;
+      place-items:center;
+      flex: 0 0 auto;
+      box-shadow: 0 10px 20px rgba(15,23,42,.06);
+    }
+    .avatar img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+    .avatar-fallback{
+      font-weight: 900;
+      color: var(--brand);
+    }
+    .pmeta{
+      min-width:0;
+    }
+    .pname{
+      margin:0;
+      font-size: 1.15rem;
+      line-height:1.15;
+      letter-spacing:-.02em;
+      color: var(--text);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .pbio{
+      margin: 3px 0 0;
+      color: var(--muted);
+      line-height:1.35;
+      font-size:.95rem;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width: 64ch;
+    }
+    .pactions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-left:auto;
+      flex: 0 0 auto;
+    }
+
+    /* Buttons */
     .btn{
       display:inline-flex;
       align-items:center;
       justify-content:center;
-      width:100%;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border:1px solid #1677ff;
-      background: rgba(22,119,255,.10);
-      color:#0f172a;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color: var(--text);
       text-decoration:none;
+      cursor:pointer;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+      user-select:none;
       font-weight:800;
       letter-spacing:-.01em;
-      cursor:pointer;
-      transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease;
-      user-select:none;
-      gap:10px;
+      white-space:nowrap;
     }
     .btn:hover{
       transform: translateY(-1px);
-      background: rgba(22,119,255,.14);
-      box-shadow:0 12px 26px rgba(22,119,255,.12);
+      border-color: rgba(22,119,255,.45);
+      background: rgba(22,119,255,.06);
+      box-shadow: 0 12px 26px rgba(22,119,255,.10);
     }
     .btn:active{ transform: translateY(0); }
-    .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
 
-    .btn-secondary{
+    .btn-primary{
+      border-color: var(--brand);
+      background: rgba(22,119,255,.10);
+    }
+    .btn-primary:hover{ background: rgba(22,119,255,.14); }
+
+    /* Tooltip (Copy link) */
+    .tip-wrap{
+      position:relative;
       display:inline-flex;
       align-items:center;
-      justify-content:center;
-      width:100%;
-      padding: 11px 14px;
-      border-radius: 16px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#0f172a;
-      text-decoration:none;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      cursor:pointer;
-      gap:10px;
-      margin-top:10px;
     }
-    .btn-secondary:hover{
-      transform: translateY(-1px);
-      border-color:#1677ff;
-      background: rgba(22,119,255,.06);
+    .tip{
+      position:absolute;
+      top: 50px;
+      right: 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #111827;
+      color:#fff;
+      font-weight: 800;
+      font-size:.9rem;
+      opacity:0;
+      transform: translateY(-6px);
+      pointer-events:none;
+      transition: opacity 140ms ease, transform 140ms ease;
+      box-shadow: 0 18px 40px rgba(0,0,0,.25);
+      white-space:nowrap;
+    }
+    .tip:before{
+      content:"";
+      position:absolute;
+      top:-6px;
+      right: 18px;
+      width: 12px; height: 12px;
+      background:#111827;
+      transform: rotate(45deg);
+    }
+    .tip-wrap:hover .tip{
+      opacity:1;
+      transform: translateY(0);
     }
 
-    .small{
-      display:block;
-      color:#64748b;
-      font-size:.95rem;
+    /* Cards */
+    .card{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card-head{
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--border);
+      background: radial-gradient(900px 320px at 18% 0%, rgba(22,119,255,.12), transparent 58%);
+    }
+    .badge{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 10px; border-radius:999px;
+      border:1px solid var(--border); background:#fff;
+      color: var(--muted); font-size:.9rem;
+    }
+    .dot{ width:8px; height:8px; border-radius:999px; background: var(--brand); }
+    .title{
+      margin: 12px 0 4px;
+      font-size: 1.55rem; line-height:1.2;
+      letter-spacing:-.02em; color: var(--text);
+    }
+    .subtitle{
+      margin:0;
+      color: var(--muted);
       line-height:1.55;
-      margin-top:12px;
+      font-size:1.02rem;
+      max-width: 90ch;
     }
+    .card-body{ padding: 16px 18px 18px; }
 
-    .alert{
+    /* Grid inside main card */
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:16px;
+      align-items:start;
       margin-top: 14px;
-      border-radius: 14px;
-      border:1px solid #e5e7eb;
-      background: #ffffff;
-      padding: 12px 12px;
-      color:#475569;
-      font-size: .95rem;
-      line-height: 1.55;
-    }
-    .alert strong{ color:#0f172a; }
-
-    .msg{
-      display:none;
-      margin-top: 12px;
-      border-radius: 14px;
-      border:1px solid #e5e7eb;
-      background:#ffffff;
-      padding: 12px 12px;
-      color:#475569;
-      font-size:.95rem;
-      line-height:1.55;
-    }
-    .msg.is-error{
-      border-color:#fecaca;
-      background:#fff1f2;
-      color:#881337;
-    }
-    .msg.is-ok{
-      border-color:#bbf7d0;
-      background:#f0fdf4;
-      color:#166534;
     }
 
-    .steps{
-      margin: 0;
-      padding-left: 18px;
-      color:#475569;
-      line-height:1.7;
-    }
-    .steps li{ margin: 7px 0; }
-
-    .ghost{
-      border:1px dashed #e5e7eb;
-      border-radius:16px;
-      padding:12px;
-      color:#64748b;
+    /* Calendar block */
+    .calendar-wrap{
+      border: 1px solid var(--border);
+      border-radius: 18px;
       background:#fff;
-      font-size:.95rem;
+      overflow:hidden;
+    }
+    .calendar-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background:#fff;
+    }
+    .calendar-note{
+      color: var(--muted);
+      font-size:.98rem;
+      line-height:1.4;
+    }
+    .calendar-area{
+      position:relative;
+      min-height: 520px;
+      background:
+        linear-gradient(#fff, #fff) padding-box,
+        radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.10), transparent 58%) border-box;
+    }
+    .calendar-inner{
+      padding: 14px;
+    }
+
+    /* “calendar like” grid */
+    .week-grid{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    }
+    .day-col{
+      border:1px solid var(--border);
+      border-radius: 16px;
+      background:#fff;
+      overflow:hidden;
+      min-height: 220px;
+      display:flex;
+      flex-direction:column;
+    }
+    .day-head{
+      padding: 10px 10px 8px;
+      border-bottom:1px solid var(--border);
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing:-.01em;
+      font-size:.92rem;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+    }
+    .day-date{
+      font-weight: 800;
+      color: var(--muted2);
+      font-size:.85rem;
+      white-space:nowrap;
+    }
+    .slots{
+      padding: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      flex:1;
+    }
+    .slot{
+      border: 1px solid rgba(22,119,255,.22);
+      background: rgba(22,119,255,.08);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 8px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .slot strong{ font-size:.92rem; }
+    .slot small{ color: var(--muted2); font-size:.85rem; }
+
+    /* Empty-state overlay */
+    .overlay{
+      position:absolute;
+      inset: 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 20px;
+      background: rgba(248,250,252,.55);
+      backdrop-filter: blur(2px);
+    }
+    .overlay.show{ display:flex; }
+    .overlay-card{
+      width: min(520px, 100%);
+      border-radius: 20px;
+      border:1px solid var(--border);
+      background:#fff;
+      box-shadow: 0 18px 40px rgba(15,23,42,.10);
+      padding: 16px;
+      text-align:center;
+    }
+    .overlay-title{
+      margin: 6px 0 6px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing:-.02em;
+      font-size: 1.15rem;
+    }
+    .overlay-text{
+      margin: 0;
+      color: var(--muted);
+      line-height:1.55;
+      font-size: .98rem;
+    }
+
+    /* Right helper panel */
+    .helper{
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background:#fff;
+      padding: 14px;
+    }
+    .helper h3{
+      margin:0 0 10px;
+      color: var(--text);
+      letter-spacing:-.01em;
+      font-size: 1.05rem;
+    }
+    .helper ol{
+      margin:0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height:1.7;
+      font-size:.98rem;
+    }
+    .helper li{ margin: 7px 0; }
+    .helper .mini{
+      margin-top: 10px;
+      color: var(--muted2);
+      font-size:.92rem;
       line-height:1.55;
     }
 
-    .row-inline{
+    /* Toast */
+    .toast{
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 999;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background:#fff;
+      box-shadow: 0 18px 40px rgba(15,23,42,.12);
+      color: var(--text);
+      display:none;
+      max-width: 360px;
+    }
+    .toast.show{ display:block; }
+    .toast.ok{ border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
+    .toast.err{ border-color:#fecaca; background:#fff1f2; color:#881337; }
+
+    /* Modal */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(15,23,42,.40);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 9999;
+    }
+    .modal-backdrop.show{ display:flex; }
+    .modal{
+      width: min(720px, 100%);
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius: 20px;
+      box-shadow: 0 22px 70px rgba(15,23,42,.22);
+      overflow:hidden;
+    }
+    .modal-head{
+      padding: 14px 16px;
+      border-bottom:1px solid var(--border);
+      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modal-head h4{
+      margin:0;
+      color: var(--text);
+      letter-spacing:-.02em;
+      font-size:1.05rem;
+    }
+    .xbtn{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight:900;
+      color: var(--muted);
+    }
+    .modal-body{ padding: 14px 16px 16px; }
+    .form-row{ margin: 0 0 12px; }
+    .form-row label{ display:block; font-weight:900; color: var(--text); margin-bottom:6px; }
+    .input, .textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color: var(--text);
+      outline:none;
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+      box-sizing:border-box;
+    }
+    .textarea{ resize: vertical; min-height: 110px; }
+    .input:focus, .textarea:focus{
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgba(22,119,255,.10);
+    }
+    .modal-actions{
       display:flex;
       gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
+      justify-content:flex-end;
+      margin-top: 12px;
     }
-    .chip{
-      border:1px solid #e5e7eb;
-      background:#fff;
-      border-radius:999px;
-      padding:8px 10px;
-      color:#0f172a;
-      font-weight:700;
+    .smallhint{
+      color: var(--muted2);
       font-size:.92rem;
-    }
-    .chip-muted{
-      color:#64748b;
-      font-weight:700;
-      font-size:.92rem;
+      line-height:1.45;
+      margin-top: 8px;
     }
 
-    @media (max-width: 900px){
-      .db-grid{ grid-template-columns: 1fr; }
-      .kpi-row{ grid-template-columns: 1fr; }
-      .db-title{ font-size: 1.45rem; }
+    /* Lang switch */
+    .lang-switch{
+      position: fixed;
+      right: 14px;
+      top: 70px;
+      z-index: 50;
+    }
+    /* If you already style lang-switch in style.css, this won’t break it. */
+
+    /* Responsive */
+    @media (max-width: 980px){
+      .dash-sidebar{ display:none; }
+      .dash-top-inner, .dash-content{ padding-left: 14px; padding-right: 14px; }
+      .pbio{ max-width: 40ch; }
+    }
+    @media (max-width: 780px){
+      .title{ font-size: 1.32rem; }
+      .week-grid{ grid-template-columns: 1fr; }
+      .calendar-area{ min-height: 520px; }
+      .pactions{ gap:8px; }
+      .btn{ padding: 9px 10px; }
     }
   </style>
 </head>
 
 <body>
 
+<!-- Keep your existing site header -->
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="logo-link">
@@ -280,305 +592,649 @@
   <button type="button" data-lang="en">EN</button>
 </div>
 
-<section class="section db-page">
-  <div class="container db-wrap">
+<div class="dash-shell">
 
-    <div class="db-card">
-      <div class="db-hero">
-        <div class="db-badge">
-          <span class="db-dot"></span>
-          <span data-fr="Dashboard intervenant" data-en="Creator dashboard"></span>
-        </div>
+  <!-- Sidebar fixed -->
+  <aside class="dash-sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo">Dashboard</div>
+      <div class="sb-pill" data-fr="Intervenant" data-en="Host">Intervenant</div>
+    </div>
 
-        <h1 class="db-title"
-            data-fr="Ton dashboard RunCall"
-            data-en="Your RunCall dashboard"></h1>
-
-        <p class="db-subtitle"
-           data-fr="Tout est centralisé ici. Pour ouvrir tes créneaux, tu crées simplement des événements “RunCall” dans Google Calendar."
-           data-en="Everything is centralized here. To open slots, simply create “RunCall” events in Google Calendar."></p>
+    <nav class="sb-nav">
+      <div class="sb-item active" data-tab="home">
+        <div class="sb-ico">⌂</div>
+        <div data-fr="Accueil" data-en="Home">Accueil</div>
       </div>
 
-      <div class="db-body">
-        <div class="db-topbar">
-          <div class="row-inline">
-            <span id="whoChip" class="chip">—</span>
-            <span id="statusPill" class="pill"><span class="grydot"></span><span data-fr="Statut : en cours" data-en="Status: in progress"></span></span>
+      <div class="sb-item" data-tab="calendar">
+        <div class="sb-ico">🗓</div>
+        <div data-fr="Créneaux" data-en="Slots">Créneaux</div>
+      </div>
+
+      <div class="sb-item" data-tab="profile">
+        <div class="sb-ico">✎</div>
+        <div data-fr="Profil" data-en="Profile">Profil</div>
+      </div>
+
+      <div class="sb-item" data-tab="payouts" title="Coming soon">
+        <div class="sb-ico">€</div>
+        <div data-fr="Paiements (bientôt)" data-en="Payouts (soon)">Paiements (bientôt)</div>
+      </div>
+
+      <div class="sb-item" data-tab="analytics" title="Coming soon">
+        <div class="sb-ico">↗</div>
+        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)">Statistiques (bientôt)</div>
+      </div>
+
+      <div class="sb-item" data-tab="settings" title="Coming soon">
+        <div class="sb-ico">⚙</div>
+        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)">Réglages (bientôt)</div>
+      </div>
+
+      <div class="sb-muted"
+           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
+           data-en="Soon you’ll manage payouts, session history, and key business settings here.">
+        À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="dash-main">
+
+    <!-- Top bar -->
+    <div class="dash-top">
+      <div class="dash-top-inner">
+        <div class="profile-row">
+          <div class="avatar" id="avatar">
+            <div class="avatar-fallback" id="avatarFallback">RC</div>
           </div>
 
-          <div class="tabs" role="tablist" aria-label="Dashboard tabs">
-            <button class="tab is-active" type="button" data-tab="availability"
-              data-fr="Disponibilités" data-en="Availability"></button>
-            <button class="tab" type="button" data-tab="revenue"
-              data-fr="Revenus" data-en="Revenue"></button>
-            <button class="tab" type="button" data-tab="bookings"
-              data-fr="Réservations" data-en="Bookings"></button>
-            <button class="tab" type="button" data-tab="settings"
-              data-fr="Paramètres" data-en="Settings"></button>
-          </div>
-        </div>
-
-        <div id="globalMsg" class="msg"></div>
-
-        <!-- Tab: Availability -->
-        <div id="tab-availability" class="db-grid">
-          <div class="panel">
-            <div class="kpi-row">
-              <div class="kpi">
-                <div class="label" data-fr="Page RunCall" data-en="RunCall page"></div>
-                <div class="value" id="kpiPage">—</div>
-              </div>
-              <div class="kpi">
-                <div class="label" data-fr="Créneaux ouverts" data-en="Open slots"></div>
-                <div class="value" data-fr="— (bientôt)" data-en="— (soon)"></div>
-              </div>
-              <div class="kpi">
-                <div class="label" data-fr="Prochaine réservation" data-en="Next booking"></div>
-                <div class="value" data-fr="— (bientôt)" data-en="— (soon)"></div>
-              </div>
-            </div>
-
-            <a class="btn"
-               href="https://calendar.google.com/calendar/u/0/r"
-               target="_blank"
-               rel="noopener noreferrer"
-               data-fr="Ouvrir Google Calendar"
-               data-en="Open Google Calendar"></a>
-
-            <button id="copyProfileBtn" class="btn-secondary" type="button"
-              data-fr="Copier le lien de ma page RunCall"
-              data-en="Copy my RunCall page link"></button>
-
-            <span class="small"
-              data-fr="Astuce : crée un événement et mets “RunCall” (ou “Run-Call”) dans le titre. Ce créneau apparaîtra sur ta page."
-              data-en="Tip: create an event and put “RunCall” (or “Run-Call”) in the title. That slot will appear on your page.">
-            </span>
-
-            <div class="alert">
-              <strong data-fr="Règle simple :" data-en="Simple rule:"></strong>
-              <span
-                data-fr="RunCall n’affiche que les créneaux que tu ouvres volontairement. Si un événement RunCall est en conflit avec un autre événement de ton agenda, il ne sera pas proposé."
-                data-en="RunCall only shows the slots you intentionally open. If a RunCall event conflicts with another calendar event, it won’t be offered."
-              ></span>
-            </div>
+          <div class="pmeta">
+            <h2 class="pname" id="pname">—</h2>
+            <p class="pbio" id="pbio">—</p>
           </div>
 
-          <div class="panel">
-            <ol class="steps">
-              <li data-fr="Ouvre Google Calendar (bouton à gauche)." data-en="Open Google Calendar (left button)."></li>
-              <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event when you’re available."></li>
-              <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title."></li>
-              <li data-fr="Partage ta page RunCall pour recevoir tes premières réservations 🚀" data-en="Share your RunCall page to get your first bookings 🚀"></li>
-            </ol>
+          <div class="pactions">
+            <button class="btn" id="editProfileBtn" type="button"
+              data-fr="Modifier"
+              data-en="Edit">Modifier</button>
 
-            <div class="ghost" style="margin-top:12px;"
-              data-fr="À venir : aperçu des créneaux ouverts, historique des sessions, revenus, paiements."
-              data-en="Coming soon: open slots preview, session history, revenue, payouts."></div>
-
-            <button id="logoutBtn" class="btn-secondary" type="button"
-              data-fr="Se déconnecter"
-              data-en="Sign out"></button>
-
-            <span class="small"
-              data-fr="(Tu pourras déconnecter ton agenda à tout moment.)"
-              data-en="(You can disconnect your calendar anytime.)"></span>
+            <a class="btn btn-primary tip-wrap" id="publicPageBtn" href="#" target="_blank" rel="noopener">
+              <span data-fr="Voir ma page RunCall" data-en="View my RunCall page">Voir ma page RunCall</span>
+              <span aria-hidden="true">↗</span>
+              <span class="tip" data-fr="Copy link" data-en="Copy link">Copy link</span>
+            </a>
           </div>
         </div>
-
-        <!-- Tab placeholders -->
-        <div id="tab-revenue" class="panel" style="display:none; margin-top:16px;">
-          <div class="ghost"
-            data-fr="Revenus — bientôt : suivi des paiements, historique, export, paramètres Stripe."
-            data-en="Revenue — coming soon: payouts, history, export, Stripe settings."></div>
-        </div>
-
-        <div id="tab-bookings" class="panel" style="display:none; margin-top:16px;">
-          <div class="ghost"
-            data-fr="Réservations — bientôt : sessions passées / à venir, notes, annulation, replanification."
-            data-en="Bookings — coming soon: past/upcoming sessions, notes, cancel/reschedule."></div>
-        </div>
-
-        <div id="tab-settings" class="panel" style="display:none; margin-top:16px;">
-          <div class="ghost"
-            data-fr="Paramètres — bientôt : photo, description, liens, notifications, compte, sécurité."
-            data-en="Settings — coming soon: photo, bio, links, notifications, account, security."></div>
-        </div>
-
       </div>
     </div>
 
-  </div>
-</section>
+    <!-- Content -->
+    <div class="dash-content">
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+      <div class="card">
+        <div class="card-head">
+          <div class="badge">
+            <span class="dot"></span>
+            <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+          </div>
+
+          <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar"
+              data-en="Manage your slots from Google Calendar">
+            Gère tes créneaux depuis Google Calendar
+          </h1>
+
+          <p class="subtitle"
+             data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
+             data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
+            Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
+          </p>
+        </div>
+
+        <div class="card-body">
+          <div class="grid">
+
+            <!-- Calendar big center -->
+            <div class="calendar-wrap">
+              <div class="calendar-top">
+                <div class="calendar-note"
+                     data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
+                     data-en="To close a slot: delete (or edit) the corresponding event in your Google Calendar.">
+                  Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
+                </div>
+
+                <a class="btn btn-primary" id="openGcalBtn"
+                   href="https://calendar.google.com/calendar/u/0/r"
+                   target="_blank" rel="noopener noreferrer"
+                   data-fr="Ouvrir Google Calendar"
+                   data-en="Open Google Calendar">
+                  Ouvrir Google Calendar
+                </a>
+              </div>
+
+              <div class="calendar-area" id="calendarArea">
+                <div class="calendar-inner">
+                  <!-- Week grid -->
+                  <div class="week-grid" id="weekGrid"></div>
+                </div>
+
+                <!-- Empty overlay -->
+                <div class="overlay" id="emptyOverlay">
+                  <div class="overlay-card">
+                    <div class="badge" style="justify-content:center;">
+                      <span class="dot"></span>
+                      <span data-fr="Aucun créneau visible" data-en="No slots yet">Aucun créneau visible</span>
+                    </div>
+                    <div class="overlay-title"
+                         data-fr="Ouvre ton premier créneau"
+                         data-en="Open your first slot">
+                      Ouvre ton premier créneau
+                    </div>
+                    <p class="overlay-text"
+                       data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
+                       data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
+                      Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
+                    </p>
+
+                    <div style="height:12px;"></div>
+                    <a class="btn btn-primary"
+                       href="https://calendar.google.com/calendar/u/0/r"
+                       target="_blank" rel="noopener noreferrer"
+                       data-fr="Ouvrir Google Calendar"
+                       data-en="Open Google Calendar">Ouvrir Google Calendar</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Helper (kept as you asked: 1-2-3-4 on the left-ish, but here below to keep calendar dominant) -->
+            <div class="helper">
+              <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
+              <ol>
+                <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
+                <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">Crée un événement sur une plage où tu es dispo.</li>
+                <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
+                <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page RunCall." data-en="Your slots will automatically appear on your RunCall page.">Tes créneaux apparaîtront automatiquement sur ta page RunCall.</li>
+              </ol>
+
+              <div class="mini"
+                   data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
+                   data-en="Start with a single slot to test, then add more whenever you want.">
+                Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Edit modal -->
+<div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h4 id="modalTitle" data-fr="Modifier mon profil" data-en="Edit my profile">Modifier mon profil</h4>
+      <button class="xbtn" id="closeModalBtn" type="button">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <label for="editName" data-fr="Prénom et nom (ou pseudo)" data-en="Name (or nickname)">Prénom et nom (ou pseudo)</label>
+        <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
+      </div>
+
+      <div class="form-row">
+        <label for="editBio" data-fr="Description" data-en="Description">Description</label>
+        <textarea class="textarea" id="editBio" placeholder=""></textarea>
+      </div>
+
+      <div class="form-row">
+        <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)">Photo (URL)</label>
+        <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
+        <div class="smallhint"
+             data-fr="Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)"
+             data-en="For now, you can paste an image URL. (Direct upload is coming soon.)">
+          Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="cancelEditBtn" type="button" data-fr="Annuler" data-en="Cancel">Annuler</button>
+        <button class="btn btn-primary" id="saveEditBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
-(function () {
-  // ---------- Supabase ----------
-  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // ---------- Language ----------
-  const buttons = document.querySelectorAll('.lang-switch button');
+(function(){
+  // ---------------------------
+  // Language (same logic as your other pages)
+  // ---------------------------
+  const langButtons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
   if (!lang) {
-    const browserLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    const browserLang = (navigator.language || "").toLowerCase();
     lang = browserLang.startsWith('fr') ? 'fr' : 'en';
   }
-
-  function applyLanguage(nextLang) {
+  function applyLanguage(nextLang){
     lang = nextLang;
-
     document.querySelectorAll('[data-fr][data-en]').forEach(el => {
       el.textContent = el.dataset[lang];
     });
-
-    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     localStorage.setItem('runcall_lang', lang);
   }
-  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
 
-  // ---------- Elements ----------
-  const qs = new URLSearchParams(window.location.search);
-  const expertId = qs.get("expert_id");
-  const connected = qs.get("connected") === "1";
+  // ---------------------------
+  // Supabase
+  // ---------------------------
+  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  const whoChip = document.getElementById("whoChip");
-  const statusPill = document.getElementById("statusPill");
-  const kpiPage = document.getElementById("kpiPage");
-  const globalMsg = document.getElementById("globalMsg");
-  const copyProfileBtn = document.getElementById("copyProfileBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
-
-  function showMsg(type, text) {
-    globalMsg.className = "msg " + (type === "error" ? "is-error" : "is-ok");
-    globalMsg.style.display = "block";
-    globalMsg.textContent = text;
-  }
-  function clearMsg(){
-    globalMsg.style.display = "none";
-    globalMsg.textContent = "";
-    globalMsg.className = "msg";
+  // ---------------------------
+  // Helpers
+  // ---------------------------
+  const toast = document.getElementById("toast");
+  function showToast(type, text){
+    toast.className = "toast show " + (type === "err" ? "err" : "ok");
+    toast.textContent = text;
+    setTimeout(() => toast.classList.remove("show"), 3200);
   }
 
-  function setStatusConnected() {
-    statusPill.innerHTML = connected
-      ? `<span class="okdot"></span><span>${lang === "fr" ? "Google Calendar connecté ✅" : "Google Calendar connected ✅"}</span>`
-      : `<span class="grydot"></span><span>${lang === "fr" ? "Statut : en cours" : "Status: in progress"}</span>`;
+  function qs(name){
+    return new URLSearchParams(window.location.search).get(name);
   }
 
-  function buildProfileUrl() {
-    // force www + stable format
-    return `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
+  function initials(str){
+    const s = (str || "").trim();
+    if (!s) return "RC";
+    const parts = s.split(/\s+/).slice(0,2);
+    return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
   }
 
-  async function init() {
-    clearMsg();
-    setStatusConnected();
-
-    if (!expertId) {
-      showMsg("error", lang === "fr"
-        ? "expert_id manquant dans l’URL."
-        : "Missing expert_id in URL.");
-      return;
-    }
-
-    const { data: { session }, error: sErr } = await sb.auth.getSession();
-    if (sErr) {
-      showMsg("error", (lang === "fr" ? "Erreur session: " : "Session error: ") + (sErr.message || "unknown"));
-      return;
-    }
-    if (!session?.user) {
-      showMsg("error", lang === "fr"
-        ? "Tu dois être connecté. Reviens sur la page démarrer."
-        : "You must be signed in. Go back to the start page.");
-      return;
-    }
-
-    // Load expert and verify ownership
-    const { data: expert, error: eErr } = await sb
-      .from("experts")
-      .select("id,name,email,auth_user_id")
-      .eq("id", expertId)
-      .single();
-
-    if (eErr || !expert) {
-      showMsg("error", lang === "fr"
-        ? "Impossible de charger ton profil."
-        : "Unable to load your profile.");
-      return;
-    }
-
-    if ((expert.auth_user_id || "") !== session.user.id) {
-      showMsg("error", lang === "fr"
-        ? "Accès refusé (ce dashboard ne correspond pas à ton compte)."
-        : "Access denied (this dashboard does not match your account).");
-      return;
-    }
-
-    const display = (expert.name || expert.email || "—").trim();
-    whoChip.textContent = display;
-
-    const profileUrl = buildProfileUrl();
-    kpiPage.textContent = "Ready";
-
-    // Success toast on connect
-    if (connected) {
-      showMsg("ok", lang === "fr"
-        ? "Calendrier connecté. Tu peux maintenant ouvrir tes créneaux dans Google Calendar."
-        : "Calendar connected. You can now open slots in Google Calendar.");
-    }
-  }
-
-  // Tabs behavior
-  const tabs = Array.from(document.querySelectorAll(".tab"));
-  function setTab(id) {
-    tabs.forEach(t => t.classList.toggle("is-active", t.dataset.tab === id));
-    document.getElementById("tab-availability").style.display = (id === "availability") ? "grid" : "none";
-    document.getElementById("tab-revenue").style.display = (id === "revenue") ? "block" : "none";
-    document.getElementById("tab-bookings").style.display = (id === "bookings") ? "block" : "none";
-    document.getElementById("tab-settings").style.display = (id === "settings") ? "block" : "none";
-  }
-  tabs.forEach(t => t.addEventListener("click", () => setTab(t.dataset.tab)));
-
-  // Copy link
-  copyProfileBtn.addEventListener("click", async () => {
-    clearMsg();
-    if (!expertId) return;
-
-    const url = buildProfileUrl();
+  function fmtTime(date){
+    // date is Date
     try {
-      await navigator.clipboard.writeText(url);
-      showMsg("ok", lang === "fr"
-        ? "Lien copié ✅ Partage-le pour recevoir tes premières réservations 🚀"
-        : "Link copied ✅ Share it to get your first bookings 🚀");
+      return new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', {
+        hour: '2-digit', minute:'2-digit'
+      }).format(date);
     } catch {
-      // Fallback
-      const tmp = document.createElement("textarea");
-      tmp.value = url;
-      document.body.appendChild(tmp);
-      tmp.select();
-      document.execCommand("copy");
-      document.body.removeChild(tmp);
-      showMsg("ok", lang === "fr"
-        ? "Lien copié ✅"
-        : "Link copied ✅");
+      const h = String(date.getHours()).padStart(2,'0');
+      const m = String(date.getMinutes()).padStart(2,'0');
+      return `${h}:${m}`;
+    }
+  }
+
+  function startOfWeek(d){
+    const x = new Date(d);
+    const day = x.getDay(); // 0 Sun..6 Sat
+    const diff = (day === 0 ? -6 : 1) - day; // Monday as start
+    x.setDate(x.getDate() + diff);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+
+  function addDays(d, n){
+    const x = new Date(d);
+    x.setDate(x.getDate()+n);
+    return x;
+  }
+
+  // ---------------------------
+  // Elements
+  // ---------------------------
+  const avatar = document.getElementById("avatar");
+  const avatarFallback = document.getElementById("avatarFallback");
+  const pname = document.getElementById("pname");
+  const pbio = document.getElementById("pbio");
+  const publicPageBtn = document.getElementById("publicPageBtn");
+
+  const weekGrid = document.getElementById("weekGrid");
+  const emptyOverlay = document.getElementById("emptyOverlay");
+  const openGcalBtn = document.getElementById("openGcalBtn");
+
+  // Modal elements
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const editProfileBtn = document.getElementById("editProfileBtn");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const saveEditBtn = document.getElementById("saveEditBtn");
+
+  const editName = document.getElementById("editName");
+  const editBio = document.getElementById("editBio");
+  const editPhotoUrl = document.getElementById("editPhotoUrl");
+
+  // ---------------------------
+  // State
+  // ---------------------------
+  let expertId = qs("expert_id") || null;
+  let expertRow = null;
+
+  // ---------------------------
+  // Build the week columns (always)
+  // ---------------------------
+  function renderEmptyWeek(){
+    weekGrid.innerHTML = "";
+    const now = new Date();
+    const monday = startOfWeek(now);
+
+    const dayNamesFr = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+    const dayNamesEn = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+    for (let i=0;i<7;i++){
+      const dayDate = addDays(monday, i);
+      const label = (lang === "fr" ? dayNamesFr[i] : dayNamesEn[i]);
+      const dd = String(dayDate.getDate()).padStart(2,'0');
+      const mm = String(dayDate.getMonth()+1).padStart(2,'0');
+
+      const col = document.createElement("div");
+      col.className = "day-col";
+      col.innerHTML = `
+        <div class="day-head">
+          <span>${label}</span>
+          <span class="day-date">${lang === "fr" ? `${dd}/${mm}` : `${mm}/${dd}`}</span>
+        </div>
+        <div class="slots" data-day="${dayDate.toISOString().slice(0,10)}"></div>
+      `;
+      weekGrid.appendChild(col);
+    }
+  }
+
+  function clearSlots(){
+    weekGrid.querySelectorAll(".slots").forEach(s => s.innerHTML = "");
+  }
+
+  function renderSlots(slots){
+    // slots: array of {start, end, title?}
+    // We'll map to current week only
+    renderEmptyWeek();
+    clearSlots();
+
+    const now = new Date();
+    const monday = startOfWeek(now);
+    const sunday = addDays(monday, 7);
+
+    const inWeek = slots
+      .map(s => {
+        const start = new Date(s.start || s.slot_start || s.start_time || s.begin || s.from);
+        const end = new Date(s.end || s.slot_end || s.end_time || s.finish || s.to);
+        return { start, end, title: s.title || s.summary || "RunCall" };
+      })
+      .filter(x => x.start instanceof Date && !isNaN(x.start.getTime()))
+      .filter(x => x.start >= monday && x.start < sunday)
+      .sort((a,b) => a.start - b.start);
+
+    if (!inWeek.length){
+      emptyOverlay.classList.add("show");
+      return;
+    }
+
+    emptyOverlay.classList.remove("show");
+
+    for (const s of inWeek){
+      const key = s.start.toISOString().slice(0,10);
+      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
+      if (!bucket) continue;
+
+      const item = document.createElement("div");
+      item.className = "slot";
+      item.innerHTML = `
+        <strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong>
+        <small>${(s.title || "RunCall")}</small>
+      `;
+      bucket.appendChild(item);
+    }
+  }
+
+  // ---------------------------
+  // Load slots (best effort: try multiple endpoints)
+  // ---------------------------
+  async function fetchSlotsBestEffort(expertId){
+    const candidates = [
+      `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
+      `/api/slots?expert_id=${encodeURIComponent(expertId)}`,
+      `/api/availability?expert_id=${encodeURIComponent(expertId)}`,
+      `/api/calendar/slots?expert_id=${encodeURIComponent(expertId)}`
+    ];
+
+    for (const url of candidates){
+      try{
+        const r = await fetch(url, { headers: { "Accept":"application/json" } });
+        if (!r.ok) continue;
+        const data = await r.json();
+
+        // Accept either {slots:[...]} or [...]
+        const slots = Array.isArray(data) ? data : (Array.isArray(data?.slots) ? data.slots : null);
+        if (Array.isArray(slots)) return slots;
+      }catch(_){}
+    }
+    return [];
+  }
+
+  // ---------------------------
+  // Load expert (by id; fallback by auth)
+  // ---------------------------
+  async function loadExpert(){
+    // If you arrive from /api/google/callback, expert_id is in URL
+    // We'll try by expert_id first. If missing, we try by session user (auth_user_id).
+    let sessionUser = null;
+    try{
+      const { data } = await supabase.auth.getSession();
+      sessionUser = data?.session?.user || null;
+    }catch(_){}
+
+    if (!expertId && sessionUser?.id){
+      // best-effort: find the row by auth_user_id
+      const { data: row } = await supabase
+        .from("experts")
+        .select("id,name,email,presentation,photo_url,auth_user_id,status,created_at,updated_at")
+        .eq("auth_user_id", sessionUser.id)
+        .maybeSingle();
+      if (row?.id) expertId = row.id;
+    }
+
+    if (expertId){
+      const { data: row, error } = await supabase
+        .from("experts")
+        .select("id,name,email,presentation,photo_url,auth_user_id,status,created_at,updated_at")
+        .eq("id", expertId)
+        .maybeSingle();
+
+      if (error){
+        console.error(error);
+      }
+      if (row) expertRow = row;
+    }
+
+    // Fill UI
+    const displayName = (expertRow?.name || "").trim() || "Intervenant RunCall";
+    const bio = (expertRow?.presentation || "").trim() || (lang === "fr"
+      ? "Ajoute une description pour que les sportifs comprennent ce que tu apportes."
+      : "Add a description so athletes understand what you bring."
+    );
+
+    pname.textContent = displayName;
+    pbio.textContent = bio;
+
+    // Avatar
+    const url = (expertRow?.photo_url || "").trim();
+    avatar.innerHTML = "";
+    if (url){
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = "Profile photo";
+      img.onerror = () => {
+        avatar.innerHTML = `<div class="avatar-fallback">${initials(displayName)}</div>`;
+      };
+      avatar.appendChild(img);
+    } else {
+      avatar.innerHTML = `<div class="avatar-fallback">${initials(displayName)}</div>`;
+    }
+
+    // Public page link
+    const publicUrl = expertId
+      ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
+      : `https://www.run-call.com/intervenant.html`;
+    publicPageBtn.href = publicUrl;
+
+    // “Copy link” on click
+    publicPageBtn.addEventListener("click", async (e) => {
+      // normal click opens the page in new tab — BUT we also copy link silently
+      try{
+        await navigator.clipboard.writeText(publicUrl);
+        showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+      }catch(_){}
+      // do not prevent default
+    });
+
+    // Prefill modal
+    editName.value = (expertRow?.name || "").trim();
+    editBio.value = (expertRow?.presentation || "").trim();
+    editPhotoUrl.value = (expertRow?.photo_url || "").trim();
+  }
+
+  // ---------------------------
+  // Modal open/close
+  // ---------------------------
+  function openModal(){
+    modalBackdrop.classList.add("show");
+    modalBackdrop.setAttribute("aria-hidden","false");
+  }
+  function closeModal(){
+    modalBackdrop.classList.remove("show");
+    modalBackdrop.setAttribute("aria-hidden","true");
+  }
+  editProfileBtn.addEventListener("click", openModal);
+  closeModalBtn.addEventListener("click", closeModal);
+  cancelEditBtn.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === modalBackdrop) closeModal();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+
+  // ---------------------------
+  // Save profile edits (best effort with RLS policies)
+  // ---------------------------
+  saveEditBtn.addEventListener("click", async () => {
+    if (!expertId){
+      showToast("err", lang === "fr"
+        ? "Impossible d’enregistrer : identifiant manquant."
+        : "Unable to save: missing id.");
+      return;
+    }
+
+    const name = (editName.value || "").trim();
+    const presentation = (editBio.value || "").trim();
+    const photo_url = (editPhotoUrl.value || "").trim() || null;
+
+    if (!name || !presentation){
+      showToast("err", lang === "fr"
+        ? "Merci de remplir le nom/pseudo et la description."
+        : "Please fill in name and description.");
+      return;
+    }
+
+    saveEditBtn.disabled = true;
+
+    try{
+      const { data, error } = await supabase
+        .from("experts")
+        .update({
+          name,
+          presentation,
+          photo_url,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", expertId)
+        .select("id,name,presentation,photo_url")
+        .single();
+
+      if (error) throw error;
+
+      // Update local state + UI
+      expertRow = { ...(expertRow || {}), ...data };
+      pname.textContent = data.name;
+      pbio.textContent = data.presentation;
+
+      // Avatar refresh
+      avatar.innerHTML = "";
+      if (data.photo_url){
+        const img = document.createElement("img");
+        img.src = data.photo_url;
+        img.alt = "Profile photo";
+        img.onerror = () => {
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(data.name)}</div>`;
+        };
+        avatar.appendChild(img);
+      } else {
+        avatar.innerHTML = `<div class="avatar-fallback">${initials(data.name)}</div>`;
+      }
+
+      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
+      closeModal();
+    }catch(e){
+      console.error(e);
+      showToast("err", (lang === "fr"
+        ? "Impossible d’enregistrer : "
+        : "Unable to save: "
+      ) + (e?.message || "error"));
+    }finally{
+      saveEditBtn.disabled = false;
     }
   });
 
-  // Logout
-  logoutBtn.addEventListener("click", async () => {
-    clearMsg();
-    await sb.auth.signOut();
-    window.location.href = "start-expert.html";
+  // ---------------------------
+  // Sidebar tabs (UI only for now)
+  // ---------------------------
+  document.querySelectorAll(".sb-item").forEach(item => {
+    item.addEventListener("click", () => {
+      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+      item.classList.add("active");
+
+      const tab = item.getAttribute("data-tab");
+      if (tab && tab !== "home" && tab !== "calendar" && tab !== "profile"){
+        showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+      }
+      if (tab === "profile") openModal();
+      // calendar/home are same view for now (calendar-centric).
+    });
   });
 
-  // Re-apply status pill text on language switch
-  buttons.forEach(btn => btn.addEventListener("click", () => setStatusConnected()));
+  // ---------------------------
+  // Init
+  // ---------------------------
+  renderEmptyWeek();
+  emptyOverlay.classList.add("show"); // default until we fetch slots
 
-  init();
+  (async () => {
+    await loadExpert();
+
+    // Slots
+    if (expertId){
+      const slots = await fetchSlotsBestEffort(expertId);
+
+      // If your API returns your real “available slots”, they will render.
+      // If no endpoint exists yet, overlay remains (still OK UX).
+      renderSlots(slots);
+    } else {
+      // No id — keep empty overlay
+      emptyOverlay.classList.add("show");
+    }
+  })();
 })();
 </script>
 
