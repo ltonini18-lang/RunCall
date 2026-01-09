@@ -641,18 +641,19 @@
   modalBackdrop.addEventListener("click", (e)=>{ if(e.target===modalBackdrop) closeModal(); });
 
   async function fetchSlots(expertId){
-    const url = `/api/slots?expert_id=${encodeURIComponent(expertId)}`;
-    dbg("slots.fetch:", url, "dbg-good");
-    const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-    dbg("slots.status:", String(r.status), r.ok ? "dbg-good":"dbg-bad");
-    const text = await r.text();
-    dbg("slots.body:", text.slice(0,160) + (text.length>160?"…":""), r.ok ? "dbg-good":"dbg-bad");
-    if (!r.ok) return [];
-    let data = null; try{ data = JSON.parse(text); }catch(_){}
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.slots)) return data.slots;
-    return [];
-  }
+  const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`;
+  dbg("slots.fetch:", url, "dbg-good");
+  const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+  dbg("slots.status:", String(r.status), r.ok ? "dbg-good":"dbg-bad");
+  const text = await r.text();
+  dbg("slots.body:", text.slice(0,160) + (text.length>160?"…":""), r.ok ? "dbg-good":"dbg-bad");
+  if (!r.ok) return [];
+  let data = null; try{ data = JSON.parse(text); }catch(_){}
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.slots)) return data.slots;
+  return [];
+}
+
 
   async function loadExpert(){
     if (expertId) localStorage.setItem("runcall_expert_id", expertId);
@@ -683,30 +684,53 @@
       }
     }
 
-    // Fetch expert row
-    if (expertId){
-      const r2 = await supabase.from("experts").select("id,name,presentation,photo_url").eq("id", expertId).single();
-      dbg("experts.by_id.error:", r2.error ? (r2.error.message||"err") : "null", r2.error ? "dbg-bad":"dbg-good");
-      if (r2.data){
-        const name = (r2.data.name||"").trim();
-        const bio = (r2.data.presentation||"").trim();
-        dbg("expert.name:", name || "(empty)", name ? "dbg-good":"dbg-bad");
-        dbg("expert.bio:", bio ? (bio.slice(0,60)+"…") : "(empty)", bio ? "dbg-good":"dbg-bad");
+    // Fetch expert row (✅ via API server to bypass RLS)
+if (expertId){
+  const url = `/api/experts/get?expert_id=${encodeURIComponent(expertId)}`;
+  dbg("experts.get.fetch:", url, "dbg-good");
 
-        pname.textContent = name || "—";
-        pbio.textContent = bio || "—";
+  const rr = await fetch(url, { headers:{ "Accept":"application/json" }});
+  dbg("experts.get.status:", String(rr.status), rr.ok ? "dbg-good":"dbg-bad");
 
-        const photo = (r2.data.photo_url||"").trim();
-        avatar.innerHTML = "";
-        if (photo){
-          const img = document.createElement("img");
-          img.src = photo;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-        } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-        }
+  const tt = await rr.text();
+  dbg("experts.get.body:", tt.slice(0,160) + (tt.length>160?"…":""), rr.ok ? "dbg-good":"dbg-bad");
+
+  if (rr.ok){
+    let row = null; try{ row = JSON.parse(tt); }catch(_){}
+    // ton endpoint peut renvoyer {expert:{...}} ou direct {...}
+    const data = row?.expert || row;
+
+    if (data){
+      const name = (data.name||"").trim();
+      const bio  = (data.presentation||"").trim();
+      const photo = (data.photo_url||"").trim();
+
+      dbg("expert.name:", name || "(empty)", name ? "dbg-good":"dbg-bad");
+      dbg("expert.bio:", bio ? (bio.slice(0,60)+"…") : "(empty)", bio ? "dbg-good":"dbg-bad");
+
+      pname.textContent = name || "—";
+      pbio.textContent  = bio  || "—";
+
+      avatar.innerHTML = "";
+      if (photo){
+        const img = document.createElement("img");
+        img.src = photo;
+        img.alt = "Profile photo";
+        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+        avatar.appendChild(img);
+      } else {
+        avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+      }
+
+      editName.value = name || "";
+      editBio.value  = bio  || "";
+      editPhotoUrl.value = photo || "";
+    }
+  }
+} else {
+  dbg("expert:", "NO expertId available", "dbg-bad");
+}
+
 
         editName.value = name || "";
         editBio.value = bio || "";
