@@ -15,7 +15,6 @@
     }
     body{ background:var(--bg); }
 
-    /* (le style existant, inchangé au maximum) */
     .dash-shell{ display:flex; min-height:100vh; }
     .dash-sidebar{
       position:sticky; top:0; align-self:flex-start;
@@ -240,34 +239,34 @@
 
   <aside class="dash-sidebar">
     <div class="sb-brand">
-      <div class="sb-logo">Dashboard</div>
-      <div class="sb-pill">Intervenant</div>
+      <div class="sb-logo" data-fr="Dashboard" data-en="Dashboard"></div>
+      <div class="sb-pill" data-fr="Intervenant" data-en="Expert"></div>
     </div>
 
     <nav class="sb-nav">
       <div class="sb-item active" data-tab="home">
         <div class="sb-ico">⌂</div>
-        <div>Accueil</div>
+        <div data-fr="Accueil" data-en="Home"></div>
       </div>
 
       <div class="sb-item" data-tab="payouts" title="Coming soon">
         <div class="sb-ico">€</div>
-        <div>Paiements (bientôt)</div>
+        <div data-fr="Paiements (bientôt)" data-en="Payouts (soon)"></div>
       </div>
 
       <div class="sb-item" data-tab="analytics" title="Coming soon">
         <div class="sb-ico">↗</div>
-        <div>Statistiques (bientôt)</div>
+        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)"></div>
       </div>
 
       <div class="sb-item" data-tab="settings" title="Coming soon">
         <div class="sb-ico">⚙</div>
-        <div>Réglages (bientôt)</div>
+        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)"></div>
       </div>
 
-      <div class="sb-muted">
-        À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
-      </div>
+      <div class="sb-muted"
+           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
+           data-en="Soon, you'll find your earnings, session history, and payout management here."></div>
     </nav>
   </aside>
 
@@ -286,17 +285,21 @@
           </div>
 
           <div class="pactions">
-            <button class="btn" id="editProfileBtn" type="button">Modifier</button>
+            <button class="btn" id="editProfileBtn" type="button"
+                    data-fr="Modifier" data-en="Edit"></button>
 
             <a class="btn btn-primary" id="publicPageBtn" href="#" target="_blank" rel="noopener">
-              Voir ma page Public <span aria-hidden="true">↗</span>
+              <span data-fr="Voir ma page Public" data-en="View my public page"></span>
+              <span aria-hidden="true">↗</span>
             </a>
 
             <button class="icon-btn" id="copyLinkBtn" type="button" aria-label="Copy link">
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
               </svg>
-              <span class="tip">copy link of my public page</span>
+              <span class="tip"
+                    data-fr="Copier le lien de ma page publique"
+                    data-en="Copy link to my public page"></span>
             </button>
 
             <div class="lang-switch">
@@ -313,14 +316,16 @@
         <div class="card-head">
           <div class="badge">
             <span class="dot"></span>
-            <span>Calendrier</span>
+            <span data-fr="Calendrier" data-en="Calendar"></span>
           </div>
 
-          <h1 class="title">Gère tes créneaux depuis Google Calendar</h1>
+          <h1 class="title"
+              data-fr="Gère tes créneaux depuis Google Calendar"
+              data-en="Manage your slots from Google Calendar"></h1>
 
-          <p class="subtitle">
-            Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
-          </p>
+          <p class="subtitle"
+             data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
+             data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title."></p>
         </div>
 
         <div class="card-body">
@@ -328,9 +333,9 @@
 
             <div class="calendar-wrap" id="calendarWrap">
               <div class="calendar-top">
-                <div class="calendar-note">
-                  Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
-                </div>
+                <div class="calendar-note"
+                     data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
+                     data-en="To close a slot: delete (or edit) the corresponding event in your Google Calendar."></div>
 
                 <div class="cal-nav">
                   <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
@@ -340,7 +345,7 @@
                   <a class="btn btn-primary" id="openGcalBtn"
                      href="https://calendar.google.com/calendar/u/0/r"
                      target="_blank" rel="noopener noreferrer">
-                    Ouvrir Google Calendar
+                    <span data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar"></span>
                   </a>
                 </div>
               </div>
@@ -354,20 +359,22 @@
                   <div class="overlay-card">
                     <div class="badge" style="justify-content:center;">
                       <span class="dot"></span>
-                      <span>Aucun créneau visible</span>
+                      <span data-fr="Aucun créneau visible" data-en="No visible slots"></span>
                     </div>
 
-                    <div class="overlay-title">Ouvre ton premier créneau</div>
+                    <div class="overlay-title"
+                         data-fr="Ouvre ton premier créneau"
+                         data-en="Open your first slot"></div>
 
-                    <p class="overlay-text">
-                      Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
-                    </p>
+                    <p class="overlay-text"
+                       data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
+                       data-en="Click “Open Google Calendar”, create an event when you're available, and put “RunCall” in the title."></p>
 
                     <div style="height:12px;"></div>
                     <a class="btn btn-primary"
                        href="https://calendar.google.com/calendar/u/0/r"
                        target="_blank" rel="noopener noreferrer">
-                      Ouvrir Google Calendar
+                      <span data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar"></span>
                     </a>
                   </div>
                 </div>
@@ -376,18 +383,18 @@
             </div>
 
             <div class="helper">
-              <h3>Comment ça marche</h3>
+              <h3 data-fr="Comment ça marche" data-en="How it works"></h3>
               <ol>
-                <li>Ouvre Google Calendar.</li>
-                <li>Crée un événement sur une plage où tu es dispo.</li>
-                <li>Ajoute “RunCall” dans le titre.</li>
-                <li>Tes créneaux apparaîtront automatiquement sur ta page Public.</li>
-                <li>Partage ta page public pour recevoir des réservations.</li>
+                <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar."></li>
+                <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event when you're available."></li>
+                <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title."></li>
+                <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page Public." data-en="Your slots will automatically appear on your public page."></li>
+                <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to receive bookings."></li>
               </ol>
 
-              <div class="mini">
-                Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
-              </div>
+              <div class="mini"
+                   data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
+                   data-en="You can start with a single slot to test, then add more later."></div>
             </div>
 
           </div>
@@ -402,30 +409,46 @@
 <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head">
-      <h4 id="modalTitle">Modifier mon profil</h4>
+      <h4 id="modalTitle"
+          data-fr="Modifier mon profil"
+          data-en="Edit my profile"></h4>
       <button class="xbtn" id="closeModalBtn" type="button">✕</button>
     </div>
 
     <div class="modal-body">
       <div class="form-row">
-        <label for="editName">Prénom et nom (ou pseudo)</label>
-        <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
+        <label for="editName"
+               data-fr="Prénom et nom (ou pseudo)"
+               data-en="Name (or nickname)"></label>
+        <input class="input" id="editName" type="text"
+               data-i18n="placeholder"
+               data-fr="Ex: Camille, coach trail"
+               data-en="e.g., Camille, trail coach"
+               placeholder="" />
       </div>
 
       <div class="form-row">
-        <label for="editBio">Description</label>
+        <label for="editBio" data-fr="Description" data-en="Description"></label>
         <textarea class="textarea" id="editBio"></textarea>
       </div>
 
       <div class="form-row">
-        <label for="editPhotoUrl">Photo (URL)</label>
-        <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
-        <div class="smallhint">Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)</div>
+        <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)"></label>
+        <input class="input" id="editPhotoUrl" type="text"
+               data-i18n="placeholder"
+               data-fr="https://…"
+               data-en="https://…"
+               placeholder="" />
+        <div class="smallhint"
+             data-fr="Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)"
+             data-en="For now, you can paste an image URL. (Direct upload will come in a future version.)"></div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn" id="cancelEditBtn" type="button">Annuler</button>
-        <button class="btn btn-primary" id="saveEditBtn" type="button">Enregistrer</button>
+        <button class="btn" id="cancelEditBtn" type="button"
+                data-fr="Annuler" data-en="Cancel"></button>
+        <button class="btn btn-primary" id="saveEditBtn" type="button"
+                data-fr="Enregistrer" data-en="Save"></button>
       </div>
     </div>
   </div>
@@ -442,6 +465,7 @@
 
 <script>
 (function(){
+  // ===== Debug =====
   const dbgBody = document.getElementById("dbgBody");
   const dbgCopy = document.getElementById("dbgCopy");
   const dbgLines = [];
@@ -467,10 +491,12 @@
 
   dbg("script:", "START", "dbg-good");
 
+  // ===== Supabase =====
   const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+  // ===== Helpers =====
   function qs(name){ return new URLSearchParams(window.location.search).get(name); }
   function initials(str){
     const s = (str || "").trim();
@@ -479,31 +505,16 @@
     return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
   }
 
-  // Language
+  // ===== Language =====
   const langButtons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
   if (!lang) {
     const browserLang = (navigator.language || "").toLowerCase();
     lang = browserLang.startsWith('fr') ? 'fr' : 'en';
   }
-  function applyLanguage(nextLang){
-    lang = nextLang;
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[lang]);
-    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
-  }
-  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
-  dbg("lang:", lang, "dbg-good");
 
-  // UI
+  // UI refs (needed by paintWeek called inside applyLanguage)
   const toast = document.getElementById("toast");
-  function showToast(type, text){
-    toast.className = "toast show " + (type === "err" ? "err" : "ok");
-    toast.textContent = text;
-    setTimeout(() => toast.classList.remove("show"), 3200);
-  }
-
   const avatar = document.getElementById("avatar");
   const pname = document.getElementById("pname");
   const pbio = document.getElementById("pbio");
@@ -525,6 +536,12 @@
   const editName = document.getElementById("editName");
   const editBio = document.getElementById("editBio");
   const editPhotoUrl = document.getElementById("editPhotoUrl");
+
+  function showToast(type, text){
+    toast.className = "toast show " + (type === "err" ? "err" : "ok");
+    toast.textContent = text;
+    setTimeout(() => toast.classList.remove("show"), 3200);
+  }
 
   // State
   let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
@@ -564,7 +581,9 @@
 
   function renderWeekSkeleton(monday){
     weekGrid.innerHTML = "";
-    const dayNames = (lang === "fr") ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"] : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dayNames = (lang === "fr")
+      ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
+      : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
     for (let i=0;i<7;i++){
       const dayDate = addDays(monday, i);
       const dd = String(dayDate.getDate()).padStart(2,'0');
@@ -614,18 +633,45 @@
     const inWeek = filterSlotsForWeek(monday, slots);
     for (const s of inWeek){
       const key = ymd(s.start);
-      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
+      const bucket = weekGrid.querySelector(\`.slots[data-day="\${key}"]\`);
       if (!bucket) continue;
       const item = document.createElement("div");
       item.className = "slot";
-      item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
+      item.innerHTML = \`<strong>\${fmtTime(s.start)} – \${fmtTime(s.end)}</strong><small>\${s.title}</small>\`;
       bucket.appendChild(item);
     }
   }
+
+  // ✅ apply language to all nodes with data-fr/data-en
+  function applyLanguage(nextLang){
+    lang = nextLang;
+    document.documentElement.lang = lang;
+
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      const val = el.dataset[lang] || "";
+      const mode = el.dataset.i18n || "text"; // text | placeholder | title
+
+      if (mode === "placeholder") el.placeholder = val;
+      else if (mode === "title") el.title = val;
+      else el.textContent = val;
+    });
+
+    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+
+    // repaint calendar labels
+    paintWeek();
+  }
+
+  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+  dbg("lang:", lang, "dbg-good");
+
+  // ===== Nav week =====
   prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
   nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
 
-  // Modal hooks
+  // ===== Modal hooks =====
   function openModal(){
     dbg("edit:", "openModal()", "dbg-good");
     modalBackdrop.classList.add("show");
@@ -640,21 +686,39 @@
   cancelEditBtn.addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", (e)=>{ if(e.target===modalBackdrop) closeModal(); });
 
+  // ===== API calls =====
   async function fetchSlots(expertId){
-  const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`;
-  dbg("slots.fetch:", url, "dbg-good");
-  const r = await fetch(url, { headers:{ "Accept":"application/json" }});
-  dbg("slots.status:", String(r.status), r.ok ? "dbg-good":"dbg-bad");
-  const text = await r.text();
-  dbg("slots.body:", text.slice(0,160) + (text.length>160?"…":""), r.ok ? "dbg-good":"dbg-bad");
-  if (!r.ok) return [];
-  let data = null; try{ data = JSON.parse(text); }catch(_){}
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.slots)) return data.slots;
-  return [];
-}
+    const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`;
+    dbg("slots.fetch:", url, "dbg-good");
+    const r = await fetch(url, { headers:{ "Accept":"application/json" }});
+    dbg("slots.status:", String(r.status), r.ok ? "dbg-good":"dbg-bad");
+    const text = await r.text();
+    dbg("slots.body:", text.slice(0,160) + (text.length>160?"…":""), r.ok ? "dbg-good":"dbg-bad");
+    if (!r.ok) return [];
+    let data = null; try{ data = JSON.parse(text); }catch(_){}
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.slots)) return data.slots;
+    return [];
+  }
 
+  async function fetchExpertViaApi(expertId){
+    const url = `/api/experts/get?expert_id=${encodeURIComponent(expertId)}`;
+    dbg("experts.get.fetch:", url, "dbg-good");
 
+    const rr = await fetch(url, { headers:{ "Accept":"application/json" }});
+    dbg("experts.get.status:", String(rr.status), rr.ok ? "dbg-good":"dbg-bad");
+
+    const tt = await rr.text();
+    dbg("experts.get.body:", tt.slice(0,160) + (tt.length>160?"…":""), rr.ok ? "dbg-good":"dbg-bad");
+
+    if (!rr.ok) return null;
+
+    let row = null; try{ row = JSON.parse(tt); }catch(_){}
+    const data = row?.expert || row;
+    return data || null;
+  }
+
+  // ===== Load expert =====
   async function loadExpert(){
     if (expertId) localStorage.setItem("runcall_expert_id", expertId);
 
@@ -664,18 +728,27 @@
     publicPageBtn.href = publicUrl;
 
     copyLinkBtn.onclick = async () => {
-      try{ await navigator.clipboard.writeText(publicUrl); showToast("ok","Lien copié ✅"); }
-      catch(_){ showToast("err","Impossible de copier le lien."); }
+      try{
+        await navigator.clipboard.writeText(publicUrl);
+        showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+      } catch(_){
+        showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Could not copy link.");
+      }
     };
 
-    // Session
+    // Session (optional)
     const s = await supabase.auth.getSession();
     const user = s?.data?.session?.user || null;
     dbg("auth.user:", user ? (user.id || "ok") : "NULL", user ? "dbg-good":"dbg-bad");
 
     // If expertId missing, try by auth_user_id
     if (!expertId && user?.id){
-      const r1 = await supabase.from("experts").select("id,name,presentation,photo_url,auth_user_id").eq("auth_user_id", user.id).maybeSingle();
+      const r1 = await supabase
+        .from("experts")
+        .select("id,name,presentation,photo_url,auth_user_id")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+
       dbg("experts.by_auth.error:", r1.error ? (r1.error.message||"err") : "null", r1.error ? "dbg-bad":"dbg-good");
       if (r1.data?.id){
         expertId = r1.data.id;
@@ -684,86 +757,71 @@
       }
     }
 
-    // Fetch expert row (✅ via API server to bypass RLS)
-if (expertId){
-  const url = `/api/experts/get?expert_id=${encodeURIComponent(expertId)}`;
-  dbg("experts.get.fetch:", url, "dbg-good");
-
-  const rr = await fetch(url, { headers:{ "Accept":"application/json" }});
-  dbg("experts.get.status:", String(rr.status), rr.ok ? "dbg-good":"dbg-bad");
-
-  const tt = await rr.text();
-  dbg("experts.get.body:", tt.slice(0,160) + (tt.length>160?"…":""), rr.ok ? "dbg-good":"dbg-bad");
-
-  if (rr.ok){
-    let row = null; try{ row = JSON.parse(tt); }catch(_){}
-    // ton endpoint peut renvoyer {expert:{...}} ou direct {...}
-    const data = row?.expert || row;
-
-    if (data){
-      const name = (data.name||"").trim();
-      const bio  = (data.presentation||"").trim();
-      const photo = (data.photo_url||"").trim();
-
-      dbg("expert.name:", name || "(empty)", name ? "dbg-good":"dbg-bad");
-      dbg("expert.bio:", bio ? (bio.slice(0,60)+"…") : "(empty)", bio ? "dbg-good":"dbg-bad");
-
-      pname.textContent = name || "—";
-      pbio.textContent  = bio  || "—";
-
-      avatar.innerHTML = "";
-      if (photo){
-        const img = document.createElement("img");
-        img.src = photo;
-        img.alt = "Profile photo";
-        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-        avatar.appendChild(img);
-      } else {
-        avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-      }
-
-      editName.value = name || "";
-      editBio.value  = bio  || "";
-      editPhotoUrl.value = photo || "";
-    }
-  }
-} else {
-  dbg("expert:", "NO expertId available", "dbg-bad");
-}
-
-
-        editName.value = name || "";
-        editBio.value = bio || "";
-        editPhotoUrl.value = photo || "";
-      }
-    } else {
+    if (!expertId){
       dbg("expert:", "NO expertId available", "dbg-bad");
+      return;
     }
 
-    // Save edit
+    // ✅ Fetch via API server (bypass RLS)
+    const data = await fetchExpertViaApi(expertId);
+    if (!data){
+      dbg("expert:", "API returned null", "dbg-bad");
+      return;
+    }
+
+    const name = (data.name||"").trim();
+    const bio  = (data.presentation||"").trim();
+    const photo = (data.photo_url||"").trim();
+
+    dbg("expert.name:", name || "(empty)", name ? "dbg-good":"dbg-bad");
+    dbg("expert.bio:", bio ? (bio.slice(0,60)+"…") : "(empty)", bio ? "dbg-good":"dbg-bad");
+
+    pname.textContent = name || "—";
+    pbio.textContent  = bio  || "—";
+
+    avatar.innerHTML = "";
+    if (photo){
+      const img = document.createElement("img");
+      img.src = photo;
+      img.alt = "Profile photo";
+      img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+      avatar.appendChild(img);
+    } else {
+      avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+    }
+
+    editName.value = name || "";
+    editBio.value  = bio  || "";
+    editPhotoUrl.value = photo || "";
+
+    // Save edit (⚠️ will still be blocked by RLS unless you have an API endpoint for update)
     saveEditBtn.addEventListener("click", async () => {
       dbg("edit.save:", "clicked", "dbg-good");
       if (!expertId){
         dbg("edit.save:", "NO expertId", "dbg-bad");
-        showToast("err","identifiant manquant");
+        showToast("err", lang === "fr" ? "identifiant manquant" : "missing id");
         return;
       }
-      const name = (editName.value||"").trim();
-      const presentation = (editBio.value||"").trim();
-      const photo_url = (editPhotoUrl.value||"").trim() || null;
 
-      const r = await supabase.from("experts")
-        .update({ name, presentation, photo_url, updated_at: new Date().toISOString() })
+      const name2 = (editName.value||"").trim();
+      const presentation2 = (editBio.value||"").trim();
+      const photo_url2 = (editPhotoUrl.value||"").trim() || null;
+
+      const r = await supabase
+        .from("experts")
+        .update({ name: name2, presentation: presentation2, photo_url: photo_url2, updated_at: new Date().toISOString() })
         .eq("id", expertId)
         .select("id,name,presentation,photo_url")
         .single();
 
       dbg("edit.update.error:", r.error ? (r.error.message||"err") : "null", r.error ? "dbg-bad":"dbg-good");
+
       if (r.error){
-        showToast("err", "update failed: " + r.error.message);
+        showToast("err", (lang === "fr" ? "update failed: " : "update failed: ") + r.error.message);
         return;
       }
-      showToast("ok","Profil mis à jour ✅");
+
+      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
       pname.textContent = r.data.name;
       pbio.textContent = r.data.presentation;
       closeModal();
