@@ -1,4 +1,6 @@
-<!-- dashboard.html -->
+<!-- dashboard.html (version corrigée: calendrier grisé tant qu'il n'y a AUCUN créneau,
+     nom/description viennent bien de la table experts (devenir-intervenant-v2),
+     bouton Modifier fonctionne) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -280,7 +282,7 @@
     }
     .card-body{ padding: 16px 18px 18px; }
 
-    /* Main grid: calendar left (3/4), helper right (1/4) */
+    /* Main grid */
     .main-grid{
       display:grid;
       grid-template-columns: 3fr 1.2fr;
@@ -289,12 +291,13 @@
       margin-top: 14px;
     }
 
-    /* Calendar block */
+    /* Calendar */
     .calendar-wrap{
       border: 1px solid var(--border);
       border-radius: 18px;
       background:#fff;
       overflow:hidden;
+      position: relative;
     }
     .calendar-top{
       display:flex;
@@ -317,6 +320,7 @@
       align-items:center;
       gap:10px;
       margin-left:auto;
+      flex-wrap: wrap;
     }
     .cal-nav .range{
       color: var(--muted2);
@@ -350,7 +354,6 @@
     .calendar-area{ position:relative; min-height: 520px; background: #fff; }
     .calendar-inner{ padding: 14px; }
 
-    /* Week grid */
     .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:10px; }
     .day-col{
       border:1px solid var(--border);
@@ -399,7 +402,15 @@
     .slot strong{ font-size:.92rem; }
     .slot small{ color: var(--muted2); font-size:.85rem; }
 
-    /* Empty overlay */
+    /* ✅ Greyed calendar when no slots overall */
+    .calendar-wrap.is-empty .calendar-inner{
+      opacity: .35;
+      filter: grayscale(1);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Empty overlay centered CTA */
     .overlay{
       position:absolute; inset: 0;
       display:none;
@@ -408,6 +419,7 @@
       padding: 20px;
       background: rgba(248,250,252,.55);
       backdrop-filter: blur(2px);
+      z-index: 5;
     }
     .overlay.show{ display:flex; }
     .overlay-card{
@@ -420,7 +432,7 @@
       text-align:center;
     }
     .overlay-title{
-      margin: 6px 0 6px;
+      margin: 8px 0 6px;
       font-weight: 900;
       color: var(--text);
       letter-spacing:-.02em;
@@ -555,7 +567,6 @@
       margin-top: 8px;
     }
 
-    /* Responsive */
     @media (max-width: 980px){
       .dash-sidebar{ display:none; }
       .dash-top-inner, .dash-content{ padding-left: 14px; padding-right: 14px; }
@@ -566,8 +577,6 @@
       .title{ font-size: 1.32rem; }
       .week-grid{ grid-template-columns: 1fr; }
       .calendar-area{ min-height: 520px; }
-      .pactions{ gap:8px; }
-      .btn{ padding: 9px 10px; }
       .calendar-note{ min-width: 100%; }
       .cal-nav{ width: 100%; justify-content:space-between; }
       .cal-nav .range{ flex:1; text-align:center; }
@@ -576,51 +585,45 @@
 </head>
 
 <body>
-<!-- IMPORTANT: You asked to remove the top “RunCall” banner.
-     So we do NOT render the <header class="site-header"> here. -->
+<!-- No top banner / no site header -->
 
 <div class="dash-shell">
 
-  <!-- Sidebar fixed -->
   <aside class="dash-sidebar">
     <div class="sb-brand">
       <div class="sb-logo">Dashboard</div>
-      <div class="sb-pill" data-fr="Intervenant" data-en="Host">Intervenant</div>
+      <div class="sb-pill">Intervenant</div>
     </div>
 
     <nav class="sb-nav">
       <div class="sb-item active" data-tab="home">
         <div class="sb-ico">⌂</div>
-        <div data-fr="Accueil" data-en="Home">Accueil</div>
+        <div>Accueil</div>
       </div>
 
       <div class="sb-item" data-tab="payouts" title="Coming soon">
         <div class="sb-ico">€</div>
-        <div data-fr="Paiements (bientôt)" data-en="Payouts (soon)">Paiements (bientôt)</div>
+        <div>Paiements (bientôt)</div>
       </div>
 
       <div class="sb-item" data-tab="analytics" title="Coming soon">
         <div class="sb-ico">↗</div>
-        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)">Statistiques (bientôt)</div>
+        <div>Statistiques (bientôt)</div>
       </div>
 
       <div class="sb-item" data-tab="settings" title="Coming soon">
         <div class="sb-ico">⚙</div>
-        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)">Réglages (bientôt)</div>
+        <div>Réglages (bientôt)</div>
       </div>
 
-      <div class="sb-muted"
-           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
-           data-en="Soon you’ll manage payouts, session history, and key business settings here.">
+      <div class="sb-muted">
         À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
       </div>
     </nav>
   </aside>
 
-  <!-- Main -->
   <main class="dash-main">
 
-    <!-- Top bar -->
     <div class="dash-top">
       <div class="dash-top-inner">
         <div class="profile-row">
@@ -634,45 +637,34 @@
           </div>
 
           <div class="pactions">
-            <button class="btn" id="editProfileBtn" type="button"
-              data-fr="Modifier"
-              data-en="Edit">Modifier</button>
+            <button class="btn" id="editProfileBtn" type="button">Modifier</button>
 
             <a class="btn btn-primary" id="publicPageBtn" href="#" target="_blank" rel="noopener">
-              <span data-fr="Voir ma page RunCall" data-en="View my RunCall page">Voir ma page RunCall</span>
-              <span aria-hidden="true">↗</span>
+              Voir ma page RunCall <span aria-hidden="true">↗</span>
             </a>
 
             <button class="icon-btn" id="copyLinkBtn" type="button" aria-label="Copy link">
-              <!-- simple “copy” icon -->
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
               </svg>
-              <span class="tip" data-fr="Copy link" data-en="Copy link">Copy link</span>
+              <span class="tip">Copy link</span>
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Content -->
     <div class="dash-content">
       <div class="card">
         <div class="card-head">
           <div class="badge">
             <span class="dot"></span>
-            <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+            <span>Calendrier</span>
           </div>
 
-          <h1 class="title"
-              data-fr="Gère tes créneaux depuis Google Calendar"
-              data-en="Manage your slots from Google Calendar">
-            Gère tes créneaux depuis Google Calendar
-          </h1>
+          <h1 class="title">Gère tes créneaux depuis Google Calendar</h1>
 
-          <p class="subtitle"
-             data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
-             data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
+          <p class="subtitle">
             Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
           </p>
         </div>
@@ -680,12 +672,9 @@
         <div class="card-body">
           <div class="main-grid">
 
-            <!-- CALENDAR (left 3/4) -->
-            <div class="calendar-wrap">
+            <div class="calendar-wrap" id="calendarWrap">
               <div class="calendar-top">
-                <div class="calendar-note"
-                     data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
-                     data-en="To close a slot: delete (or edit) the corresponding event in your Google Calendar.">
+                <div class="calendar-note">
                   Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
                 </div>
 
@@ -696,9 +685,7 @@
 
                   <a class="btn btn-primary" id="openGcalBtn"
                      href="https://calendar.google.com/calendar/u/0/r"
-                     target="_blank" rel="noopener noreferrer"
-                     data-fr="Ouvrir Google Calendar"
-                     data-en="Open Google Calendar">
+                     target="_blank" rel="noopener noreferrer">
                     Ouvrir Google Calendar
                   </a>
                 </div>
@@ -709,31 +696,24 @@
                   <div class="week-grid" id="weekGrid"></div>
                 </div>
 
+                <!-- ✅ overlay is shown ONLY if there are no slots overall -->
                 <div class="overlay" id="emptyOverlay">
                   <div class="overlay-card">
                     <div class="badge" style="justify-content:center;">
                       <span class="dot"></span>
-                      <span data-fr="Aucun créneau visible" data-en="No slots yet">Aucun créneau visible</span>
+                      <span>Aucun créneau visible</span>
                     </div>
 
-                    <div class="overlay-title"
-                         data-fr="Ouvre ton premier créneau"
-                         data-en="Open your first slot">
-                      Ouvre ton premier créneau
-                    </div>
+                    <div class="overlay-title">Ouvre ton premier créneau</div>
 
-                    <p class="overlay-text"
-                       data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
-                       data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
+                    <p class="overlay-text">
                       Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
                     </p>
 
                     <div style="height:12px;"></div>
                     <a class="btn btn-primary"
                        href="https://calendar.google.com/calendar/u/0/r"
-                       target="_blank" rel="noopener noreferrer"
-                       data-fr="Ouvrir Google Calendar"
-                       data-en="Open Google Calendar">
+                       target="_blank" rel="noopener noreferrer">
                       Ouvrir Google Calendar
                     </a>
                   </div>
@@ -742,19 +722,16 @@
               </div>
             </div>
 
-            <!-- HOW IT WORKS (right) -->
             <div class="helper">
-              <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
+              <h3>Comment ça marche</h3>
               <ol>
-                <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
-                <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">Crée un événement sur une plage où tu es dispo.</li>
-                <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
-                <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page RunCall." data-en="Your slots will automatically appear on your RunCall page.">Tes créneaux apparaîtront automatiquement sur ta page RunCall.</li>
+                <li>Ouvre Google Calendar.</li>
+                <li>Crée un événement sur une plage où tu es dispo.</li>
+                <li>Ajoute “RunCall” dans le titre.</li>
+                <li>Tes créneaux apparaîtront automatiquement sur ta page RunCall.</li>
               </ol>
 
-              <div class="mini"
-                   data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
-                   data-en="Start with a single slot to test, then add more whenever you want.">
+              <div class="mini">
                 Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
               </div>
             </div>
@@ -768,38 +745,34 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Edit modal -->
+<!-- Modal -->
 <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head">
-      <h4 id="modalTitle" data-fr="Modifier mon profil" data-en="Edit my profile">Modifier mon profil</h4>
+      <h4 id="modalTitle">Modifier mon profil</h4>
       <button class="xbtn" id="closeModalBtn" type="button">✕</button>
     </div>
 
     <div class="modal-body">
       <div class="form-row">
-        <label for="editName" data-fr="Prénom et nom (ou pseudo)" data-en="Name (or nickname)">Prénom et nom (ou pseudo)</label>
+        <label for="editName">Prénom et nom (ou pseudo)</label>
         <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
       </div>
 
       <div class="form-row">
-        <label for="editBio" data-fr="Description" data-en="Description">Description</label>
-        <textarea class="textarea" id="editBio" placeholder=""></textarea>
+        <label for="editBio">Description</label>
+        <textarea class="textarea" id="editBio"></textarea>
       </div>
 
       <div class="form-row">
-        <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)">Photo (URL)</label>
+        <label for="editPhotoUrl">Photo (URL)</label>
         <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
-        <div class="smallhint"
-             data-fr="Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)"
-             data-en="For now, you can paste an image URL. (Direct upload is coming soon.)">
-          Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)
-        </div>
+        <div class="smallhint">Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)</div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn" id="cancelEditBtn" type="button" data-fr="Annuler" data-en="Cancel">Annuler</button>
-        <button class="btn btn-primary" id="saveEditBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
+        <button class="btn" id="cancelEditBtn" type="button">Annuler</button>
+        <button class="btn btn-primary" id="saveEditBtn" type="button">Enregistrer</button>
       </div>
     </div>
   </div>
@@ -808,28 +781,6 @@
 <script>
 (function(){
   // ---------------------------
-  // Language
-  // ---------------------------
-  const langButtons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-  }
-  function applyLanguage(nextLang){
-    lang = nextLang;
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => { el.textContent = el.dataset[lang]; });
-    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
-
-    // Re-render week label/day names with new language
-    renderWeek();
-  }
-  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  // Apply once early (renderWeek will be called later too)
-  applyLanguage(lang);
-
-  // ---------------------------
   // Supabase
   // ---------------------------
   const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
@@ -837,7 +788,7 @@
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
   // ---------------------------
-  // Helpers
+  // UI helpers
   // ---------------------------
   const toast = document.getElementById("toast");
   function showToast(type, text){
@@ -845,53 +796,12 @@
     toast.textContent = text;
     setTimeout(() => toast.classList.remove("show"), 3200);
   }
-
   function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-
   function initials(str){
     const s = (str || "").trim();
     if (!s) return "RC";
     const parts = s.split(/\s+/).slice(0,2);
     return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
-  }
-
-  function fmtTime(date){
-    try {
-      return new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { hour:'2-digit', minute:'2-digit' }).format(date);
-    } catch {
-      const h = String(date.getHours()).padStart(2,'0');
-      const m = String(date.getMinutes()).padStart(2,'0');
-      return `${h}:${m}`;
-    }
-  }
-
-  // Monday as start
-  function startOfWeek(d){
-    const x = new Date(d);
-    const day = x.getDay(); // 0 Sun..6 Sat
-    const diff = (day === 0 ? -6 : 1) - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0,0,0,0);
-    return x;
-  }
-  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
-
-  function fmtRange(monday){
-    const end = addDays(monday, 6);
-    try{
-      if (lang === "fr"){
-        const a = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short' }).format(monday);
-        const b = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short', year:'numeric' }).format(end);
-        return `${a} → ${b}`;
-      } else {
-        const a = new Intl.DateTimeFormat('en-US', { month:'short', day:'2-digit' }).format(monday);
-        const b = new Intl.DateTimeFormat('en-US', { month:'short', day:'2-digit', year:'numeric' }).format(end);
-        return `${a} → ${b}`;
-      }
-    } catch {
-      return `${monday.toDateString()} - ${end.toDateString()}`;
-    }
   }
 
   // ---------------------------
@@ -903,6 +813,7 @@
   const publicPageBtn = document.getElementById("publicPageBtn");
   const copyLinkBtn = document.getElementById("copyLinkBtn");
 
+  const calendarWrap = document.getElementById("calendarWrap");
   const weekGrid = document.getElementById("weekGrid");
   const emptyOverlay = document.getElementById("emptyOverlay");
   const weekRangeLabel = document.getElementById("weekRangeLabel");
@@ -924,23 +835,55 @@
   // ---------------------------
   let expertId = qs("expert_id") || null;
   let expertRow = null;
-
-  let weekOffset = 0;        // 0 = current week, -1 prev, +1 next...
-  let cachedSlots = [];      // slots from API (all we get), we filter by week
+  let weekOffset = 0;
+  let cachedSlots = []; // all slots
 
   // ---------------------------
-  // Week render
+  // Dates & formatting
+  // ---------------------------
+  function startOfWeek(d){
+    const x = new Date(d);
+    const day = x.getDay(); // 0 Sun..6 Sat
+    const diff = (day === 0 ? -6 : 1) - day; // Monday start
+    x.setDate(x.getDate() + diff);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
+  function fmtTime(date){
+    try {
+      return new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' }).format(date);
+    } catch {
+      const h = String(date.getHours()).padStart(2,'0');
+      const m = String(date.getMinutes()).padStart(2,'0');
+      return `${h}:${m}`;
+    }
+  }
+  function fmtRange(monday){
+    const end = addDays(monday, 6);
+    try{
+      const a = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short' }).format(monday);
+      const b = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short', year:'numeric' }).format(end);
+      return `${a} → ${b}`;
+    } catch {
+      return `${monday.toDateString()} - ${end.toDateString()}`;
+    }
+  }
+  function getMondayForOffset(offset){
+    const base = startOfWeek(new Date());
+    return addDays(base, offset * 7);
+  }
+
+  // ---------------------------
+  // Calendar render
   // ---------------------------
   function renderWeekSkeleton(monday){
     weekGrid.innerHTML = "";
-
-    const dayNamesFr = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-    const dayNamesEn = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dayNames = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
 
     for (let i=0;i<7;i++){
       const dayDate = addDays(monday, i);
-      const label = (lang === "fr" ? dayNamesFr[i] : dayNamesEn[i]);
-
       const dd = String(dayDate.getDate()).padStart(2,'0');
       const mm = String(dayDate.getMonth()+1).padStart(2,'0');
 
@@ -948,8 +891,8 @@
       col.className = "day-col";
       col.innerHTML = `
         <div class="day-head">
-          <span>${label}</span>
-          <span class="day-date">${lang === "fr" ? `${dd}/${mm}` : `${mm}/${dd}`}</span>
+          <span>${dayNames[i]}</span>
+          <span class="day-date">${dd}/${mm}</span>
         </div>
         <div class="slots" data-day="${ymd(dayDate)}"></div>
       `;
@@ -957,44 +900,51 @@
     }
   }
 
-  function clearSlots(){
-    weekGrid.querySelectorAll(".slots").forEach(s => s.innerHTML = "");
+  function normalizeSlots(raw){
+    // try to support various shapes
+    return (raw || []).map(s => {
+      const startRaw = s.start || s.slot_start || s.start_time || s.begin || s.from;
+      const endRaw   = s.end   || s.slot_end   || s.end_time   || s.finish || s.to;
+      return {
+        start: startRaw ? new Date(startRaw) : null,
+        end: endRaw ? new Date(endRaw) : null,
+        title: s.title || s.summary || "RunCall"
+      };
+    }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
   }
 
   function filterSlotsForWeek(monday, slots){
     const start = new Date(monday);
     const end = addDays(start, 7);
-
-    return slots
-      .map(s => {
-        const startRaw = s.start || s.slot_start || s.start_time || s.begin || s.from;
-        const endRaw = s.end || s.slot_end || s.end_time || s.finish || s.to;
-        const st = new Date(startRaw);
-        const en = new Date(endRaw);
-        return {
-          start: st,
-          end: en,
-          title: s.title || s.summary || "RunCall"
-        };
-      })
-      .filter(x => x.start instanceof Date && !isNaN(x.start.getTime()))
-      .filter(x => x.start >= start && x.start < end)
-      .sort((a,b) => a.start - b.start);
+    return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
   }
 
-  function paintSlots(monday){
-    renderWeekSkeleton(monday);
-    clearSlots();
+  function setEmptyState(hasAnySlots){
+    // ✅ If no slots at all -> grey + overlay
+    if (!hasAnySlots){
+      calendarWrap.classList.add("is-empty");
+      emptyOverlay.classList.add("show");
+    } else {
+      calendarWrap.classList.remove("is-empty");
+      emptyOverlay.classList.remove("show");
+    }
+  }
 
+  function paintWeek(){
+    const monday = getMondayForOffset(weekOffset);
     weekRangeLabel.textContent = fmtRange(monday);
 
-    const inWeek = filterSlotsForWeek(monday, cachedSlots);
+    renderWeekSkeleton(monday);
 
-    if (!inWeek.length){
-      emptyOverlay.classList.add("show");
+    const slots = normalizeSlots(cachedSlots);
+    setEmptyState(slots.length > 0);
+
+    const inWeek = filterSlotsForWeek(monday, slots);
+
+    // If user has slots overall but not this week, we show empty week (no overlay)
+    if (slots.length > 0 && inWeek.length === 0){
       return;
     }
-    emptyOverlay.classList.remove("show");
 
     for (const s of inWeek){
       const key = ymd(s.start);
@@ -1011,35 +961,16 @@
     }
   }
 
-  function getMondayForOffset(offset){
-    const now = new Date();
-    const base = startOfWeek(now);
-    const monday = addDays(base, offset * 7);
-    monday.setHours(0,0,0,0);
-    return monday;
-  }
-
-  function renderWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    paintSlots(monday);
-  }
-
-  prevWeekBtn.addEventListener("click", () => {
-    weekOffset -= 1;
-    renderWeek();
-  });
-  nextWeekBtn.addEventListener("click", () => {
-    weekOffset += 1;
-    renderWeek();
-  });
+  prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
+  nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
 
   // ---------------------------
-  // Slots API (best effort)
+  // Slots API (priorité au endpoint le plus probable)
   // ---------------------------
   async function fetchSlotsBestEffort(expertId){
     const candidates = [
-      `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
       `/api/slots?expert_id=${encodeURIComponent(expertId)}`,
+      `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
       `/api/availability?expert_id=${encodeURIComponent(expertId)}`,
       `/api/calendar/slots?expert_id=${encodeURIComponent(expertId)}`
     ];
@@ -1057,57 +988,49 @@
   }
 
   // ---------------------------
-  // Expert loading (fix name/description)
+  // Load expert from DB (✅ name/presentation from devenir-intervenant-v2)
   // ---------------------------
   async function loadExpert(){
-    // 1) get session (so we can fallback by auth_user_id)
+    // session for fallback by auth_user_id
     let sessionUser = null;
     try{
       const { data } = await supabase.auth.getSession();
       sessionUser = data?.session?.user || null;
     }catch(_){}
 
-    // 2) If expert_id missing, try lookup by auth_user_id
+    // If no expert_id param, attempt lookup via auth_user_id
     if (!expertId && sessionUser?.id){
       const { data: row } = await supabase
         .from("experts")
-        .select("id,name,email,presentation,photo_url,auth_user_id,status,created_at,updated_at")
+        .select("id,name,presentation,photo_url,auth_user_id")
         .eq("auth_user_id", sessionUser.id)
         .maybeSingle();
-      if (row?.id) expertId = row.id;
-      if (row) expertRow = row;
+
+      if (row?.id){
+        expertId = row.id;
+        expertRow = row;
+      }
     }
 
-    // 3) If we have expert_id but no row yet, fetch row
-    if (expertId && !expertRow){
-      const { data: row } = await supabase
+    // If we have expertId, load the row (source of truth)
+    if (expertId){
+      const { data: row, error } = await supabase
         .from("experts")
-        .select("id,name,email,presentation,photo_url,auth_user_id,status,created_at,updated_at")
+        .select("id,name,presentation,photo_url,auth_user_id")
         .eq("id", expertId)
-        .maybeSingle();
-      if (row) expertRow = row;
+        .single();
+
+      if (!error && row) expertRow = row;
     }
 
-    // 4) Fill UI with best available sources
-    const name =
-      (expertRow?.name || "").trim() ||
-      (sessionUser?.user_metadata?.full_name || sessionUser?.user_metadata?.name || "").trim() ||
-      (sessionUser?.email ? sessionUser.email.split("@")[0] : "").trim() ||
-      (lang === "fr" ? "Intervenant RunCall" : "RunCall Host");
-
-    const bio =
-      (expertRow?.presentation || "").trim() ||
-      (lang === "fr" ? "Ajoute une description pour que les sportifs comprennent ce que tu apportes." : "Add a short description so athletes know what you bring.");
+    // Fill UI
+    const name = (expertRow?.name || "").trim() || "Intervenant RunCall";
+    const bio  = (expertRow?.presentation || "").trim() || "Ajoute une description depuis ton profil.";
 
     pname.textContent = name;
     pbio.textContent = bio;
 
-    // Avatar
-    const photo =
-      (expertRow?.photo_url || "").trim() ||
-      (sessionUser?.user_metadata?.avatar_url || "").trim() ||
-      null;
-
+    const photo = (expertRow?.photo_url || "").trim() || null;
     avatar.innerHTML = "";
     if (photo){
       const img = document.createElement("img");
@@ -1119,31 +1042,30 @@
       avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
     }
 
-    // Public page URL
+    // Public link
     const publicUrl = expertId
       ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
       : `https://www.run-call.com/intervenant.html`;
+
     publicPageBtn.href = publicUrl;
 
-    // Copy link button
-    copyLinkBtn.addEventListener("click", async () => {
+    copyLinkBtn.onclick = async () => {
       try{
         await navigator.clipboard.writeText(publicUrl);
-        showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-      }catch(e){
-        console.error(e);
-        showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+        showToast("ok", "Lien copié ✅");
+      }catch(_){
+        showToast("err", "Impossible de copier le lien.");
       }
-    });
+    };
 
-    // Prefill modal fields (fallback to what we displayed)
+    // Prefill modal
     editName.value = (expertRow?.name || "").trim() || name;
     editBio.value = (expertRow?.presentation || "").trim() || bio;
-    editPhotoUrl.value = (expertRow?.photo_url || "").trim() || photo || "";
+    editPhotoUrl.value = (expertRow?.photo_url || "").trim() || "";
   }
 
   // ---------------------------
-  // Modal open/close (fix “Modifier”)
+  // Modal open/close + save (✅ bouton Modifier fonctionne)
   // ---------------------------
   function openModal(){
     modalBackdrop.classList.add("show");
@@ -1153,18 +1075,16 @@
     modalBackdrop.classList.remove("show");
     modalBackdrop.setAttribute("aria-hidden","true");
   }
+
   editProfileBtn.addEventListener("click", openModal);
   closeModalBtn.addEventListener("click", closeModal);
   cancelEditBtn.addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
-  // Save edits
   saveEditBtn.addEventListener("click", async () => {
     if (!expertId){
-      showToast("err", lang === "fr"
-        ? "Impossible d’enregistrer : identifiant manquant."
-        : "Unable to save: missing id.");
+      showToast("err", "Impossible d’enregistrer : identifiant manquant.");
       return;
     }
 
@@ -1173,14 +1093,11 @@
     const photo_url = (editPhotoUrl.value || "").trim() || null;
 
     if (!name || !presentation){
-      showToast("err", lang === "fr"
-        ? "Merci de remplir le nom/pseudo et la description."
-        : "Please fill in name and description.");
+      showToast("err", "Merci de remplir le nom/pseudo et la description.");
       return;
     }
 
     saveEditBtn.disabled = true;
-
     try{
       const { data, error } = await supabase
         .from("experts")
@@ -1196,12 +1113,10 @@
 
       if (error) throw error;
 
-      expertRow = { ...(expertRow || {}), ...data };
-
+      // refresh UI
       pname.textContent = data.name;
       pbio.textContent = data.presentation;
 
-      // avatar refresh
       avatar.innerHTML = "";
       if (data.photo_url){
         const img = document.createElement("img");
@@ -1213,18 +1128,18 @@
         avatar.innerHTML = `<div class="avatar-fallback">${initials(data.name)}</div>`;
       }
 
-      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
+      showToast("ok", "Profil mis à jour ✅");
       closeModal();
     }catch(e){
       console.error(e);
-      showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
+      showToast("err", "Impossible d’enregistrer : " + (e?.message || "erreur"));
     }finally{
       saveEditBtn.disabled = false;
     }
   });
 
   // ---------------------------
-  // Sidebar “coming soon” toasts
+  // Sidebar “coming soon”
   // ---------------------------
   document.querySelectorAll(".sb-item").forEach(item => {
     item.addEventListener("click", () => {
@@ -1232,7 +1147,7 @@
       item.classList.add("active");
       const tab = item.getAttribute("data-tab");
       if (tab && tab !== "home"){
-        showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+        showToast("ok", "Bientôt disponible ✨");
       }
     });
   });
@@ -1240,23 +1155,20 @@
   // ---------------------------
   // Init
   // ---------------------------
-  // Start with empty view; slots will fill in
-  cachedSlots = [];
-  renderWeek();
+  paintWeek(); // initial skeleton + empty overlay (will be corrected after fetch)
 
   (async () => {
     await loadExpert();
 
-    // Fetch slots once, then render current week
     if (expertId){
       cachedSlots = await fetchSlotsBestEffort(expertId);
-      renderWeek();
+      paintWeek();
     } else {
-      // keep overlay
-      renderWeek();
+      // no id -> keep empty state
+      cachedSlots = [];
+      paintWeek();
     }
   })();
-
 })();
 </script>
 
