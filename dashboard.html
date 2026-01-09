@@ -1,6 +1,4 @@
-<!-- dashboard.html (version corrigée: calendrier grisé tant qu'il n'y a AUCUN créneau,
-     nom/description viennent bien de la table experts (devenir-intervenant-v2),
-     bouton Modifier fonctionne) -->
+<!-- dashboard.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -52,6 +50,34 @@
       margin: 0 auto;
       padding: 16px 18px 46px;
       box-sizing:border-box;
+    }
+
+    /* Lang switch */
+    .lang-switch{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-left: 8px;
+    }
+    .lang-switch button{
+      border:1px solid var(--border);
+      background:#fff;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 900;
+      letter-spacing:-.01em;
+      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
+    }
+    .lang-switch button:hover{
+      transform: translateY(-1px);
+      border-color: rgba(22,119,255,.45);
+      background: rgba(22,119,255,.06);
+    }
+    .lang-switch button.active{
+      border-color: rgba(22,119,255,.55);
+      background: rgba(22,119,255,.10);
     }
 
     /* Sidebar header */
@@ -585,40 +611,38 @@
 </head>
 
 <body>
-<!-- No top banner / no site header -->
-
 <div class="dash-shell">
 
   <aside class="dash-sidebar">
     <div class="sb-brand">
       <div class="sb-logo">Dashboard</div>
-      <div class="sb-pill">Intervenant</div>
+      <div class="sb-pill" data-fr="Intervenant" data-en="Host"></div>
     </div>
 
     <nav class="sb-nav">
       <div class="sb-item active" data-tab="home">
         <div class="sb-ico">⌂</div>
-        <div>Accueil</div>
+        <div data-fr="Accueil" data-en="Home"></div>
       </div>
 
       <div class="sb-item" data-tab="payouts" title="Coming soon">
         <div class="sb-ico">€</div>
-        <div>Paiements (bientôt)</div>
+        <div data-fr="Paiements (bientôt)" data-en="Payouts (soon)"></div>
       </div>
 
       <div class="sb-item" data-tab="analytics" title="Coming soon">
         <div class="sb-ico">↗</div>
-        <div>Statistiques (bientôt)</div>
+        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)"></div>
       </div>
 
       <div class="sb-item" data-tab="settings" title="Coming soon">
         <div class="sb-ico">⚙</div>
-        <div>Réglages (bientôt)</div>
+        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)"></div>
       </div>
 
-      <div class="sb-muted">
-        À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
-      </div>
+      <div class="sb-muted"
+           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
+           data-en="Eventually you’ll manage payouts, revenue, session history, and more here."></div>
     </nav>
   </aside>
 
@@ -637,17 +661,25 @@
           </div>
 
           <div class="pactions">
-            <button class="btn" id="editProfileBtn" type="button">Modifier</button>
+            <div class="lang-switch">
+              <button type="button" data-lang="fr">FR</button>
+              <button type="button" data-lang="en">EN</button>
+            </div>
+
+            <button class="btn" id="editProfileBtn" type="button"
+                    data-fr="Modifier" data-en="Edit"></button>
 
             <a class="btn btn-primary" id="publicPageBtn" href="#" target="_blank" rel="noopener">
-              Voir ma page RunCall <span aria-hidden="true">↗</span>
+              <span data-fr="Voir ma page Public" data-en="View my public page"></span>
+              <span aria-hidden="true">↗</span>
             </a>
 
             <button class="icon-btn" id="copyLinkBtn" type="button" aria-label="Copy link">
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
               </svg>
-              <span class="tip">Copy link</span>
+              <span class="tip" data-fr="Copier le lien de ma page publique"
+                    data-en="Copy link of my public page"></span>
             </button>
           </div>
         </div>
@@ -659,14 +691,15 @@
         <div class="card-head">
           <div class="badge">
             <span class="dot"></span>
-            <span>Calendrier</span>
+            <span data-fr="Calendrier" data-en="Calendar"></span>
           </div>
 
-          <h1 class="title">Gère tes créneaux depuis Google Calendar</h1>
+          <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar"
+              data-en="Manage your slots from Google Calendar"></h1>
 
-          <p class="subtitle">
-            Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
-          </p>
+          <p class="subtitle"
+             data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
+             data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title."></p>
         </div>
 
         <div class="card-body">
@@ -674,9 +707,9 @@
 
             <div class="calendar-wrap" id="calendarWrap">
               <div class="calendar-top">
-                <div class="calendar-note">
-                  Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
-                </div>
+                <div class="calendar-note"
+                     data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
+                     data-en="To close a slot: delete (or edit) the matching event in your Google Calendar."></div>
 
                 <div class="cal-nav">
                   <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
@@ -685,9 +718,9 @@
 
                   <a class="btn btn-primary" id="openGcalBtn"
                      href="https://calendar.google.com/calendar/u/0/r"
-                     target="_blank" rel="noopener noreferrer">
-                    Ouvrir Google Calendar
-                  </a>
+                     target="_blank" rel="noopener noreferrer"
+                     data-fr="Ouvrir Google Calendar"
+                     data-en="Open Google Calendar"></a>
                 </div>
               </div>
 
@@ -696,26 +729,26 @@
                   <div class="week-grid" id="weekGrid"></div>
                 </div>
 
-                <!-- ✅ overlay is shown ONLY if there are no slots overall -->
                 <div class="overlay" id="emptyOverlay">
                   <div class="overlay-card">
                     <div class="badge" style="justify-content:center;">
                       <span class="dot"></span>
-                      <span>Aucun créneau visible</span>
+                      <span data-fr="Aucun créneau visible" data-en="No slots visible"></span>
                     </div>
 
-                    <div class="overlay-title">Ouvre ton premier créneau</div>
+                    <div class="overlay-title" data-fr="Ouvre ton premier créneau"
+                         data-en="Open your first slot"></div>
 
-                    <p class="overlay-text">
-                      Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
-                    </p>
+                    <p class="overlay-text"
+                       data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
+                       data-en="Click “Open Google Calendar”, create an event when you’re available, and add “RunCall” in the title."></p>
 
                     <div style="height:12px;"></div>
                     <a class="btn btn-primary"
                        href="https://calendar.google.com/calendar/u/0/r"
-                       target="_blank" rel="noopener noreferrer">
-                      Ouvrir Google Calendar
-                    </a>
+                       target="_blank" rel="noopener noreferrer"
+                       data-fr="Ouvrir Google Calendar"
+                       data-en="Open Google Calendar"></a>
                   </div>
                 </div>
 
@@ -723,17 +756,18 @@
             </div>
 
             <div class="helper">
-              <h3>Comment ça marche</h3>
+              <h3 data-fr="Comment ça marche" data-en="How it works"></h3>
               <ol>
-                <li>Ouvre Google Calendar.</li>
-                <li>Crée un événement sur une plage où tu es dispo.</li>
-                <li>Ajoute “RunCall” dans le titre.</li>
-                <li>Tes créneaux apparaîtront automatiquement sur ta page RunCall.</li>
+                <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar."></li>
+                <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available."></li>
+                <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title."></li>
+                <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page RunCall." data-en="Your slots will automatically appear on your public page."></li>
+                <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to start getting bookings."></li>
               </ol>
 
-              <div class="mini">
-                Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
-              </div>
+              <div class="mini"
+                   data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
+                   data-en="You can start with just one slot to test, then add more later."></div>
             </div>
 
           </div>
@@ -745,34 +779,35 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Modal -->
 <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head">
-      <h4 id="modalTitle">Modifier mon profil</h4>
+      <h4 id="modalTitle" data-fr="Modifier mon profil" data-en="Edit my profile"></h4>
       <button class="xbtn" id="closeModalBtn" type="button">✕</button>
     </div>
 
     <div class="modal-body">
       <div class="form-row">
-        <label for="editName">Prénom et nom (ou pseudo)</label>
+        <label for="editName" data-fr="Prénom et nom (ou pseudo)" data-en="Name (or handle)"></label>
         <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
       </div>
 
       <div class="form-row">
-        <label for="editBio">Description</label>
+        <label for="editBio" data-fr="Description" data-en="Description"></label>
         <textarea class="textarea" id="editBio"></textarea>
       </div>
 
       <div class="form-row">
-        <label for="editPhotoUrl">Photo (URL)</label>
+        <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)"></label>
         <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
-        <div class="smallhint">Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)</div>
+        <div class="smallhint"
+             data-fr="Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)"
+             data-en="You can use an image URL for now. (Direct upload will come in a future version.)"></div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn" id="cancelEditBtn" type="button">Annuler</button>
-        <button class="btn btn-primary" id="saveEditBtn" type="button">Enregistrer</button>
+        <button class="btn" id="cancelEditBtn" type="button" data-fr="Annuler" data-en="Cancel"></button>
+        <button class="btn btn-primary" id="saveEditBtn" type="button" data-fr="Enregistrer" data-en="Save"></button>
       </div>
     </div>
   </div>
@@ -780,6 +815,26 @@
 
 <script>
 (function(){
+  // ---------------------------
+  // Language (FR/EN switch like other pages)
+  // ---------------------------
+  const langButtons = document.querySelectorAll('.lang-switch button');
+  let lang = localStorage.getItem('runcall_lang');
+  if (!lang) {
+    const browserLang = (navigator.language || "").toLowerCase();
+    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
+  }
+  function applyLanguage(nextLang){
+    lang = nextLang;
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+  }
+  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+
   // ---------------------------
   // Supabase
   // ---------------------------
@@ -812,6 +867,7 @@
   const pbio = document.getElementById("pbio");
   const publicPageBtn = document.getElementById("publicPageBtn");
   const copyLinkBtn = document.getElementById("copyLinkBtn");
+  const tipEl = copyLinkBtn.querySelector(".tip");
 
   const calendarWrap = document.getElementById("calendarWrap");
   const weekGrid = document.getElementById("weekGrid");
@@ -852,8 +908,9 @@
   function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
   function ymd(d){ return new Date(d).toISOString().slice(0,10); }
   function fmtTime(date){
+    const locale = (lang === "fr") ? "fr-FR" : "en-US";
     try {
-      return new Intl.DateTimeFormat('fr-FR', { hour:'2-digit', minute:'2-digit' }).format(date);
+      return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
     } catch {
       const h = String(date.getHours()).padStart(2,'0');
       const m = String(date.getMinutes()).padStart(2,'0');
@@ -862,9 +919,10 @@
   }
   function fmtRange(monday){
     const end = addDays(monday, 6);
+    const locale = (lang === "fr") ? "fr-FR" : "en-US";
     try{
-      const a = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short' }).format(monday);
-      const b = new Intl.DateTimeFormat('fr-FR', { day:'2-digit', month:'short', year:'numeric' }).format(end);
+      const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
+      const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
       return `${a} → ${b}`;
     } catch {
       return `${monday.toDateString()} - ${end.toDateString()}`;
@@ -880,7 +938,9 @@
   // ---------------------------
   function renderWeekSkeleton(monday){
     weekGrid.innerHTML = "";
-    const dayNames = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+    const dayNamesFR = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+    const dayNamesEN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dayNames = (lang === "fr") ? dayNamesFR : dayNamesEN;
 
     for (let i=0;i<7;i++){
       const dayDate = addDays(monday, i);
@@ -901,7 +961,6 @@
   }
 
   function normalizeSlots(raw){
-    // try to support various shapes
     return (raw || []).map(s => {
       const startRaw = s.start || s.slot_start || s.start_time || s.begin || s.from;
       const endRaw   = s.end   || s.slot_end   || s.end_time   || s.finish || s.to;
@@ -920,7 +979,6 @@
   }
 
   function setEmptyState(hasAnySlots){
-    // ✅ If no slots at all -> grey + overlay
     if (!hasAnySlots){
       calendarWrap.classList.add("is-empty");
       emptyOverlay.classList.add("show");
@@ -964,11 +1022,28 @@
   prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
   nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
 
+  // repaint when language changes (day labels / range)
+  langButtons.forEach(btn => btn.addEventListener("click", () => paintWeek()));
+
   // ---------------------------
-  // Slots API (priorité au endpoint le plus probable)
+  // Slots API (✅ fix "only 2 weeks" by fetching a wide range)
   // ---------------------------
   async function fetchSlotsBestEffort(expertId){
+    // We request a wide window so the UI can navigate weeks without "dropping"
+    const from = new Date(); from.setHours(0,0,0,0);
+    from.setDate(from.getDate() - 90);
+    const to = new Date(); to.setHours(23,59,59,999);
+    to.setDate(to.getDate() + 365);
+
+    const qsRange = `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+
     const candidates = [
+      `/api/slots?expert_id=${encodeURIComponent(expertId)}&${qsRange}`,
+      `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&${qsRange}`,
+      `/api/availability?expert_id=${encodeURIComponent(expertId)}&${qsRange}`,
+      `/api/calendar/slots?expert_id=${encodeURIComponent(expertId)}&${qsRange}`,
+
+      // fallback (in case your endpoint doesn't accept range params)
       `/api/slots?expert_id=${encodeURIComponent(expertId)}`,
       `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
       `/api/availability?expert_id=${encodeURIComponent(expertId)}`,
@@ -988,44 +1063,49 @@
   }
 
   // ---------------------------
-  // Load expert from DB (✅ name/presentation from devenir-intervenant-v2)
+  // Load expert from DB (✅ always via auth_user_id first)
   // ---------------------------
   async function loadExpert(){
-    // session for fallback by auth_user_id
     let sessionUser = null;
     try{
       const { data } = await supabase.auth.getSession();
       sessionUser = data?.session?.user || null;
     }catch(_){}
 
-    // If no expert_id param, attempt lookup via auth_user_id
-    if (!expertId && sessionUser?.id){
-      const { data: row } = await supabase
-        .from("experts")
-        .select("id,name,presentation,photo_url,auth_user_id")
-        .eq("auth_user_id", sessionUser.id)
-        .maybeSingle();
+    if (!sessionUser?.id){
+      // not logged in -> keep placeholders but avoid confusing UI
+      pname.textContent = (lang === "fr") ? "Non connecté" : "Not signed in";
+      pbios = (lang === "fr") ? "Connecte-toi pour accéder au dashboard." : "Sign in to access the dashboard.";
+      pbio.textContent = Rb || "";
+      return;
+    }
 
-      if (row?.id){
-        expertId = row.id;
-        expertRow = row;
+    // 1) Source of truth: row readable by RLS (auth_user_id = auth.uid())
+    const { data: ownRow, error: ownErr } = await supabase
+      .from("experts")
+      .select("id,name,presentation,photo_url,auth_user_id")
+      .eq("auth_user_id", sessionUser.id)
+      .maybeSingle();
+
+    if (ownRow?.id){
+      expertRow = ownRow;
+      expertId = ownRow.id;
+    } else {
+      // If no row attached, we can still TRY the URL expert_id (only if readable).
+      if (expertId){
+        const { data: byId, error: byIdErr } = await supabase
+          .from("experts")
+          .select("id,name,presentation,photo_url,auth_user_id")
+          .eq("id", expertId)
+          .maybeSingle();
+        if (byId?.id){
+          expertRow = byId;
+        }
       }
     }
 
-    // If we have expertId, load the row (source of truth)
-    if (expertId){
-      const { data: row, error } = await supabase
-        .from("experts")
-        .select("id,name,presentation,photo_url,auth_user_id")
-        .eq("id", expertId)
-        .single();
-
-      if (!error && row) expertRow = row;
-    }
-
-    // Fill UI
-    const name = (expertRow?.name || "").trim() || "Intervenant RunCall";
-    const bio  = (expertRow?.presentation || "").trim() || "Ajoute une description depuis ton profil.";
+    const name = (expertRow?.name || "").trim() || ((lang === "fr") ? "Intervenant RunCall" : "RunCall host");
+    const bio  = (expertRow?.presentation || "").trim() || ((lang === "fr") ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
 
     pname.textContent = name;
     pbio.textContent = bio;
@@ -1049,12 +1129,19 @@
 
     publicPageBtn.href = publicUrl;
 
+    // tooltip text
+    if (tipEl){
+      tipEl.textContent = (lang === "fr")
+        ? "Copier le lien de ma page publique"
+        : "Copy link of my public page";
+    }
+
     copyLinkBtn.onclick = async () => {
       try{
         await navigator.clipboard.writeText(publicUrl);
-        showToast("ok", "Lien copié ✅");
+        showToast("ok", (lang === "fr") ? "Lien copié ✅" : "Link copied ✅");
       }catch(_){
-        showToast("err", "Impossible de copier le lien.");
+        showToast("err", (lang === "fr") ? "Impossible de copier le lien." : "Unable to copy the link.");
       }
     };
 
@@ -1065,7 +1152,7 @@
   }
 
   // ---------------------------
-  // Modal open/close + save (✅ bouton Modifier fonctionne)
+  // Modal open/close + save (✅ Edit works)
   // ---------------------------
   function openModal(){
     modalBackdrop.classList.add("show");
@@ -1084,7 +1171,9 @@
 
   saveEditBtn.addEventListener("click", async () => {
     if (!expertId){
-      showToast("err", "Impossible d’enregistrer : identifiant manquant.");
+      showToast("err", (lang === "fr")
+        ? "Impossible d’enregistrer : profil introuvable. Reviens sur l’étape de démarrage."
+        : "Unable to save: profile not found. Go back to the start step.");
       return;
     }
 
@@ -1093,7 +1182,9 @@
     const photo_url = (editPhotoUrl.value || "").trim() || null;
 
     if (!name || !presentation){
-      showToast("err", "Merci de remplir le nom/pseudo et la description.");
+      showToast("err", (lang === "fr")
+        ? "Merci de remplir le nom/pseudo et la description."
+        : "Please fill in name/handle and description.");
       return;
     }
 
@@ -1128,11 +1219,13 @@
         avatar.innerHTML = `<div class="avatar-fallback">${initials(data.name)}</div>`;
       }
 
-      showToast("ok", "Profil mis à jour ✅");
+      showToast("ok", (lang === "fr") ? "Profil mis à jour ✅" : "Profile updated ✅");
       closeModal();
     }catch(e){
       console.error(e);
-      showToast("err", "Impossible d’enregistrer : " + (e?.message || "erreur"));
+      showToast("err", (lang === "fr")
+        ? "Impossible d’enregistrer : " + (e?.message || "erreur")
+        : "Unable to save: " + (e?.message || "error"));
     }finally{
       saveEditBtn.disabled = false;
     }
@@ -1147,7 +1240,7 @@
       item.classList.add("active");
       const tab = item.getAttribute("data-tab");
       if (tab && tab !== "home"){
-        showToast("ok", "Bientôt disponible ✨");
+        showToast("ok", (lang === "fr") ? "Bientôt disponible ✨" : "Coming soon ✨");
       }
     });
   });
@@ -1164,7 +1257,6 @@
       cachedSlots = await fetchSlotsBestEffort(expertId);
       paintWeek();
     } else {
-      // no id -> keep empty state
       cachedSlots = [];
       paintWeek();
     }
