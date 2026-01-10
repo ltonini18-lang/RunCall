@@ -1,4 +1,4 @@
-<!-- dashboard.html (FIX: expert_id persist, calendar works, edit works, FR/EN solid, API bypass RLS) -->
+<!-- dashboard.html (FIXED: init order so JS doesn’t crash, FR/EN safe, calendar + profile + buttons + modal work) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -189,7 +189,6 @@
       background: rgba(22,119,255,.06);
       box-shadow: 0 12px 26px rgba(22,119,255,.10);
     }
-    .icon-btn:active{ transform: translateY(0); }
 
     .tip{
       position:absolute;
@@ -325,7 +324,6 @@
       background: rgba(22,119,255,.06);
       box-shadow: 0 12px 26px rgba(22,119,255,.10);
     }
-    .arrow-btn:active{ transform: translateY(0); }
 
     .calendar-area{ position:relative; min-height: 520px; background: #fff; }
     .calendar-inner{ padding: 14px; }
@@ -394,14 +392,6 @@
       padding: 16px;
       text-align:center;
     }
-    .overlay-title{
-      margin: 8px 0 6px;
-      font-weight: 900;
-      color: var(--text);
-      letter-spacing:-.02em;
-      font-size: 1.15rem;
-    }
-    .overlay-text{ margin: 0; color: var(--muted); line-height:1.55; font-size: .98rem; }
 
     .helper{
       border: 1px solid var(--border);
@@ -409,10 +399,6 @@
       background:#fff;
       padding: 14px;
     }
-    .helper h3{ margin:0 0 10px; color: var(--text); letter-spacing:-.01em; font-size: 1.05rem; }
-    .helper ol{ margin:0; padding-left: 18px; color: var(--muted); line-height:1.7; font-size:.98rem; }
-    .helper li{ margin: 7px 0; }
-    .helper .mini{ margin-top: 10px; color: var(--muted2); font-size:.92rem; line-height:1.55; }
 
     .toast{
       position: fixed;
@@ -459,7 +445,6 @@
       justify-content:space-between;
       gap:10px;
     }
-    .modal-head h4{ margin:0; color: var(--text); letter-spacing:-.02em; font-size:1.05rem; }
     .xbtn{
       border:1px solid var(--border);
       background:#fff;
@@ -470,8 +455,6 @@
       color: var(--muted);
     }
     .modal-body{ padding: 14px 16px 16px; }
-    .form-row{ margin: 0 0 12px; }
-    .form-row label{ display:block; font-weight:900; color: var(--text); margin-bottom:6px; }
     .input, .textarea{
       width:100%;
       padding: 12px 12px;
@@ -479,33 +462,23 @@
       border:1px solid var(--border);
       background:#fff;
       color: var(--text);
-      outline:none;
-      transition: border-color 160ms ease, box-shadow 160ms ease;
       box-sizing:border-box;
     }
     .textarea{ resize: vertical; min-height: 110px; }
-    .input:focus, .textarea:focus{
-      border-color: var(--brand);
-      box-shadow: 0 0 0 4px rgba(22,119,255,.10);
-    }
     .modal-actions{
       display:flex;
       gap:10px;
       justify-content:flex-end;
       margin-top: 12px;
     }
-    .smallhint{ color: var(--muted2); font-size:.92rem; line-height:1.45; margin-top: 8px; }
 
     @media (max-width: 980px){
       .dash-sidebar{ display:none; }
       .dash-top-inner, .dash-content{ padding-left: 14px; padding-right: 14px; }
-      .pbio{ max-width: 40ch; }
       .main-grid{ grid-template-columns: 1fr; }
     }
     @media (max-width: 780px){
-      .title{ font-size: 1.32rem; }
       .week-grid{ grid-template-columns: 1fr; }
-      .calendar-area{ min-height: 520px; }
       .calendar-note{ min-width: 100%; }
       .cal-nav{ width: 100%; justify-content:space-between; }
       .cal-nav .range{ flex:1; text-align:center; }
@@ -577,9 +550,7 @@
               <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
               </svg>
-              <span class="tip"
-                    id="copyTip"
-                    data-i18n="text"
+              <span class="tip" id="copyTip"
                     data-fr="Copier le lien de ma page publique"
                     data-en="Copy link to my public page">copy link of my public page</span>
             </button>
@@ -716,13 +687,7 @@
         <label for="editName" data-fr="Prénom et nom (ou pseudo)" data-en="Name (or nickname)">
           Prénom et nom (ou pseudo)
         </label>
-        <input class="input"
-               id="editName"
-               type="text"
-               data-i18n="placeholder"
-               data-fr="Ex: Camille, coach trail"
-               data-en="e.g., Camille, trail coach"
-               placeholder="Ex: Camille, coach trail" />
+        <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
       </div>
 
       <div class="form-row">
@@ -732,18 +697,7 @@
 
       <div class="form-row">
         <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)">Photo (URL)</label>
-        <input class="input"
-               id="editPhotoUrl"
-               type="text"
-               data-i18n="placeholder"
-               data-fr="https://…"
-               data-en="https://…"
-               placeholder="https://…" />
-        <div class="smallhint"
-             data-fr="Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)"
-             data-en="You can use an image URL for now. (Direct upload will come in a future version.)">
-          Tu peux mettre une URL d’image pour l’instant. (L’upload direct arrivera dans une prochaine version.)
-        </div>
+        <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
       </div>
 
       <div class="modal-actions">
@@ -756,469 +710,432 @@
 
 <script>
 (function(){
-  // ---------------------------
-  // Supabase
-  // ---------------------------
-  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  // ✅ Don’t let one error kill everything
+  try {
 
-  // ---------------------------
-  // UI helpers
-  // ---------------------------
-  const toast = document.getElementById("toast");
-  function showToast(type, text){
-    toast.className = "toast show " + (type === "err" ? "err" : "ok");
-    toast.textContent = text;
-    setTimeout(() => toast.classList.remove("show"), 3200);
-  }
-  function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-  function initials(str){
-    const s = (str || "").trim();
-    if (!s) return "RC";
-    const parts = s.split(/\s+/).slice(0,2);
-    return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
-  }
+    // ---------------------------
+    // Supabase (guarded)
+    // ---------------------------
+    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+    const supabase = (window.supabase && window.supabase.createClient)
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+      : null;
 
-  // ---------------------------
-  // Language switch (FIXED: supports placeholder/title, does not break links)
-  // ---------------------------
-  const langButtons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-  }
+    // ---------------------------
+    // UI helpers
+    // ---------------------------
+    const toast = document.getElementById("toast");
+    function showToast(type, text){
+      toast.className = "toast show " + (type === "err" ? "err" : "ok");
+      toast.textContent = text;
+      setTimeout(() => toast.classList.remove("show"), 3200);
+    }
+    function qs(name){ return new URLSearchParams(window.location.search).get(name); }
+    function initials(str){
+      const s = (str || "").trim();
+      if (!s) return "RC";
+      const parts = s.split(/\s+/).slice(0,2);
+      return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
+    }
 
-  function applyLanguage(nextLang){
-    lang = nextLang;
-    document.documentElement.lang = lang;
+    // ---------------------------
+    // Elements (MUST be before applyLanguage/paintWeek calls)
+    // ---------------------------
+    const langButtons = document.querySelectorAll('.lang-switch button');
 
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      const val = el.dataset[lang] || "";
-      const mode = el.dataset.i18n || "text"; // text | placeholder | title
+    const avatar = document.getElementById("avatar");
+    const pname = document.getElementById("pname");
+    const pbio = document.getElementById("pbio");
+    const publicPageBtn = document.getElementById("publicPageBtn");
+    const copyLinkBtn = document.getElementById("copyLinkBtn");
 
-      if (mode === "placeholder") el.placeholder = val;
-      else if (mode === "title") el.title = val;
-      else el.textContent = val;
-    });
+    const calendarWrap = document.getElementById("calendarWrap");
+    const weekGrid = document.getElementById("weekGrid");
+    const emptyOverlay = document.getElementById("emptyOverlay");
+    const weekRangeLabel = document.getElementById("weekRangeLabel");
+    const prevWeekBtn = document.getElementById("prevWeekBtn");
+    const nextWeekBtn = document.getElementById("nextWeekBtn");
 
-    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const editProfileBtn = document.getElementById("editProfileBtn");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const cancelEditBtn = document.getElementById("cancelEditBtn");
+    const saveEditBtn = document.getElementById("saveEditBtn");
+    const editName = document.getElementById("editName");
+    const editBio = document.getElementById("editBio");
+    const editPhotoUrl = document.getElementById("editPhotoUrl");
 
-    // re-render calendar labels & range
-    paintWeek();
-  }
-  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
+    // ---------------------------
+    // State
+    // ---------------------------
+    let lang = localStorage.getItem('runcall_lang');
+    if (!lang) {
+      const browserLang = (navigator.language || "").toLowerCase();
+      lang = browserLang.startsWith('fr') ? 'fr' : 'en';
+    }
 
-  // ---------------------------
-  // Elements
-  // ---------------------------
-  const avatar = document.getElementById("avatar");
-  const pname = document.getElementById("pname");
-  const pbio = document.getElementById("pbio");
-  const publicPageBtn = document.getElementById("publicPageBtn");
-  const copyLinkBtn = document.getElementById("copyLinkBtn");
+    let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
+    let expertRow = null;
+    let weekOffset = 0;
+    let cachedSlots = [];
 
-  const calendarWrap = document.getElementById("calendarWrap");
-  const weekGrid = document.getElementById("weekGrid");
-  const emptyOverlay = document.getElementById("emptyOverlay");
-  const weekRangeLabel = document.getElementById("weekRangeLabel");
-  const prevWeekBtn = document.getElementById("prevWeekBtn");
-  const nextWeekBtn = document.getElementById("nextWeekBtn");
+    // ---------------------------
+    // Dates
+    // ---------------------------
+    function startOfWeek(d){
+      const x = new Date(d);
+      const day = x.getDay();
+      const diff = (day === 0 ? -6 : 1) - day;
+      x.setDate(x.getDate() + diff);
+      x.setHours(0,0,0,0);
+      return x;
+    }
+    function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+    function ymd(d){ return new Date(d).toISOString().slice(0,10); }
 
-  const modalBackdrop = document.getElementById("modalBackdrop");
-  const editProfileBtn = document.getElementById("editProfileBtn");
-  const closeModalBtn = document.getElementById("closeModalBtn");
-  const cancelEditBtn = document.getElementById("cancelEditBtn");
-  const saveEditBtn = document.getElementById("saveEditBtn");
-  const editName = document.getElementById("editName");
-  const editBio = document.getElementById("editBio");
-  const editPhotoUrl = document.getElementById("editPhotoUrl");
-
-  // ---------------------------
-  // State
-  // ---------------------------
-  let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
-  let expertRow = null;
-  let weekOffset = 0;
-  let cachedSlots = [];
-
-  // ---------------------------
-  // Dates
-  // ---------------------------
-  function startOfWeek(d){
-    const x = new Date(d);
-    const day = x.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0,0,0,0);
-    return x;
-  }
-  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
-
-  function fmtTime(date){
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    try { return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date); }
-    catch { return `${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`; }
-  }
-  function fmtRange(monday){
-    const end = addDays(monday, 6);
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    try{
+    function fmtTime(date){
+      const locale = (lang === "fr") ? "fr-FR" : "en-US";
+      return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
+    }
+    function fmtRange(monday){
+      const end = addDays(monday, 6);
+      const locale = (lang === "fr") ? "fr-FR" : "en-US";
       const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
       const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
       return `${a} → ${b}`;
-    } catch {
-      return `${monday.toDateString()} - ${end.toDateString()}`;
     }
-  }
-  function getMondayForOffset(offset){
-    const base = startOfWeek(new Date());
-    return addDays(base, offset * 7);
-  }
-
-  // ---------------------------
-  // Calendar render
-  // ---------------------------
-  function renderWeekSkeleton(monday){
-    weekGrid.innerHTML = "";
-    const dayNamesFR = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-    const dayNamesEN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-    const dayNames = (lang === "fr") ? dayNamesFR : dayNamesEN;
-
-    for (let i=0;i<7;i++){
-      const dayDate = addDays(monday, i);
-      const dd = String(dayDate.getDate()).padStart(2,'0');
-      const mm = String(dayDate.getMonth()+1).padStart(2,'0');
-
-      const col = document.createElement("div");
-      col.className = "day-col";
-      col.innerHTML = `
-        <div class="day-head">
-          <span>${dayNames[i]}</span>
-          <span class="day-date">${dd}/${mm}</span>
-        </div>
-        <div class="slots" data-day="${ymd(dayDate)}"></div>
-      `;
-      weekGrid.appendChild(col);
-    }
-  }
-
-  function normalizeSlots(raw){
-    return (raw || []).map(s => {
-      const startRaw = s.start || s.slot_start;
-      const endRaw   = s.end   || s.slot_end;
-      return {
-        start: startRaw ? new Date(startRaw) : null,
-        end: endRaw ? new Date(endRaw) : null,
-        title: s.title || s.summary || "RunCall"
-      };
-    }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
-  }
-
-  function filterSlotsForWeek(monday, slots){
-    const start = new Date(monday);
-    const end = addDays(start, 7);
-    return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
-  }
-
-  function setEmptyState(hasAnySlots){
-    if (!hasAnySlots){
-      calendarWrap.classList.add("is-empty");
-      emptyOverlay.classList.add("show");
-    } else {
-      calendarWrap.classList.remove("is-empty");
-      emptyOverlay.classList.remove("show");
-    }
-  }
-
-  function paintWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    weekRangeLabel.textContent = fmtRange(monday);
-
-    renderWeekSkeleton(monday);
-
-    const slots = normalizeSlots(cachedSlots);
-    setEmptyState(slots.length > 0);
-
-    const inWeek = filterSlotsForWeek(monday, slots);
-    for (const s of inWeek){
-      const key = ymd(s.start);
-      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
-      if (!bucket) continue;
-
-      const item = document.createElement("div");
-      item.className = "slot";
-      item.innerHTML = `
-        <strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong>
-        <small>${(s.title || "RunCall")}</small>
-      `;
-      bucket.appendChild(item);
-    }
-  }
-
-  prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
-  nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
-
-  // ---------------------------
-  // Slots API (try new endpoint, fallback old)
-  // ---------------------------
-  async function fetchSlots(expertId){
-    const urls = [
-      `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
-      `/api/slots?expert_id=${encodeURIComponent(expertId)}`
-    ];
-    for (const url of urls){
-      try{
-        const r = await fetch(url, { headers: { "Accept":"application/json" } });
-        if (!r.ok) continue;
-        const data = await r.json();
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.slots)) return data.slots;
-        return [];
-      }catch(_){}
-    }
-    return [];
-  }
-
-  // ---------------------------
-  // Expert via API (bypass RLS) + fallback supabase
-  // ---------------------------
-  async function fetchExpertViaApi(expertId){
-    const url = `/api/experts/get?expert_id=${encodeURIComponent(expertId)}`;
-    try{
-      const r = await fetch(url, { headers: { "Accept":"application/json" } });
-      if (!r.ok) return null;
-      const data = await r.json();
-      return data?.expert || data || null;
-    }catch(_){
-      return null;
-    }
-  }
-
-  async function loadExpert(){
-    // ✅ persist id ASAP (never overwrite later)
-    if (expertId) localStorage.setItem("runcall_expert_id", expertId);
-
-    // Public link
-    const publicUrl = expertId
-      ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
-      : `https://www.run-call.com/intervenant.html`;
-    publicPageBtn.href = publicUrl;
-
-    copyLinkBtn.onclick = async () => {
-      try{
-        await navigator.clipboard.writeText(publicUrl);
-        showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-      }catch(_){
-        showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
-      }
-    };
-
-    // 1) Best: API get (bypass RLS) if expertId exists
-    if (expertId){
-      const apiRow = await fetchExpertViaApi(expertId);
-      if (apiRow) expertRow = apiRow;
+    function getMondayForOffset(offset){
+      const base = startOfWeek(new Date());
+      return addDays(base, offset * 7);
     }
 
-    // 2) Fallback: try session + supabase read
-    let sessionUser = null;
-    try{
-      const s1 = await supabase.auth.getSession();
-      sessionUser = s1?.data?.session?.user || null;
-      if (!sessionUser){
-        await supabase.auth.refreshSession();
-        const s2 = await supabase.auth.getSession();
-        sessionUser = s2?.data?.session?.user || null;
-      }
-    }catch(_){}
+    // ---------------------------
+    // Calendar render
+    // ---------------------------
+    function renderWeekSkeleton(monday){
+      weekGrid.innerHTML = "";
+      const dayNames = (lang === "fr")
+        ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
+        : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
-    // If still no expertId but user logged, try by auth_user_id (may require RLS allow)
-    if (!expertId && sessionUser?.id){
-      const { data: row } = await supabase
-        .from("experts")
-        .select("id,name,presentation,photo_url,auth_user_id")
-        .eq("auth_user_id", sessionUser.id)
-        .maybeSingle();
+      for (let i=0;i<7;i++){
+        const dayDate = addDays(monday, i);
+        const dd = String(dayDate.getDate()).padStart(2,'0');
+        const mm = String(dayDate.getMonth()+1).padStart(2,'0');
 
-      if (row?.id){
-        expertId = row.id;
-        localStorage.setItem("runcall_expert_id", expertId);
-        expertRow = expertRow || row;
+        const col = document.createElement("div");
+        col.className = "day-col";
+        col.innerHTML = `
+          <div class="day-head">
+            <span>${dayNames[i]}</span>
+            <span class="day-date">${dd}/${mm}</span>
+          </div>
+          <div class="slots" data-day="${ymd(dayDate)}"></div>
+        `;
+        weekGrid.appendChild(col);
       }
     }
 
-    // If expertId exists but expertRow missing and we have a session, try by id
-    if (expertId && !expertRow && sessionUser?.id){
-      const { data: row, error } = await supabase
-        .from("experts")
-        .select("id,name,presentation,photo_url,auth_user_id")
-        .eq("id", expertId)
-        .single();
-      if (!error && row) expertRow = row;
+    function normalizeSlots(raw){
+      return (raw || []).map(s => {
+        const startRaw = s.start || s.slot_start;
+        const endRaw   = s.end   || s.slot_end;
+        return {
+          start: startRaw ? new Date(startRaw) : null,
+          end: endRaw ? new Date(endRaw) : null,
+          title: s.title || s.summary || "RunCall"
+        };
+      }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
     }
 
-    // Update UI if we got something
-    if (expertRow){
-      const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-      const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
+    function filterSlotsForWeek(monday, slots){
+      const start = new Date(monday);
+      const end = addDays(start, 7);
+      return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
+    }
 
-      pname.textContent = name;
-      pbio.textContent = bio;
-
-      const photo = (expertRow.photo_url || "").trim() || null;
-      avatar.innerHTML = "";
-      if (photo){
-        const img = document.createElement("img");
-        img.src = photo;
-        img.alt = "Profile photo";
-        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-        avatar.appendChild(img);
+    function setEmptyState(hasAnySlots){
+      if (!hasAnySlots){
+        calendarWrap.classList.add("is-empty");
+        emptyOverlay.classList.add("show");
       } else {
-        avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+        calendarWrap.classList.remove("is-empty");
+        emptyOverlay.classList.remove("show");
       }
-
-      // Prefill modal
-      editName.value = (expertRow.name || "").trim();
-      editBio.value = (expertRow.presentation || "").trim();
-      editPhotoUrl.value = (expertRow.photo_url || "").trim();
     }
-  }
 
-  // ---------------------------
-  // Modal open/close + save (API update first, fallback supabase)
-  // ---------------------------
-  function openModal(){
-    modalBackdrop.classList.add("show");
-    modalBackdrop.setAttribute("aria-hidden","false");
-  }
-  function closeModal(){
-    modalBackdrop.classList.remove("show");
-    modalBackdrop.setAttribute("aria-hidden","true");
-  }
+    function paintWeek(){
+      const monday = getMondayForOffset(weekOffset);
+      weekRangeLabel.textContent = fmtRange(monday);
 
-  editProfileBtn.addEventListener("click", openModal);
-  closeModalBtn.addEventListener("click", closeModal);
-  cancelEditBtn.addEventListener("click", closeModal);
-  modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
-  window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+      renderWeekSkeleton(monday);
 
-  async function updateExpertViaApi(payload){
-    // expects POST /api/experts/update with JSON
-    try{
-      const r = await fetch("/api/experts/update", {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify(payload)
+      const slots = normalizeSlots(cachedSlots);
+      setEmptyState(slots.length > 0);
+
+      const inWeek = filterSlotsForWeek(monday, slots);
+      for (const s of inWeek){
+        const key = ymd(s.start);
+        const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
+        if (!bucket) continue;
+
+        const item = document.createElement("div");
+        item.className = "slot";
+        item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
+        bucket.appendChild(item);
+      }
+    }
+
+    prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
+    nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
+
+    // ---------------------------
+    // Language switch (NOW safe)
+    // ---------------------------
+    function applyLanguage(nextLang){
+      lang = nextLang;
+      document.documentElement.lang = lang;
+
+      document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+        el.textContent = el.dataset[lang];
       });
-      if (!r.ok) return { ok:false, status:r.status, data:null };
-      const data = await r.json();
-      return { ok:true, status:r.status, data: data?.expert || data || null };
-    }catch(_){
-      return { ok:false, status:0, data:null };
+
+      langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+      localStorage.setItem('runcall_lang', lang);
+
+      paintWeek(); // ✅ safe now
     }
-  }
+    langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+    applyLanguage(lang);
 
-  saveEditBtn.addEventListener("click", async () => {
-    if (!expertId){
-      showToast("err", lang === "fr" ? "Impossible d’enregistrer : identifiant manquant." : "Unable to save: missing id.");
-      return;
+    // ---------------------------
+    // Slots API
+    // ---------------------------
+    async function fetchSlots(expertId){
+      const urls = [
+        `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
+        `/api/slots?expert_id=${encodeURIComponent(expertId)}`
+      ];
+      for (const url of urls){
+        try{
+          const r = await fetch(url, { headers: { "Accept":"application/json" } });
+          if (!r.ok) continue;
+          const data = await r.json();
+          if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.slots)) return data.slots;
+          return [];
+        }catch(_){}
+      }
+      return [];
     }
 
-    const name = (editName.value || "").trim();
-    const presentation = (editBio.value || "").trim();
-    const photo_url = (editPhotoUrl.value || "").trim() || null;
-
-    if (!name || !presentation){
-      showToast("err", lang === "fr"
-        ? "Merci de remplir le nom/pseudo et la description."
-        : "Please fill in name and description.");
-      return;
+    // ---------------------------
+    // Expert load
+    // ---------------------------
+    async function fetchExpertViaApi(expertId){
+      try{
+        const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
+          headers: { "Accept":"application/json" }
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        return data?.expert || data || null;
+      }catch(_){
+        return null;
+      }
     }
 
-    saveEditBtn.disabled = true;
+    async function loadExpert(){
+      if (expertId) localStorage.setItem("runcall_expert_id", expertId);
 
-    try{
-      // 1) Try API (bypass RLS)
-      let updated = null;
-      const apiRes = await updateExpertViaApi({ expert_id: expertId, name, presentation, photo_url });
-      if (apiRes.ok && apiRes.data){
-        updated = apiRes.data;
-      } else {
-        // 2) Fallback: direct supabase update (may fail if RLS)
-        const { data, error } = await supabase
+      // ✅ public link always works even if DB fails
+      const publicUrl = expertId
+        ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
+        : `https://www.run-call.com/intervenant.html`;
+
+      publicPageBtn.href = publicUrl;
+
+      copyLinkBtn.onclick = async () => {
+        try{
+          await navigator.clipboard.writeText(publicUrl);
+          showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+        }catch(_){
+          showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+        }
+      };
+
+      // 1) API (bypass RLS)
+      if (expertId){
+        const apiRow = await fetchExpertViaApi(expertId);
+        if (apiRow) expertRow = apiRow;
+      }
+
+      // 2) Fallback supabase read (only if supabase exists)
+      if (!expertRow && supabase && expertId){
+        const { data: row } = await supabase
           .from("experts")
-          .update({ name, presentation, photo_url, updated_at: new Date().toISOString() })
+          .select("id,name,presentation,photo_url,auth_user_id")
           .eq("id", expertId)
-          .select("id,name,presentation,photo_url")
-          .single();
-        if (error) throw error;
-        updated = data;
+          .maybeSingle();
+        if (row) expertRow = row;
       }
 
-      // Refresh UI
-      pname.textContent = updated.name || name;
-      pbio.textContent = updated.presentation || presentation;
+      // UI
+      if (expertRow){
+        const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
+        const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
 
-      avatar.innerHTML = "";
-      const finalPhoto = (updated.photo_url || photo_url || "").trim();
-      if (finalPhoto){
-        const img = document.createElement("img");
-        img.src = finalPhoto;
-        img.alt = "Profile photo";
-        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`; };
-        avatar.appendChild(img);
-      } else {
-        avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`;
+        pname.textContent = name;
+        pbio.textContent = bio;
+
+        const photo = (expertRow.photo_url || "").trim();
+        avatar.innerHTML = "";
+        if (photo){
+          const img = document.createElement("img");
+          img.src = photo;
+          img.alt = "Profile photo";
+          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+          avatar.appendChild(img);
+        } else {
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+        }
+
+        editName.value = (expertRow.name || "").trim();
+        editBio.value  = (expertRow.presentation || "").trim();
+        editPhotoUrl.value = (expertRow.photo_url || "").trim();
       }
-
-      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-      closeModal();
-    }catch(e){
-      console.error(e);
-      showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-    }finally{
-      saveEditBtn.disabled = false;
     }
-  });
 
-  // ---------------------------
-  // Sidebar “coming soon”
-  // ---------------------------
-  document.querySelectorAll(".sb-item").forEach(item => {
-    item.addEventListener("click", () => {
-      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-      item.classList.add("active");
-      const tab = item.getAttribute("data-tab");
-      if (tab && tab !== "home"){
-        showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+    // ---------------------------
+    // Modal open/close
+    // ---------------------------
+    function openModal(){
+      modalBackdrop.classList.add("show");
+      modalBackdrop.setAttribute("aria-hidden","false");
+    }
+    function closeModal(){
+      modalBackdrop.classList.remove("show");
+      modalBackdrop.setAttribute("aria-hidden","true");
+    }
+    editProfileBtn.addEventListener("click", openModal);
+    closeModalBtn.addEventListener("click", closeModal);
+    cancelEditBtn.addEventListener("click", closeModal);
+    modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+    // ---------------------------
+    // Save (API first, fallback supabase)
+    // ---------------------------
+    async function updateExpertViaApi(payload){
+      try{
+        const r = await fetch("/api/experts/update", {
+          method: "POST",
+          headers: { "Content-Type":"application/json", "Accept":"application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        return data?.expert || data || null;
+      }catch(_){
+        return null;
+      }
+    }
+
+    saveEditBtn.addEventListener("click", async () => {
+      if (!expertId){
+        showToast("err", lang === "fr" ? "Impossible d’enregistrer : identifiant manquant." : "Unable to save: missing id.");
+        return;
+      }
+
+      const name = (editName.value || "").trim();
+      const presentation = (editBio.value || "").trim();
+      const photo_url = (editPhotoUrl.value || "").trim() || null;
+
+      if (!name || !presentation){
+        showToast("err", lang === "fr" ? "Merci de remplir le nom/pseudo et la description." : "Please fill in name and description.");
+        return;
+      }
+
+      saveEditBtn.disabled = true;
+      try{
+        let updated = await updateExpertViaApi({ expert_id: expertId, name, presentation, photo_url });
+
+        if (!updated){
+          if (!supabase) throw new Error("Supabase not available and API update failed.");
+          const { data, error } = await supabase
+            .from("experts")
+            .update({ name, presentation, photo_url, updated_at: new Date().toISOString() })
+            .eq("id", expertId)
+            .select("id,name,presentation,photo_url")
+            .single();
+          if (error) throw error;
+          updated = data;
+        }
+
+        pname.textContent = updated.name || name;
+        pbio.textContent = updated.presentation || presentation;
+
+        avatar.innerHTML = "";
+        const finalPhoto = (updated.photo_url || "").trim();
+        if (finalPhoto){
+          const img = document.createElement("img");
+          img.src = finalPhoto;
+          img.alt = "Profile photo";
+          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`; };
+          avatar.appendChild(img);
+        } else {
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`;
+        }
+
+        showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
+        closeModal();
+      }catch(e){
+        console.error(e);
+        showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
+      }finally{
+        saveEditBtn.disabled = false;
       }
     });
-  });
 
-  // ---------------------------
-  // Init
-  // ---------------------------
-  paintWeek();
+    // ---------------------------
+    // Sidebar “coming soon”
+    // ---------------------------
+    document.querySelectorAll(".sb-item").forEach(item => {
+      item.addEventListener("click", () => {
+        document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+        item.classList.add("active");
+        const tab = item.getAttribute("data-tab");
+        if (tab && tab !== "home"){
+          showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+        }
+      });
+    });
 
-  (async () => {
-    await loadExpert();
+    // ---------------------------
+    // Init
+    // ---------------------------
+    paintWeek();
 
-    if (expertId){
-      cachedSlots = await fetchSlots(expertId);
-      paintWeek();
-    } else {
-      cachedSlots = [];
-      paintWeek();
-      showToast("err", lang === "fr"
-        ? "expert_id manquant (ouvre le dashboard depuis la redirection OAuth ou depuis ton lien)."
-        : "Missing expert_id (open dashboard from OAuth redirect or your link).");
-    }
-  })();
+    (async () => {
+      await loadExpert();
 
+      if (expertId){
+        cachedSlots = await fetchSlots(expertId);
+        paintWeek();
+      } else {
+        cachedSlots = [];
+        paintWeek();
+        showToast("err", lang === "fr"
+          ? "expert_id manquant (ouvre le dashboard depuis la redirection OAuth ou depuis ton lien)."
+          : "Missing expert_id (open dashboard from OAuth redirect or your link).");
+      }
+    })();
+
+  } catch (e) {
+    console.error("Dashboard fatal error:", e);
+    alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
+  }
 })();
 </script>
 
