@@ -887,8 +887,27 @@
       }
     }
 
-    prevWeekBtn.addEventListener("click", () => { weekOffset -= 1; paintWeek(); });
-    nextWeekBtn.addEventListener("click", () => { weekOffset += 1; paintWeek(); });
+    async function reloadWeek(){
+  if (!expertId) return;
+
+  const monday = getMondayForOffset(weekOffset);
+  const fromISO = monday.toISOString();
+  const toISO = addDays(monday, 7).toISOString();
+
+  cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+  paintWeek();
+}
+
+prevWeekBtn.addEventListener("click", async () => {
+  weekOffset -= 1;
+  await reloadWeek();
+});
+
+nextWeekBtn.addEventListener("click", async () => {
+  weekOffset += 1;
+  await reloadWeek();
+});
+
 
     // ---------------------------
     // Language switch (NOW safe)
@@ -912,23 +931,29 @@
     // ---------------------------
     // Slots API
     // ---------------------------
-    async function fetchSlots(expertId){
-      const urls = [
-        `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}`,
-        `/api/slots?expert_id=${encodeURIComponent(expertId)}`
-      ];
-      for (const url of urls){
-        try{
-          const r = await fetch(url, { headers: { "Accept":"application/json" } });
-          if (!r.ok) continue;
-          const data = await r.json();
-          if (Array.isArray(data)) return data;
-          if (Array.isArray(data?.slots)) return data.slots;
-          return [];
-        }catch(_){}
-      }
+    async function fetchSlots(expertId, fromISO, toISO){
+  const q = new URLSearchParams({ expert_id: expertId });
+  if (fromISO) q.set("from", fromISO);
+  if (toISO) q.set("to", toISO);
+
+  const urls = [
+    `/api/experts/slots?${q.toString()}`,
+    `/api/slots?${q.toString()}`
+  ];
+
+  for (const url of urls){
+    try{
+      const r = await fetch(url, { headers: { "Accept":"application/json" } });
+      if (!r.ok) continue;
+      const data = await r.json();
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.slots)) return data.slots;
       return [];
-    }
+    }catch(_){}
+  }
+  return [];
+}
+
 
     // ---------------------------
     // Expert load
@@ -1121,8 +1146,13 @@
       await loadExpert();
 
       if (expertId){
-        cachedSlots = await fetchSlots(expertId);
-        paintWeek();
+        const monday = getMondayForOffset(weekOffset);
+const fromISO = monday.toISOString();
+const toISO = addDays(monday, 7).toISOString();
+
+cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+paintWeek();
+
       } else {
         cachedSlots = [];
         paintWeek();
