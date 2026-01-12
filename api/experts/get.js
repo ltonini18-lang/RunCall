@@ -1,3 +1,4 @@
+// api/experts/get.js
 export default async function handler(req, res) {
   try {
     const expertIdRaw = req.query.expert_id;
@@ -25,10 +26,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Server not configured (Supabase env vars)" });
     }
 
-    // ✅ Include photo_url + return full expert row
+    // ✅ include photo_url
     const url =
       `${SUPABASE_URL}/rest/v1/experts?` +
-      `select=id,name,presentation,photo_url,auth_user_id&` +
+      `select=id,name,presentation,photo_url&` +
       `id=eq.${encodeURIComponent(expertId)}&limit=1`;
 
     const r = await fetch(url, {
@@ -49,18 +50,16 @@ export default async function handler(req, res) {
 
     if (!row) return res.status(404).json({ error: "Expert not found" });
 
-    // ✅ Consistent shape with dashboard expectations
+    // ✅ return full row (front can consume it directly)
     return res.status(200).json({
-      expert: {
-        id: row.id,
-        name: row.name ?? null,
-        presentation: row.presentation ?? null,
-        photo_url: row.photo_url ?? null,
-        auth_user_id: row.auth_user_id ?? null
-      }
+      id: row.id,
+      name: row.name || null,
+      presentation: row.presentation || null,
+      photo_url: row.photo_url || null
     });
+
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error", details: e?.message || String(e) });
   }
 }
