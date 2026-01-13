@@ -90,17 +90,12 @@
     }
     .dot{ width:8px; height:8px; border-radius:999px; background: var(--brand); }
     h1{
-      margin: 12px 0 6px;
+      margin: 12px 0 0;
       font-size: 2rem;
       letter-spacing:-.03em;
       line-height:1.1;
     }
-    p{
-      margin:0;
-      color: var(--muted);
-      line-height:1.55;
-      font-size: 1.02rem;
-    }
+
     .body{
       padding: 18px;
       display:flex;
@@ -135,12 +130,6 @@
       border-color: rgba(22,119,255,.70);
       background: rgba(22,119,255,.20);
     }
-    .fine{
-      margin-top: 6px;
-      font-size:.92rem;
-      color: rgba(148,163,184,.92);
-    }
-    .fine strong{ color: rgba(226,232,240,.92); }
   </style>
 </head>
 
@@ -161,32 +150,21 @@
           <span data-fr="Connexion" data-en="Login">Connexion</span>
         </div>
 
-        <h1 data-fr="Se connecter" data-en="Log in">Se connecter</h1>
-
-        <p
-          data-fr="Accède à ton dashboard RunCall. Tu peux te reconnecter à tout moment."
-          data-en="Access your RunCall dashboard. You can log back in anytime.">
-          Accède à ton dashboard RunCall. Tu peux te reconnecter à tout moment.
-        </p>
+        <h1 data-fr="Se connecter à RunCall" data-en="Log in to RunCall">Se connecter à RunCall</h1>
       </div>
 
       <div class="body">
-        <a class="btn primary" id="googleBtn" href="/api/google/connect">
-          <!-- simple G icon -->
+        <!-- ✅ IMPORTANT: use /api/google/login (no expert_id required) -->
+        <a class="btn primary" id="googleBtn" href="/api/google/login">
           <span style="font-weight:1000;">G</span>
           <span data-fr="Continuer avec Google" data-en="Continue with Google">Continuer avec Google</span>
         </a>
 
+        <!-- If already have an expert id (stored), show a direct shortcut -->
         <a class="btn" id="continueBtn" href="/dashboard.html" style="display:none;">
           <span data-fr="Continuer vers mon dashboard" data-en="Continue to my dashboard">Continuer vers mon dashboard</span>
           <span aria-hidden="true">↗</span>
         </a>
-
-        <div class="fine"
-          data-fr="RunCall ne modifie jamais ton agenda : il utilise Google Calendar uniquement pour lire tes disponibilités “RunCall”."
-          data-en="RunCall never edits your calendar: Google Calendar is only used to read your “RunCall” availability.">
-          RunCall ne modifie jamais ton agenda : il utilise Google Calendar uniquement pour lire tes disponibilités “RunCall”.
-        </div>
       </div>
     </div>
   </div>
