@@ -16,7 +16,6 @@ export default async function handler(req, res) {
     ].join(" ")
   );
 
-  // state indique juste "login flow"
   const state = encodeURIComponent(JSON.stringify({ flow: "login" }));
 
   const authUrl =
@@ -25,7 +24,7 @@ export default async function handler(req, res) {
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=${scope}` +
-    `&access_type=offline` +
+    `&include_granted_scopes=true` +
     `&prompt=select_account` +
     `&state=${state}`;
 
