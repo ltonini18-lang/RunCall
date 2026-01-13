@@ -1,56 +1,8 @@
 // /api/google/callback.js
 
-async function findExpertIdByEmail(email) {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/experts` +
-    `?email=eq.${encodeURIComponent(email)}` +
-    `&select=id&limit=1`;
-
-  const r = await fetch(url, {
-    headers: {
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`
-    }
-  });
-
-  const t = await r.text();
-  const d = safeJsonParse(t);
-  return Array.isArray(d) && d.length ? d[0].id : null;
+function safeJsonParse(maybeJson) {
+  try { return JSON.parse(maybeJson); } catch { return null; }
 }
-
-async function createExpertFromGoogle({ email }) {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  const payload = {
-    email,
-    name: email.split("@")[0],
-    status: "draft"
-  };
-
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/experts`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`,
-      Prefer: "return=representation"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const t = await r.text();
-  const d = safeJsonParse(t);
-  if (!Array.isArray(d) || !d.length) {
-    throw new Error("Failed to create expert");
-  }
-
-  return d[0].id;
-}
-
 
 async function fetchGoogleEmail(accessToken) {
   try {
@@ -63,10 +15,6 @@ async function fetchGoogleEmail(accessToken) {
   } catch {
     return null;
   }
-}
-
-function safeJsonParse(maybeJson) {
-  try { return JSON.parse(maybeJson); } catch { return null; }
 }
 
 async function getExistingGoogleAccount({ expertId }) {
@@ -100,15 +48,11 @@ async function getExistingGoogleAccount({ expertId }) {
 async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
 
-  // Important: Google often does NOT return refresh_token except first consent
+  // Google often does NOT return refresh_token except first consent
   const existing = await getExistingGoogleAccount({ expertId });
-  const refreshToken =
-    tokenData.refresh_token ||
-    existing?.refresh_token ||
-    null;
+  const refreshToken = tokenData.refresh_token || existing?.refresh_token || null;
 
   const payload = {
     expert_id: expertId,
@@ -138,46 +82,37 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
 
   const text = await resp.text();
   if (!resp.ok) {
-    console.error("Supabase upsert failed", {
-      status: resp.status,
-      body: text
-    });
+    console.error("Supabase upsert failed", { status: resp.status, body: text });
     throw new Error(`Supabase upsert failed (${resp.status})`);
   }
 
   return text;
 }
-async function findOrCreateExpertByEmail({ googleEmail }) {
+
+async function findOrCreateExpertIdByEmail({ googleEmail }) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
 
-  // 1) Try to find existing expert by email
+  // 1) Find existing expert by email
   const findUrl =
     `${SUPABASE_URL}/rest/v1/experts` +
     `?email=eq.${encodeURIComponent(googleEmail)}` +
-    `&select=id,email,name,presentation,photo_url,status`;
+    `&select=id&limit=1`;
 
   const findResp = await fetch(findUrl, {
     method: "GET",
-    headers: {
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`
-    }
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
   });
 
   const findText = await findResp.text();
-  if (!findResp.ok) {
-    throw new Error(`Supabase find expert failed (${findResp.status})`);
-  }
+  if (!findResp.ok) throw new Error(`Supabase find expert failed (${findResp.status})`);
 
   const found = safeJsonParse(findText);
-  if (Array.isArray(found) && found.length) {
-    return found[0];
-  }
+  if (Array.isArray(found) && found.length) return found[0].id;
 
-  // 2) Create draft expert if not found
-  const payload = {
+  // 2) Create draft expert
+  const createPayload = {
     email: googleEmail,
     name: googleEmail.split("@")[0],
     presentation: "",
@@ -194,18 +129,14 @@ async function findOrCreateExpertByEmail({ googleEmail }) {
       Authorization: `Bearer ${KEY}`,
       Prefer: "return=representation"
     },
-    body: JSON.stringify([payload])
+    body: JSON.stringify([createPayload])
   });
 
   const createText = await createResp.text();
-  if (!createResp.ok) {
-    throw new Error(`Supabase create expert failed (${createResp.status})`);
-  }
+  if (!createResp.ok) throw new Error(`Supabase create expert failed (${createResp.status})`);
 
   const created = safeJsonParse(createText);
-  if (Array.isArray(created) && created.length) {
-    return created[0];
-  }
+  if (Array.isArray(created) && created.length) return created[0].id;
 
   throw new Error("Expert creation returned empty result");
 }
@@ -216,37 +147,21 @@ export default async function handler(req, res) {
     const stateRaw = String(req.query.state || "");
     if (!code || !stateRaw) return res.status(400).send("Missing code/state");
 
-    // Your current connect endpoint sends JSON-encoded state.
-    // We'll keep compatibility with that.
+    // ✅ Parse state (supports onboarding + login)
     let expertId = null;
-let isLogin = false;
+    let isLogin = false;
 
-let state;
-try {
-  state = JSON.parse(decodeURIComponent(stateRaw));
-} catch {
-  return res.status(400).send("Invalid state");
-}
+    let state;
+    try {
+      state = JSON.parse(decodeURIComponent(stateRaw));
+    } catch {
+      return res.status(400).send("Invalid state");
+    }
 
-// ✅ Parse OAuth state (supports both onboarding & login)
-let expertId = null;
-
-let state;
-try {
-  state = JSON.parse(decodeURIComponent(stateRaw));
-} catch {
-  return res.status(400).send("Invalid state");
-}
-
-if (state && typeof state === "object" && state.expert_id) {
-  expertId = String(state.expert_id).trim();
-}
-
-// IMPORTANT:
-// - expertId may be null here (login flow)
-// - this is NOT an error anymore
-
-
+    if (state && typeof state === "object") {
+      if (state.expert_id) expertId = String(state.expert_id).trim();
+      if (state.flow === "login") isLogin = true;
+    }
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -286,27 +201,18 @@ if (state && typeof state === "object" && state.expert_id) {
       ? await fetchGoogleEmail(tokenData.access_token)
       : null;
 
-    // ----------------------------------
-// LOGIN MODE: resolve expert_id by Google email
-// ----------------------------------
-if (isLogin) {
-  if (!googleEmail) {
-    return res.status(400).send("Unable to retrieve Google email");
-  }
+    // ✅ Login flow: resolve expertId via Google email
+    if (isLogin) {
+      if (!googleEmail) return res.status(400).send("Unable to retrieve Google email");
+      expertId = await findOrCreateExpertIdByEmail({ googleEmail });
+    }
 
-  // 1️⃣ Try to find existing expert by email
-  const existingExpertId = await findExpertIdByEmail(googleEmail);
-
-  // 2️⃣ If none, create a new expert (draft)
-  expertId = existingExpertId
-    ? existingExpertId
-    : await createExpertFromGoogle({ email: googleEmail });
-}
-
+    // ✅ Onboarding flow must have expertId
+    if (!expertId) return res.status(400).send("Missing expert_id (state or login resolution failed)");
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
-    // ✅ NEW: redirect to dashboard instead of open-calendar
+    // Redirect to dashboard
     return res.redirect(
       302,
       `/dashboard.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
