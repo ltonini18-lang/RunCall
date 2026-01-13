@@ -839,10 +839,18 @@
     }
 
     let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
-    let expertRow = null;
-    let weekOffset = 0;
-    let cachedSlots = [];
-    let pendingPhotoDataUrl = null;
+
+// ✅ If no session (no expert_id), send user to the standard login page
+if (!expertId) {
+  window.location.href = "/login.html";
+  return;
+}
+
+let expertRow = null;
+let weekOffset = 0;
+let cachedSlots = [];
+let pendingPhotoDataUrl = null;
+
 
     // ---------------------------
     // Router
@@ -1254,24 +1262,14 @@
     paintWeek();
 
     (async () => {
-      // ✅ AUTH GATE
-      if (!expertId){
-        // hide dashboard chrome
-        if (dashSidebar) dashSidebar.style.display = "none";
-        if (dashTop) dashTop.style.display = "none";
+      // ✅ AUTH GATE (standard login page)
+if (!expertId){
+  window.location.href = "/login.html";
+  return;
+}
 
-        authGate.style.display = "";
-        viewHome.style.display = "none";
-        viewProfile.style.display = "none";
-        viewPayouts.style.display = "none";
 
-        showToast("err", lang === "fr"
-          ? "Connecte Google pour accéder au dashboard."
-          : "Connect Google to access the dashboard.");
-        return;
-      }
-
-      authGate.style.display = "none";
+    
       showView("home");
 
       await loadExpert();
