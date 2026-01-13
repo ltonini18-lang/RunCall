@@ -1,5 +1,57 @@
 // /api/google/callback.js
 
+async function findExpertIdByEmail(email) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  const url =
+    `${SUPABASE_URL}/rest/v1/experts` +
+    `?email=eq.${encodeURIComponent(email)}` +
+    `&select=id&limit=1`;
+
+  const r = await fetch(url, {
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`
+    }
+  });
+
+  const t = await r.text();
+  const d = safeJsonParse(t);
+  return Array.isArray(d) && d.length ? d[0].id : null;
+}
+
+async function createExpertFromGoogle({ email }) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  const payload = {
+    email,
+    name: email.split("@")[0],
+    status: "draft"
+  };
+
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/experts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const t = await r.text();
+  const d = safeJsonParse(t);
+  if (!Array.isArray(d) || !d.length) {
+    throw new Error("Failed to create expert");
+  }
+
+  return d[0].id;
+}
+
+
 async function fetchGoogleEmail(accessToken) {
   try {
     const r = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -104,15 +156,24 @@ export default async function handler(req, res) {
 
     // Your current connect endpoint sends JSON-encoded state.
     // We'll keep compatibility with that.
-    let expertId;
-    try {
-      const state = JSON.parse(decodeURIComponent(stateRaw));
-      expertId = String(state.expert_id || "").trim();
-    } catch {
-      return res.status(400).send("Invalid state");
-    }
+    let expertId = null;
+let isLogin = false;
 
-    if (!expertId) return res.status(400).send("Missing expert_id in state");
+let state;
+try {
+  state = JSON.parse(decodeURIComponent(stateRaw));
+} catch {
+  return res.status(400).send("Invalid state");
+}
+
+if (state.expert_id) {
+  expertId = String(state.expert_id).trim();
+} else if (state.mode === "login") {
+  isLogin = true;
+} else {
+  return res.status(400).send("Invalid state payload");
+}
+
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -151,6 +212,24 @@ export default async function handler(req, res) {
     const googleEmail = tokenData?.access_token
       ? await fetchGoogleEmail(tokenData.access_token)
       : null;
+
+    // ----------------------------------
+// LOGIN MODE: resolve expert_id by Google email
+// ----------------------------------
+if (isLogin) {
+  if (!googleEmail) {
+    return res.status(400).send("Unable to retrieve Google email");
+  }
+
+  // 1️⃣ Try to find existing expert by email
+  const existingExpertId = await findExpertIdByEmail(googleEmail);
+
+  // 2️⃣ If none, create a new expert (draft)
+  expertId = existingExpertId
+    ? existingExpertId
+    : await createExpertFromGoogle({ email: googleEmail });
+}
+
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
