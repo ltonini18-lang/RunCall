@@ -12,7 +12,8 @@ export default async function handler(req, res) {
   const scope = encodeURIComponent(
     [
       "https://www.googleapis.com/auth/calendar.readonly",
-      "https://www.googleapis.com/auth/calendar.events"
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/userinfo.email"
     ].join(" ")
   );
 
