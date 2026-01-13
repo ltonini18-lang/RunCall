@@ -147,6 +147,68 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
 
   return text;
 }
+async function findOrCreateExpertByEmail({ googleEmail }) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
+
+  // 1) Try to find existing expert by email
+  const findUrl =
+    `${SUPABASE_URL}/rest/v1/experts` +
+    `?email=eq.${encodeURIComponent(googleEmail)}` +
+    `&select=id,email,name,presentation,photo_url,status`;
+
+  const findResp = await fetch(findUrl, {
+    method: "GET",
+    headers: {
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`
+    }
+  });
+
+  const findText = await findResp.text();
+  if (!findResp.ok) {
+    throw new Error(`Supabase find expert failed (${findResp.status})`);
+  }
+
+  const found = safeJsonParse(findText);
+  if (Array.isArray(found) && found.length) {
+    return found[0];
+  }
+
+  // 2) Create draft expert if not found
+  const payload = {
+    email: googleEmail,
+    name: googleEmail.split("@")[0],
+    presentation: "",
+    status: "draft",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/experts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify([payload])
+  });
+
+  const createText = await createResp.text();
+  if (!createResp.ok) {
+    throw new Error(`Supabase create expert failed (${createResp.status})`);
+  }
+
+  const created = safeJsonParse(createText);
+  if (Array.isArray(created) && created.length) {
+    return created[0];
+  }
+
+  throw new Error("Expert creation returned empty result");
+}
 
 export default async function handler(req, res) {
   try {
@@ -166,13 +228,24 @@ try {
   return res.status(400).send("Invalid state");
 }
 
-if (state.expert_id) {
-  expertId = String(state.expert_id).trim();
-} else if (state.mode === "login") {
-  isLogin = true;
-} else {
-  return res.status(400).send("Invalid state payload");
+// ✅ Parse OAuth state (supports both onboarding & login)
+let expertId = null;
+
+let state;
+try {
+  state = JSON.parse(decodeURIComponent(stateRaw));
+} catch {
+  return res.status(400).send("Invalid state");
 }
+
+if (state && typeof state === "object" && state.expert_id) {
+  expertId = String(state.expert_id).trim();
+}
+
+// IMPORTANT:
+// - expertId may be null here (login flow)
+// - this is NOT an error anymore
+
 
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
