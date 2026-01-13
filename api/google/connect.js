@@ -38,7 +38,6 @@ export default async function handler(req, res) {
     `&response_type=code` +
     `&scope=${scope}` +
     `&access_type=offline` +
-    `&prompt=consent` +
     `&state=${state}`;
 
   return res.redirect(302, authUrl);
