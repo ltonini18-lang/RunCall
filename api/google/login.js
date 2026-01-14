@@ -3,13 +3,12 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).send("Method not allowed");
 
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+  if (!CLIENT_ID) return res.status(500).send("Server not configured");
 
-  // ✅ Callback stable (prod)
-  const REDIRECT_URI = "https://www.run-call.com/api/google/callback";
-
-  if (!CLIENT_ID) {
-    return res.status(500).send("Server not configured");
-  }
+  // ✅ Build redirect URI from current host (preview vs prod)
+  const proto = (req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
+  const host = (req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+  const REDIRECT_URI = `${proto}://${host}/api/google/callback`;
 
   const scope = encodeURIComponent(
     [
@@ -21,8 +20,8 @@ export default async function handler(req, res) {
     ].join(" ")
   );
 
-  // ✅ On renverra l’utilisateur vers l’environnement qui a initié le login (preview ou prod)
-  const baseUrl = `https://${req.headers.host}`;
+  // ✅ Return to the environment that initiated login
+  const baseUrl = `${proto}://${host}`;
   const next = `${baseUrl}/dashboard.html`;
 
   const state = encodeURIComponent(JSON.stringify({ flow: "login", next }));
@@ -33,9 +32,8 @@ export default async function handler(req, res) {
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=${scope}` +
-    `&access_type=offline` +
     `&include_granted_scopes=true` +
-    `&prompt=select_account` + // ✅ évite de redemander les scopes inutilement
+    `&prompt=select_account` +
     `&state=${state}`;
 
   return res.redirect(302, authUrl);
