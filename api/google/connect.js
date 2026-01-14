@@ -28,6 +28,7 @@ export default async function handler(req, res) {
   const baseUrl = `${proto}://${host}`;
   const next = `${baseUrl}/dashboard.html`;
 
+  // onboarding → always has expert_id
   const state = encodeURIComponent(JSON.stringify({ expert_id: expertId, next }));
 
   const authUrl =
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
     `&response_type=code` +
     `&scope=${scope}` +
     `&access_type=offline` +          // ✅ onboarding wants refresh_token
-    `&prompt=consent` +               // ✅ only onboarding forces consent
+    `&prompt=consent` +               // ✅ onboarding forces consent
     `&include_granted_scopes=true` +
     `&state=${state}`;
 

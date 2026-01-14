@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     `&response_type=code` +
     `&scope=${scope}` +
     `&include_granted_scopes=true` +
-    `&prompt=select_account` +
+    `&prompt=select_account` +        // ✅ avoids re-consent prompts
     `&state=${state}`;
 
   return res.redirect(302, authUrl);
