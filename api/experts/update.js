@@ -1,11 +1,13 @@
 // /api/experts/update.js
-// Receives: { expert_id, name, presentation, photo_url }
+// Receives: { expert_id, name, presentation, photo_url? }
+// Requires header: x-dashboard-token
 // Returns: { expert: { id, name, presentation, photo_url } }
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "https://run-call.com");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  // ✅ allow dashboard token header
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dashboard-token");
 }
 
 export default async function handler(req, res) {
@@ -20,6 +22,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!SUPABASE_URL || !KEY) {
+      return res.status(500).json({ error: "Server not configured" });
+    }
+
+    // ✅ Require dashboard token (same as avatar upload/session flow)
+    const dashboardToken = String(req.headers["x-dashboard-token"] || "").trim();
+    if (!dashboardToken) {
+      return res.status(401).json({ error: "Missing dashboard token" });
+    }
+
     const { expert_id, name, presentation, photo_url } = req.body || {};
 
     const expertId = String(expert_id || "").trim();
@@ -49,11 +64,34 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Photo URL too long" });
     }
 
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // ✅ Resolve expert via dashboard_token to prevent arbitrary updates
+    const sessionResp = await fetch(
+      `${SUPABASE_URL}/rest/v1/experts?select=id&dashboard_token=eq.${encodeURIComponent(dashboardToken)}&limit=1`,
+      {
+        method: "GET",
+        headers: {
+          apikey: KEY,
+          Authorization: `Bearer ${KEY}`,
+          Accept: "application/json"
+        }
+      }
+    );
 
-    if (!SUPABASE_URL || !KEY) {
-      return res.status(500).json({ error: "Server not configured" });
+    const sessionText = await sessionResp.text();
+    let sessionData;
+    try { sessionData = JSON.parse(sessionText || "[]"); } catch { sessionData = null; }
+
+    if (!sessionResp.ok) {
+      return res.status(500).json({ error: "Failed to verify session", details: sessionText });
+    }
+
+    const sessionRow = Array.isArray(sessionData) ? sessionData[0] : null;
+    if (!sessionRow?.id) {
+      return res.status(403).json({ error: "Invalid dashboard token" });
+    }
+
+    if (String(sessionRow.id) !== expertId) {
+      return res.status(403).json({ error: "Token does not match expert_id" });
     }
 
     const patch = {
