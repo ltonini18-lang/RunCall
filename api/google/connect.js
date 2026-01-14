@@ -6,7 +6,6 @@ export default async function handler(req, res) {
   }
 
   const expertId = String(req.query.expert_id || "").trim();
-  if (!expertId) return res.status(400).send("Missing expert_id");
 
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
@@ -18,11 +17,19 @@ export default async function handler(req, res) {
   const scope = encodeURIComponent(
     [
       "https://www.googleapis.com/auth/calendar.events",
-      "https://www.googleapis.com/auth/calendar.readonly"
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/userinfo.email"
     ].join(" ")
   );
 
-  const state = encodeURIComponent(JSON.stringify({ expert_id: expertId }));
+  // 🔑 IMPORTANT :
+  // - onboarding  → state = { expert_id }
+  // - login       → state = { mode: "login" }
+  const statePayload = expertId
+    ? { expert_id: expertId }
+    : { mode: "login" };
+
+  const state = encodeURIComponent(JSON.stringify(statePayload));
 
   const authUrl =
     "https://accounts.google.com/o/oauth2/v2/auth" +
@@ -31,7 +38,6 @@ export default async function handler(req, res) {
     `&response_type=code` +
     `&scope=${scope}` +
     `&access_type=offline` +
-    `&prompt=consent` +
     `&state=${state}`;
 
   return res.redirect(302, authUrl);
