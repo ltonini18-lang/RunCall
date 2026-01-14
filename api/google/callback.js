@@ -182,16 +182,18 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
   return text;
 }
 
-// Basic allowlist for "next" redirects (avoid open redirect). You can loosen later if needed.
+// Allowlist for redirects (avoid open redirect)
 function sanitizeNext(next) {
   if (!next) return null;
   try {
     const u = new URL(next);
-    // allow your vercel previews + prod domain(s)
     const host = u.hostname.toLowerCase();
+
     const ok =
       host === "www.run-call.com" ||
+      host === "preview.run-call.com" ||
       host.endsWith(".vercel.app");
+
     if (!ok) return null;
     return u.toString();
   } catch {
@@ -210,11 +212,16 @@ export default async function handler(req, res) {
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-    const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
+    if (!CLIENT_ID || !CLIENT_SECRET) {
       return res.status(500).send("Server not configured (Google env vars)");
     }
+
+    // Must match EXACT redirect_uri used in /login or /connect
+    // - If /login forces www.run-call.com callback => this will correctly be www.run-call.com here.
+    const proto = (req.headers["x-forwarded-proto"] || "https").split(",")[0].trim();
+    const host = (req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+    const REDIRECT_URI = `${proto}://${host}/api/google/callback`;
 
     // Exchange code -> tokens
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
@@ -242,12 +249,12 @@ export default async function handler(req, res) {
       return res.status(400).send("Unable to retrieve Google email");
     }
 
-    // ✅ LOGIN flow: resolve expert_id by Google email
+    // LOGIN flow: resolve expert_id by Google email
     if (!expertId && isLogin) {
       expertId = await findOrCreateExpertIdByEmail(googleEmail);
     }
 
-    // ✅ ONBOARDING flow must have expertId
+    // ONBOARDING flow must have expertId
     if (!expertId) {
       console.error("State parsed but no expertId resolved", {
         isLogin,
@@ -259,13 +266,10 @@ export default async function handler(req, res) {
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
-    // Redirect:
-    // - if state contains next (login flow), send there
-    // - else fallback to local dashboard
     const safeNext = sanitizeNext(next);
     const dest = safeNext || `/dashboard.html`;
-
     const join = dest.includes("?") ? "&" : "?";
+
     return res.redirect(
       302,
       `${dest}${join}expert_id=${encodeURIComponent(expertId)}&connected=1`
