@@ -1,5 +1,44 @@
 // /api/google/callback.js
 
+function safeJsonParse(maybeJson) {
+  try { return JSON.parse(maybeJson); } catch { return null; }
+}
+
+// Robust decode: Google state can be single-encoded or double-encoded depending on how it was generated.
+function robustDecodeURIComponent(input) {
+  let s = String(input || "");
+  for (let i = 0; i < 3; i++) {
+    try {
+      const dec = decodeURIComponent(s);
+      if (dec === s) break;
+      s = dec;
+    } catch {
+      break;
+    }
+  }
+  return s;
+}
+
+function parseOAuthState(stateRaw) {
+  const decoded = robustDecodeURIComponent(stateRaw);
+  const obj = safeJsonParse(decoded);
+
+  if (!obj || typeof obj !== "object") {
+    return { expertId: null, isLogin: false, next: null, raw: decoded };
+  }
+
+  const expertId = obj.expert_id ? String(obj.expert_id).trim() : null;
+
+  // Accept several variants to be future-proof
+  const isLogin =
+    !expertId &&
+    (obj.flow === "login" || obj.mode === "login" || obj.type === "login");
+
+  const next = typeof obj.next === "string" ? obj.next : null;
+
+  return { expertId, isLogin, next, raw: decoded };
+}
+
 async function fetchGoogleEmail(accessToken) {
   try {
     const r = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -13,8 +52,66 @@ async function fetchGoogleEmail(accessToken) {
   }
 }
 
-function safeJsonParse(maybeJson) {
-  try { return JSON.parse(maybeJson); } catch { return null; }
+async function findOrCreateExpertIdByEmail(googleEmail) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
+
+  // 1) Find
+  const findUrl =
+    `${SUPABASE_URL}/rest/v1/experts` +
+    `?email=eq.${encodeURIComponent(googleEmail)}` +
+    `&select=id&limit=1`;
+
+  const findResp = await fetch(findUrl, {
+    method: "GET",
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+  });
+
+  const findText = await findResp.text();
+  if (!findResp.ok) {
+    console.error("Supabase find expert failed", { status: findResp.status, body: findText });
+    throw new Error(`Supabase find expert failed (${findResp.status})`);
+  }
+
+  const found = safeJsonParse(findText);
+  if (Array.isArray(found) && found.length && found[0]?.id) {
+    return String(found[0].id);
+  }
+
+  // 2) Create draft
+  const payload = {
+    email: googleEmail,
+    name: googleEmail.split("@")[0],
+    presentation: "",
+    status: "draft",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const createResp = await fetch(`${SUPABASE_URL}/rest/v1/experts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify([payload])
+  });
+
+  const createText = await createResp.text();
+  if (!createResp.ok) {
+    console.error("Supabase create expert failed", { status: createResp.status, body: createText });
+    throw new Error(`Supabase create expert failed (${createResp.status})`);
+  }
+
+  const created = safeJsonParse(createText);
+  if (Array.isArray(created) && created.length && created[0]?.id) {
+    return String(created[0].id);
+  }
+
+  throw new Error("Expert creation returned empty result");
 }
 
 async function getExistingGoogleAccount({ expertId }) {
@@ -29,10 +126,7 @@ async function getExistingGoogleAccount({ expertId }) {
 
   const resp = await fetch(url, {
     method: "GET",
-    headers: {
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`
-    }
+    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
   });
 
   const text = await resp.text();
@@ -48,15 +142,10 @@ async function getExistingGoogleAccount({ expertId }) {
 async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
 
-  // Important: Google often does NOT return refresh_token except first consent
   const existing = await getExistingGoogleAccount({ expertId });
-  const refreshToken =
-    tokenData.refresh_token ||
-    existing?.refresh_token ||
-    null;
+  const refreshToken = tokenData.refresh_token || existing?.refresh_token || null;
 
   const payload = {
     expert_id: expertId,
@@ -86,14 +175,28 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
 
   const text = await resp.text();
   if (!resp.ok) {
-    console.error("Supabase upsert failed", {
-      status: resp.status,
-      body: text
-    });
+    console.error("Supabase upsert failed", { status: resp.status, body: text });
     throw new Error(`Supabase upsert failed (${resp.status})`);
   }
 
   return text;
+}
+
+// Basic allowlist for "next" redirects (avoid open redirect). You can loosen later if needed.
+function sanitizeNext(next) {
+  if (!next) return null;
+  try {
+    const u = new URL(next);
+    // allow your vercel previews + prod domain(s)
+    const host = u.hostname.toLowerCase();
+    const ok =
+      host === "www.run-call.com" ||
+      host.endsWith(".vercel.app");
+    if (!ok) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 export default async function handler(req, res) {
@@ -102,28 +205,14 @@ export default async function handler(req, res) {
     const stateRaw = String(req.query.state || "");
     if (!code || !stateRaw) return res.status(400).send("Missing code/state");
 
-    // Your current connect endpoint sends JSON-encoded state.
-    // We'll keep compatibility with that.
-    let expertId;
-    try {
-      const state = JSON.parse(decodeURIComponent(stateRaw));
-      expertId = String(state.expert_id || "").trim();
-    } catch {
-      return res.status(400).send("Invalid state");
-    }
-
-    if (!expertId) return res.status(400).send("Missing expert_id in state");
+    const { expertId: expertIdFromState, isLogin, next } = parseOAuthState(stateRaw);
+    let expertId = expertIdFromState; // may be null in login flow
 
     const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
     const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
     const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 
     if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
-      console.error("Missing Google env vars", {
-        hasId: !!CLIENT_ID,
-        hasSecret: !!CLIENT_SECRET,
-        hasRedirect: !!REDIRECT_URI
-      });
       return res.status(500).send("Server not configured (Google env vars)");
     }
 
@@ -143,21 +232,43 @@ export default async function handler(req, res) {
     const tokenText = await tokenRes.text();
     const tokenData = safeJsonParse(tokenText);
 
-    if (!tokenRes.ok || !tokenData) {
+    if (!tokenRes.ok || !tokenData?.access_token) {
       console.error("Token exchange failed", { status: tokenRes.status, body: tokenText });
       return res.status(500).send("Token exchange failed");
     }
 
-    const googleEmail = tokenData?.access_token
-      ? await fetchGoogleEmail(tokenData.access_token)
-      : null;
+    const googleEmail = await fetchGoogleEmail(tokenData.access_token);
+    if (!googleEmail) {
+      return res.status(400).send("Unable to retrieve Google email");
+    }
+
+    // ✅ LOGIN flow: resolve expert_id by Google email
+    if (!expertId && isLogin) {
+      expertId = await findOrCreateExpertIdByEmail(googleEmail);
+    }
+
+    // ✅ ONBOARDING flow must have expertId
+    if (!expertId) {
+      console.error("State parsed but no expertId resolved", {
+        isLogin,
+        stateRaw,
+        parsed: parseOAuthState(stateRaw)
+      });
+      return res.status(400).send("Missing expert_id in state payload");
+    }
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
-    // ✅ NEW: redirect to dashboard instead of open-calendar
+    // Redirect:
+    // - if state contains next (login flow), send there
+    // - else fallback to local dashboard
+    const safeNext = sanitizeNext(next);
+    const dest = safeNext || `/dashboard.html`;
+
+    const join = dest.includes("?") ? "&" : "?";
     return res.redirect(
       302,
-      `/dashboard.html?expert_id=${encodeURIComponent(expertId)}&connected=1`
+      `${dest}${join}expert_id=${encodeURIComponent(expertId)}&connected=1`
     );
   } catch (err) {
     console.error("Callback crashed:", err);

@@ -1,4 +1,4 @@
-<!-- dashboard.html (FIXED: init order so JS doesn’t crash, FR/EN safe, calendar + profile + buttons + modal work) -->
+<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + real photo upload (dataURL) + auth gate) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -418,44 +418,10 @@
     .toast.ok{ border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
     .toast.err{ border-color:#fecaca; background:#fff1f2; color:#881337; }
 
-    .modal-backdrop{
-      position:fixed; inset:0;
-      background: rgba(15,23,42,.40);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 16px;
-      z-index: 9999;
-    }
-    .modal-backdrop.show{ display:flex; }
-    .modal{
-      width: min(720px, 100%);
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: 0 22px 70px rgba(15,23,42,.22);
-      overflow:hidden;
-    }
-    .modal-head{
-      padding: 14px 16px;
-      border-bottom:1px solid var(--border);
-      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
-    .xbtn{
-      border:1px solid var(--border);
-      background:#fff;
-      border-radius: 12px;
-      padding: 8px 10px;
-      cursor:pointer;
-      font-weight:900;
-      color: var(--muted);
-    }
-    .modal-body{ padding: 14px 16px 16px; }
-    .input, .textarea{
+    /* form helpers */
+    .form-row{ display:grid; gap:6px; margin-bottom: 10px; }
+    .form-row label{ font-weight: 900; color: var(--text); }
+    .input, .textarea, select.input{
       width:100%;
       padding: 12px 12px;
       border-radius: 14px;
@@ -465,6 +431,7 @@
       box-sizing:border-box;
     }
     .textarea{ resize: vertical; min-height: 110px; }
+    .mini{ color: var(--muted2); font-size: .92rem; line-height: 1.45; margin-top: 6px; }
     .modal-actions{
       display:flex;
       gap:10px;
@@ -487,9 +454,9 @@
 </head>
 
 <body>
-<div class="dash-shell">
+<div class="dash-shell" id="dashShell">
 
-  <aside class="dash-sidebar">
+  <aside class="dash-sidebar" id="dashSidebar">
     <div class="sb-brand">
       <div class="sb-logo" data-fr="Dashboard" data-en="Dashboard">Dashboard</div>
       <div class="sb-pill" data-fr="Intervenant" data-en="Creator">Intervenant</div>
@@ -501,9 +468,14 @@
         <div data-fr="Accueil" data-en="Home">Accueil</div>
       </div>
 
-      <div class="sb-item" data-tab="payouts" title="Coming soon">
+      <div class="sb-item" data-tab="profile">
+        <div class="sb-ico">👤</div>
+        <div data-fr="Profil" data-en="Profile">Profil</div>
+      </div>
+
+      <div class="sb-item" data-tab="payouts">
         <div class="sb-ico">€</div>
-        <div data-fr="Paiements (bientôt)" data-en="Payouts (soon)">Paiements (bientôt)</div>
+        <div data-fr="Paiements" data-en="Payouts">Paiements</div>
       </div>
 
       <div class="sb-item" data-tab="analytics" title="Coming soon">
@@ -526,7 +498,7 @@
 
   <main class="dash-main">
 
-    <div class="dash-top">
+    <div class="dash-top" id="dashTop">
       <div class="dash-top-inner">
         <div class="profile-row">
           <div class="avatar" id="avatar">
@@ -565,73 +537,71 @@
     </div>
 
     <div class="dash-content">
-      <div class="card">
+
+      <!-- ✅ AUTH GATE (shown when expert_id missing) -->
+      <div class="card" id="authGate" style="display:none;">
         <div class="card-head">
           <div class="badge">
             <span class="dot"></span>
-            <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+            <span data-fr="Connexion" data-en="Sign in">Connexion</span>
           </div>
 
-          <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar" data-en="Manage your slots from Google Calendar">
-            Gère tes créneaux depuis Google Calendar
+          <h1 class="title" data-fr="Connecte ton Google Calendar" data-en="Connect your Google Calendar">
+            Connecte ton Google Calendar
           </h1>
 
           <p class="subtitle"
-             data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
-             data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
-            Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
+             data-fr="Pour accéder à ton dashboard, tu dois connecter Google. RunCall ne gère pas ton planning : il se contente de lire tes événements “RunCall”."
+             data-en="To access your dashboard, you need to connect Google. RunCall doesn’t manage your schedule: it only reads your “RunCall” events.">
+            Pour accéder à ton dashboard, tu dois connecter Google…
           </p>
         </div>
 
         <div class="card-body">
-          <div class="main-grid">
+          <a class="btn btn-primary" href="connect-calendar.html"
+             data-fr="Se connecter avec Google" data-en="Continue with Google">
+            Se connecter avec Google
+          </a>
+        </div>
+      </div>
 
-            <div class="calendar-wrap" id="calendarWrap">
-              <div class="calendar-top">
-                <div class="calendar-note"
-                     data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
-                     data-en="To close a slot: delete (or edit) the matching event in your Google Calendar.">
-                  Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
-                </div>
+      <!-- ✅ HOME VIEW -->
+      <div id="viewHome">
+        <div class="card">
+          <div class="card-head">
+            <div class="badge">
+              <span class="dot"></span>
+              <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+            </div>
 
-                <div class="cal-nav">
-                  <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
-                  <div class="range" id="weekRangeLabel">—</div>
-                  <button class="arrow-btn" id="nextWeekBtn" type="button" aria-label="Next week">›</button>
+            <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar" data-en="Manage your slots from Google Calendar">
+              Gère tes créneaux depuis Google Calendar
+            </h1>
 
-                  <a class="btn btn-primary" id="openGcalBtn"
-                     href="https://calendar.google.com/calendar/u/0/r"
-                     target="_blank" rel="noopener noreferrer"
-                     data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
-                    Ouvrir Google Calendar
-                  </a>
-                </div>
-              </div>
+            <p class="subtitle"
+               data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
+               data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
+              Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
+            </p>
+          </div>
 
-              <div class="calendar-area" id="calendarArea">
-                <div class="calendar-inner">
-                  <div class="week-grid" id="weekGrid"></div>
-                </div>
+          <div class="card-body">
+            <div class="main-grid">
 
-                <div class="overlay" id="emptyOverlay">
-                  <div class="overlay-card">
-                    <div class="badge" style="justify-content:center;">
-                      <span class="dot"></span>
-                      <span data-fr="Aucun créneau visible" data-en="No visible slots">Aucun créneau visible</span>
-                    </div>
+              <div class="calendar-wrap" id="calendarWrap">
+                <div class="calendar-top">
+                  <div class="calendar-note"
+                       data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
+                       data-en="To close a slot: delete (or edit) the matching event in your Google Calendar.">
+                    Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
+                  </div>
 
-                    <div class="overlay-title" data-fr="Ouvre ton premier créneau" data-en="Open your first slot">
-                      Ouvre ton premier créneau
-                    </div>
+                  <div class="cal-nav">
+                    <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
+                    <div class="range" id="weekRangeLabel">—</div>
+                    <button class="arrow-btn" id="nextWeekBtn" type="button" aria-label="Next week">›</button>
 
-                    <p class="overlay-text"
-                      data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
-                      data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
-                      Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
-                    </p>
-
-                    <div style="height:12px;"></div>
-                    <a class="btn btn-primary"
+                    <a class="btn btn-primary" id="openGcalBtn"
                        href="https://calendar.google.com/calendar/u/0/r"
                        target="_blank" rel="noopener noreferrer"
                        data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
@@ -640,79 +610,163 @@
                   </div>
                 </div>
 
+                <div class="calendar-area" id="calendarArea">
+                  <div class="calendar-inner">
+                    <div class="week-grid" id="weekGrid"></div>
+                  </div>
+
+                  <div class="overlay" id="emptyOverlay">
+                    <div class="overlay-card">
+                      <div class="badge" style="justify-content:center;">
+                        <span class="dot"></span>
+                        <span data-fr="Aucun créneau visible" data-en="No visible slots">Aucun créneau visible</span>
+                      </div>
+
+                      <div class="overlay-title" data-fr="Ouvre ton premier créneau" data-en="Open your first slot">
+                        Ouvre ton premier créneau
+                      </div>
+
+                      <p class="overlay-text"
+                        data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
+                        data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
+                        Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
+                      </p>
+
+                      <div style="height:12px;"></div>
+                      <a class="btn btn-primary"
+                         href="https://calendar.google.com/calendar/u/0/r"
+                         target="_blank" rel="noopener noreferrer"
+                         data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
+                        Ouvrir Google Calendar
+                      </a>
+                    </div>
+                  </div>
+
+                </div>
               </div>
-            </div>
 
-            <div class="helper">
-              <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
-              <ol>
-                <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
-                <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">
-                  Crée un événement sur une plage où tu es dispo.
-                </li>
-                <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
-                <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page Public." data-en="Your slots will automatically appear on your public page.">
-                  Tes créneaux apparaîtront automatiquement sur ta page Public.
-                </li>
-                <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to receive bookings.">
-                  Partage ta page public pour recevoir des réservations.
-                </li>
-              </ol>
+              <div class="helper">
+                <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
+                <ol>
+                  <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
+                  <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">
+                    Crée un événement sur une plage où tu es dispo.
+                  </li>
+                  <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
+                  <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page Public." data-en="Your slots will automatically appear on your public page.">
+                    Tes créneaux apparaîtront automatiquement sur ta page Public.
+                  </li>
+                  <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to receive bookings.">
+                    Partage ta page public pour recevoir des réservations.
+                  </li>
+                </ol>
 
-              <div class="mini"
-                   data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
-                   data-en="You can start with a single slot to test, then add more later.">
-                Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
+                <div class="mini"
+                     data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
+                     data-en="You can start with a single slot to test, then add more later.">
+                  Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
+                </div>
               </div>
-            </div>
 
+            </div>
           </div>
         </div>
       </div>
+
+      <!-- ✅ PROFILE VIEW -->
+      <div id="viewProfile" style="display:none;">
+        <div class="card">
+          <div class="card-head">
+            <div class="badge"><span class="dot"></span><span data-fr="Profil" data-en="Profile">Profil</span></div>
+            <h1 class="title" data-fr="Ton profil public" data-en="Your public profile">Ton profil public</h1>
+            <p class="subtitle"
+               data-fr="Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique."
+               data-en="Edit your photo, name and description. These appear on your public page.">
+              Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique.
+            </p>
+          </div>
+
+          <div class="card-body">
+            <div style="display:grid; gap:12px; max-width: 680px;">
+              <div class="form-row">
+                <label data-fr="Photo de profil" data-en="Profile photo">Photo de profil</label>
+                <input class="input" id="profilePhotoFile" type="file" accept="image/*" />
+                <div class="mini"
+                     data-fr="Astuce : choisis une image carrée. Max ~500KB."
+                     data-en="Tip: choose a square image. Max ~500KB.">
+                  Astuce : choisis une image carrée. Max ~500KB.
+                </div>
+              </div>
+
+              <div class="form-row">
+                <label for="profileName" data-fr="Nom (ou pseudo)" data-en="Name (or nickname)">Nom (ou pseudo)</label>
+                <input class="input" id="profileName" type="text" />
+              </div>
+
+              <div class="form-row">
+                <label for="profileBio" data-fr="Description" data-en="Description">Description</label>
+                <textarea class="textarea" id="profileBio"></textarea>
+              </div>
+
+              <div class="modal-actions" style="justify-content:flex-start;">
+                <button class="btn btn-primary" id="profileSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ PAYOUTS VIEW -->
+      <div id="viewPayouts" style="display:none;">
+        <div class="card">
+          <div class="card-head">
+            <div class="badge"><span class="dot"></span><span data-fr="Paiements" data-en="Payouts">Paiements</span></div>
+            <h1 class="title" data-fr="Recevoir tes gains" data-en="Receive your earnings">Recevoir tes gains</h1>
+            <p class="subtitle"
+               data-fr="Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal. (On passera à Stripe Connect plus tard.)"
+               data-en="To keep it simple and secure at first: we only collect a Wise/PayPal email. (We’ll move to Stripe Connect later.)">
+              Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal.
+            </p>
+          </div>
+
+          <div class="card-body">
+            <div style="display:grid; gap:12px; max-width: 680px;">
+              <div class="form-row">
+                <label for="payoutMethod" data-fr="Méthode" data-en="Method">Méthode</label>
+                <select class="input" id="payoutMethod">
+                  <option value="wise">Wise</option>
+                  <option value="paypal">PayPal</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <label for="payoutEmail" data-fr="Email (Wise/PayPal)" data-en="Email (Wise/PayPal)">Email (Wise/PayPal)</label>
+                <input class="input" id="payoutEmail" type="email" placeholder="name@email.com" />
+              </div>
+
+              <div class="modal-actions" style="justify-content:flex-start;">
+                <button class="btn btn-primary" id="payoutSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
+              </div>
+
+              <div class="mini"
+                   data-fr="Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici."
+                   data-en="Note: this is only used to pay you. No bank details stored here.">
+                Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<div class="modal-backdrop" id="modalBackdrop" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-head">
-      <h4 id="modalTitle" data-fr="Modifier mon profil" data-en="Edit my profile">Modifier mon profil</h4>
-      <button class="xbtn" id="closeModalBtn" type="button">✕</button>
-    </div>
-
-    <div class="modal-body">
-      <div class="form-row">
-        <label for="editName" data-fr="Prénom et nom (ou pseudo)" data-en="Name (or nickname)">
-          Prénom et nom (ou pseudo)
-        </label>
-        <input class="input" id="editName" type="text" placeholder="Ex: Camille, coach trail" />
-      </div>
-
-      <div class="form-row">
-        <label for="editBio" data-fr="Description" data-en="Description">Description</label>
-        <textarea class="textarea" id="editBio"></textarea>
-      </div>
-
-      <div class="form-row">
-        <label for="editPhotoUrl" data-fr="Photo (URL)" data-en="Photo (URL)">Photo (URL)</label>
-        <input class="input" id="editPhotoUrl" type="text" placeholder="https://…" />
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn" id="cancelEditBtn" type="button" data-fr="Annuler" data-en="Cancel">Annuler</button>
-        <button class="btn btn-primary" id="saveEditBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
 (function(){
-  // ✅ Don’t let one error kill everything
   try {
-
     // ---------------------------
     // Supabase (guarded)
     // ---------------------------
@@ -740,8 +794,11 @@
     }
 
     // ---------------------------
-    // Elements (MUST be before applyLanguage/paintWeek calls)
+    // Elements
     // ---------------------------
+    const dashSidebar = document.getElementById("dashSidebar");
+    const dashTop = document.getElementById("dashTop");
+
     const langButtons = document.querySelectorAll('.lang-switch button');
 
     const avatar = document.getElementById("avatar");
@@ -749,6 +806,12 @@
     const pbio = document.getElementById("pbio");
     const publicPageBtn = document.getElementById("publicPageBtn");
     const copyLinkBtn = document.getElementById("copyLinkBtn");
+    const editProfileBtn = document.getElementById("editProfileBtn");
+
+    const authGate = document.getElementById("authGate");
+    const viewHome = document.getElementById("viewHome");
+    const viewProfile = document.getElementById("viewProfile");
+    const viewPayouts = document.getElementById("viewPayouts");
 
     const calendarWrap = document.getElementById("calendarWrap");
     const weekGrid = document.getElementById("weekGrid");
@@ -757,14 +820,14 @@
     const prevWeekBtn = document.getElementById("prevWeekBtn");
     const nextWeekBtn = document.getElementById("nextWeekBtn");
 
-    const modalBackdrop = document.getElementById("modalBackdrop");
-    const editProfileBtn = document.getElementById("editProfileBtn");
-    const closeModalBtn = document.getElementById("closeModalBtn");
-    const cancelEditBtn = document.getElementById("cancelEditBtn");
-    const saveEditBtn = document.getElementById("saveEditBtn");
-    const editName = document.getElementById("editName");
-    const editBio = document.getElementById("editBio");
-    const editPhotoUrl = document.getElementById("editPhotoUrl");
+    const profilePhotoFile = document.getElementById("profilePhotoFile");
+    const profileName = document.getElementById("profileName");
+    const profileBio = document.getElementById("profileBio");
+    const profileSaveBtn = document.getElementById("profileSaveBtn");
+
+    const payoutMethod = document.getElementById("payoutMethod");
+    const payoutEmail = document.getElementById("payoutEmail");
+    const payoutSaveBtn = document.getElementById("payoutSaveBtn");
 
     // ---------------------------
     // State
@@ -776,9 +839,53 @@
     }
 
     let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
-    let expertRow = null;
-    let weekOffset = 0;
-    let cachedSlots = [];
+
+// ✅ If no session (no expert_id), send user to the standard login page
+if (!expertId) {
+  window.location.href = "/login.html";
+  return;
+}
+
+let expertRow = null;
+let weekOffset = 0;
+let cachedSlots = [];
+let pendingPhotoDataUrl = null;
+
+
+    // ---------------------------
+    // Router
+    // ---------------------------
+    function showView(tab){
+      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+      const active = document.querySelector(`.sb-item[data-tab="${tab}"]`);
+      if (active) active.classList.add("active");
+
+      viewHome.style.display = (tab === "home") ? "" : "none";
+      viewProfile.style.display = (tab === "profile") ? "" : "none";
+      viewPayouts.style.display = (tab === "payouts") ? "" : "none";
+
+      if (tab === "analytics" || tab === "settings"){
+        showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+        // keep current tab
+        const fallback = "home";
+        document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+        const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
+        if (a2) a2.classList.add("active");
+        viewHome.style.display = "";
+        viewProfile.style.display = "none";
+        viewPayouts.style.display = "none";
+      }
+    }
+
+    document.querySelectorAll(".sb-item").forEach(item => {
+      item.addEventListener("click", () => {
+        const tab = item.getAttribute("data-tab");
+        if (!tab) return;
+        showView(tab);
+      });
+    });
+
+    editProfileBtn.addEventListener("click", () => showView("profile"));
 
     // ---------------------------
     // Dates
@@ -887,30 +994,50 @@
       }
     }
 
+    async function fetchSlots(expertId, fromISO, toISO){
+      const q = new URLSearchParams({ expert_id: expertId });
+      if (fromISO) q.set("from", fromISO);
+      if (toISO) q.set("to", toISO);
+
+      const urls = [
+        `/api/experts/slots?${q.toString()}`,
+        `/api/slots?${q.toString()}`
+      ];
+
+      for (const url of urls){
+        try{
+          const r = await fetch(url, { headers: { "Accept":"application/json" } });
+          if (!r.ok) continue;
+          const data = await r.json();
+          if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.slots)) return data.slots;
+          return [];
+        }catch(_){}
+      }
+      return [];
+    }
+
     async function reloadWeek(){
-  if (!expertId) return;
+      if (!expertId) return;
+      const monday = getMondayForOffset(weekOffset);
+      const fromISO = monday.toISOString();
+      const toISO = addDays(monday, 7).toISOString();
+      cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+      paintWeek();
+    }
 
-  const monday = getMondayForOffset(weekOffset);
-  const fromISO = monday.toISOString();
-  const toISO = addDays(monday, 7).toISOString();
+    prevWeekBtn.addEventListener("click", async () => {
+      weekOffset -= 1;
+      await reloadWeek();
+    });
 
-  cachedSlots = await fetchSlots(expertId, fromISO, toISO);
-  paintWeek();
-}
-
-prevWeekBtn.addEventListener("click", async () => {
-  weekOffset -= 1;
-  await reloadWeek();
-});
-
-nextWeekBtn.addEventListener("click", async () => {
-  weekOffset += 1;
-  await reloadWeek();
-});
-
+    nextWeekBtn.addEventListener("click", async () => {
+      weekOffset += 1;
+      await reloadWeek();
+    });
 
     // ---------------------------
-    // Language switch (NOW safe)
+    // Language switch
     // ---------------------------
     function applyLanguage(nextLang){
       lang = nextLang;
@@ -923,37 +1050,10 @@ nextWeekBtn.addEventListener("click", async () => {
       langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
       localStorage.setItem('runcall_lang', lang);
 
-      paintWeek(); // ✅ safe now
+      paintWeek();
     }
     langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
     applyLanguage(lang);
-
-    // ---------------------------
-    // Slots API
-    // ---------------------------
-    async function fetchSlots(expertId, fromISO, toISO){
-  const q = new URLSearchParams({ expert_id: expertId });
-  if (fromISO) q.set("from", fromISO);
-  if (toISO) q.set("to", toISO);
-
-  const urls = [
-    `/api/experts/slots?${q.toString()}`,
-    `/api/slots?${q.toString()}`
-  ];
-
-  for (const url of urls){
-    try{
-      const r = await fetch(url, { headers: { "Accept":"application/json" } });
-      if (!r.ok) continue;
-      const data = await r.json();
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data?.slots)) return data.slots;
-      return [];
-    }catch(_){}
-  }
-  return [];
-}
-
 
     // ---------------------------
     // Expert load
@@ -974,7 +1074,6 @@ nextWeekBtn.addEventListener("click", async () => {
     async function loadExpert(){
       if (expertId) localStorage.setItem("runcall_expert_id", expertId);
 
-      // ✅ public link always works even if DB fails
       const publicUrl = expertId
         ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
         : `https://www.run-call.com/intervenant.html`;
@@ -990,13 +1089,13 @@ nextWeekBtn.addEventListener("click", async () => {
         }
       };
 
-      // 1) API (bypass RLS)
+      // 1) API first
       if (expertId){
         const apiRow = await fetchExpertViaApi(expertId);
         if (apiRow) expertRow = apiRow;
       }
 
-      // 2) Fallback supabase read (only if supabase exists)
+      // 2) fallback supabase read
       if (!expertRow && supabase && expertId){
         const { data: row } = await supabase
           .from("experts")
@@ -1006,7 +1105,6 @@ nextWeekBtn.addEventListener("click", async () => {
         if (row) expertRow = row;
       }
 
-      // UI
       if (expertRow){
         const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
         const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
@@ -1026,28 +1124,11 @@ nextWeekBtn.addEventListener("click", async () => {
           avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
         }
 
-        editName.value = (expertRow.name || "").trim();
-        editBio.value  = (expertRow.presentation || "").trim();
-        editPhotoUrl.value = (expertRow.photo_url || "").trim();
+        // fill Profile view
+        profileName.value = (expertRow.name || "").trim();
+        profileBio.value  = (expertRow.presentation || "").trim();
       }
     }
-
-    // ---------------------------
-    // Modal open/close
-    // ---------------------------
-    function openModal(){
-      modalBackdrop.classList.add("show");
-      modalBackdrop.setAttribute("aria-hidden","false");
-    }
-    function closeModal(){
-      modalBackdrop.classList.remove("show");
-      modalBackdrop.setAttribute("aria-hidden","true");
-    }
-    editProfileBtn.addEventListener("click", openModal);
-    closeModalBtn.addEventListener("click", closeModal);
-    cancelEditBtn.addEventListener("click", closeModal);
-    modalBackdrop.addEventListener("click", (e) => { if (e.target === modalBackdrop) closeModal(); });
-    window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
 
     // ---------------------------
     // Save (API first, fallback supabase)
@@ -1067,27 +1148,51 @@ nextWeekBtn.addEventListener("click", async () => {
       }
     }
 
-    saveEditBtn.addEventListener("click", async () => {
-      if (!expertId){
-        showToast("err", lang === "fr" ? "Impossible d’enregistrer : identifiant manquant." : "Unable to save: missing id.");
+    // ---------------------------
+    // Profile photo upload (TEMP: dataURL in photo_url)
+    // ---------------------------
+    profilePhotoFile?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      pendingPhotoDataUrl = null;
+      if (!file) return;
+
+      if (file.size > 500 * 1024){
+        showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
+        e.target.value = "";
         return;
       }
 
-      const name = (editName.value || "").trim();
-      const presentation = (editBio.value || "").trim();
-      const photo_url = (editPhotoUrl.value || "").trim() || null;
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingPhotoDataUrl = String(reader.result || "");
+        showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
+      };
+      reader.onerror = () => showToast("err", lang === "fr" ? "Impossible de lire l’image." : "Unable to read image.");
+      reader.readAsDataURL(file);
+    });
+
+    profileSaveBtn?.addEventListener("click", async () => {
+      if (!expertId){
+        showToast("err", lang === "fr" ? "Identifiant manquant." : "Missing id.");
+        return;
+      }
+
+      const name = (profileName.value || "").trim();
+      const presentation = (profileBio.value || "").trim();
+      const photo_url = pendingPhotoDataUrl || (expertRow?.photo_url || null);
 
       if (!name || !presentation){
-        showToast("err", lang === "fr" ? "Merci de remplir le nom/pseudo et la description." : "Please fill in name and description.");
+        showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
         return;
       }
 
-      saveEditBtn.disabled = true;
+      profileSaveBtn.disabled = true;
       try{
         let updated = await updateExpertViaApi({ expert_id: expertId, name, presentation, photo_url });
 
+        // fallback if API fails
         if (!updated){
-          if (!supabase) throw new Error("Supabase not available and API update failed.");
+          if (!supabase) throw new Error("API update failed.");
           const { data, error } = await supabase
             .from("experts")
             .update({ name, presentation, photo_url, updated_at: new Date().toISOString() })
@@ -1098,11 +1203,14 @@ nextWeekBtn.addEventListener("click", async () => {
           updated = data;
         }
 
+        expertRow = updated;
+
+        // refresh top header UI
         pname.textContent = updated.name || name;
         pbio.textContent = updated.presentation || presentation;
 
-        avatar.innerHTML = "";
         const finalPhoto = (updated.photo_url || "").trim();
+        avatar.innerHTML = "";
         if (finalPhoto){
           const img = document.createElement("img");
           img.src = finalPhoto;
@@ -1113,53 +1221,64 @@ nextWeekBtn.addEventListener("click", async () => {
           avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`;
         }
 
+        pendingPhotoDataUrl = null;
+        profilePhotoFile.value = "";
         showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-        closeModal();
       }catch(e){
         console.error(e);
         showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
       }finally{
-        saveEditBtn.disabled = false;
+        profileSaveBtn.disabled = false;
       }
     });
 
     // ---------------------------
-    // Sidebar “coming soon”
+    // Payouts (TEMP: localStorage)
     // ---------------------------
-    document.querySelectorAll(".sb-item").forEach(item => {
-      item.addEventListener("click", () => {
-        document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-        item.classList.add("active");
-        const tab = item.getAttribute("data-tab");
-        if (tab && tab !== "home"){
-          showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-        }
-      });
+    function loadPayoutLocal(){
+      const m = localStorage.getItem("runcall_payout_method");
+      const e = localStorage.getItem("runcall_payout_email");
+      if (m) payoutMethod.value = m;
+      if (e) payoutEmail.value = e;
+    }
+    loadPayoutLocal();
+
+    payoutSaveBtn?.addEventListener("click", async () => {
+      const method = payoutMethod.value;
+      const email = (payoutEmail.value || "").trim();
+      if (!email){
+        showToast("err", lang === "fr" ? "Email requis." : "Email required.");
+        return;
+      }
+      localStorage.setItem("runcall_payout_method", method);
+      localStorage.setItem("runcall_payout_email", email);
+      showToast("ok", lang === "fr" ? "Enregistré ✅ (temporaire)" : "Saved ✅ (temporary)");
     });
 
     // ---------------------------
     // Init
     // ---------------------------
+    // Paint skeleton early (safe)
     paintWeek();
 
     (async () => {
+      // ✅ AUTH GATE (standard login page)
+if (!expertId){
+  window.location.href = "/login.html";
+  return;
+}
+
+
+    
+      showView("home");
+
       await loadExpert();
 
-      if (expertId){
-        const monday = getMondayForOffset(weekOffset);
-const fromISO = monday.toISOString();
-const toISO = addDays(monday, 7).toISOString();
-
-cachedSlots = await fetchSlots(expertId, fromISO, toISO);
-paintWeek();
-
-      } else {
-        cachedSlots = [];
-        paintWeek();
-        showToast("err", lang === "fr"
-          ? "expert_id manquant (ouvre le dashboard depuis la redirection OAuth ou depuis ton lien)."
-          : "Missing expert_id (open dashboard from OAuth redirect or your link).");
-      }
+      const monday = getMondayForOffset(weekOffset);
+      const fromISO = monday.toISOString();
+      const toISO = addDays(monday, 7).toISOString();
+      cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+      paintWeek();
     })();
 
   } catch (e) {
