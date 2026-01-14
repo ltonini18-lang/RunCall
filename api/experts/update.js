@@ -1,107 +1,84 @@
 // /api/experts/update.js
-// Receives: { expert_id, name, presentation, photo_url }
+// Receives: { name, presentation }
+// Auth: header "x-dashboard-token"
 // Returns: { expert: { id, name, presentation, photo_url } }
+
+import { supabaseAdmin } from "../_lib/supabase";
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "https://run-call.com");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dashboard-token");
 }
 
 export default async function handler(req, res) {
   setCors(res);
 
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method === "OPTIONS") return res.status(204).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { expert_id, name, presentation, photo_url } = req.body || {};
+    const token = String(req.headers["x-dashboard-token"] || "").trim();
+    if (!token) return res.status(401).json({ error: "Missing dashboard token" });
 
-    const expertId = String(expert_id || "").trim();
-    if (!expertId) {
-      return res.status(400).json({ error: "Missing expert_id" });
-    }
+    const { name, presentation } = req.body || {};
 
     const cleanName = typeof name === "string" ? name.trim() : "";
     const cleanPresentation = typeof presentation === "string" ? presentation.trim() : "";
 
-    // photo_url can be: string | null | undefined
-    let cleanPhotoUrl = undefined;
-    if (photo_url === null) cleanPhotoUrl = null;
-    else if (typeof photo_url === "string") cleanPhotoUrl = photo_url.trim();
-
     if (!cleanName || !cleanPresentation) {
       return res.status(400).json({ error: "Missing required fields (name, presentation)" });
     }
+    if (cleanName.length > 120) return res.status(400).json({ error: "Name too long" });
+    if (cleanPresentation.length > 3000) return res.status(400).json({ error: "Presentation too long" });
 
-    if (cleanName.length > 120) {
-      return res.status(400).json({ error: "Name too long" });
-    }
-    if (cleanPresentation.length > 3000) {
-      return res.status(400).json({ error: "Presentation too long" });
-    }
-    if (typeof cleanPhotoUrl === "string" && cleanPhotoUrl.length > 800) {
-      return res.status(400).json({ error: "Photo URL too long" });
+    // 🚫 hard refuse old field (prevents accidental regressions)
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "photo_url")) {
+      return res.status(400).json({ error: "photo_url is not allowed. Use /api/experts/avatar/upload." });
     }
 
-    const SUPABASE_URL = process.env.SUPABASE_URL;
-    const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const sb = supabaseAdmin();
 
-    if (!SUPABASE_URL || !KEY) {
-      return res.status(500).json({ error: "Server not configured" });
-    }
+    // Resolve expert by token (no spoofing via expert_id)
+    const { data: expert, error: e1 } = await sb
+      .from("experts")
+      .select("id,photo_path")
+      .eq("dashboard_token", token)
+      .maybeSingle();
 
-    const patch = {
-      name: cleanName,
-      presentation: cleanPresentation,
-      updated_at: new Date().toISOString()
-    };
+    if (e1) return res.status(500).json({ error: "DB error", details: e1.message });
+    if (!expert) return res.status(403).json({ error: "Invalid token" });
 
-    // only set photo_url if provided (string or null)
-    if (cleanPhotoUrl !== undefined) {
-      patch.photo_url = cleanPhotoUrl || null;
-    }
+    const { data: updated, error: e2 } = await sb
+      .from("experts")
+      .update({
+        name: cleanName,
+        presentation: cleanPresentation,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", expert.id)
+      .select("id,name,presentation,photo_path")
+      .single();
 
-    // Supabase REST update: PATCH /rest/v1/experts?id=eq.<id>
-    const updateResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/experts?id=eq.${encodeURIComponent(expertId)}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: KEY,
-          Authorization: `Bearer ${KEY}`,
-          Prefer: "return=representation"
-        },
-        body: JSON.stringify(patch)
-      }
-    );
+    if (e2) return res.status(500).json({ error: "Failed to update expert", details: e2.message });
 
-    const text = await updateResp.text();
-    let data;
-    try { data = JSON.parse(text || "[]"); } catch { data = null; }
-
-    if (!updateResp.ok) {
-      return res.status(500).json({ error: "Failed to update expert", details: text });
-    }
-
-    const row = Array.isArray(data) ? data[0] : null;
-    if (!row) {
-      return res.status(500).json({ error: "No expert returned from DB" });
+    // Return signed url (nice UX: refresh header avatar)
+    let photo_url = null;
+    const path = updated?.photo_path || expert.photo_path;
+    if (path) {
+      const { data: signed, error: signErr } = await sb.storage
+        .from("avatars")
+        .createSignedUrl(path, 60 * 10);
+      if (!signErr) photo_url = signed?.signedUrl || null;
     }
 
     return res.status(200).json({
       expert: {
-        id: row.id,
-        name: row.name ?? null,
-        presentation: row.presentation ?? null,
-        photo_url: row.photo_url ?? null
-      }
+        id: updated.id,
+        name: updated.name ?? null,
+        presentation: updated.presentation ?? null,
+        photo_url,
+      },
     });
   } catch (err) {
     console.error(err);
