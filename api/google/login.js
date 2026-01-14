@@ -1,9 +1,6 @@
-// /api/google/connect.js
+// /api/google/login.js
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).send("Method not allowed");
-
-  const expertId = String(req.query.expert_id || "").trim();
-  if (!expertId) return res.status(400).send("Missing expert_id");
 
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   if (!CLIENT_ID) return res.status(500).send("Server not configured");
@@ -18,18 +15,16 @@ export default async function handler(req, res) {
       "openid",
       "email",
       "profile",
-      "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/calendar.readonly",
-      "https://www.googleapis.com/auth/userinfo.email"
+      "https://www.googleapis.com/auth/calendar.events"
     ].join(" ")
   );
 
-  // ✅ Return to the correct environment after onboarding connect
+  // ✅ Return to the environment that initiated login
   const baseUrl = `${proto}://${host}`;
   const next = `${baseUrl}/dashboard.html`;
 
-  // onboarding → always has expert_id
-  const state = encodeURIComponent(JSON.stringify({ expert_id: expertId, next }));
+  const state = encodeURIComponent(JSON.stringify({ flow: "login", next }));
 
   const authUrl =
     "https://accounts.google.com/o/oauth2/v2/auth" +
@@ -37,9 +32,8 @@ export default async function handler(req, res) {
     `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=${scope}` +
-    `&access_type=offline` +          // ✅ onboarding wants refresh_token
-    `&prompt=consent` +               // ✅ onboarding forces consent
     `&include_granted_scopes=true` +
+    `&prompt=select_account` +        // ✅ avoids re-consent prompts
     `&state=${state}`;
 
   return res.redirect(302, authUrl);
