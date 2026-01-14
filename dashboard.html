@@ -1,4 +1,4 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + real photo upload (dataURL) + auth gate) -->
+<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -538,7 +538,7 @@
 
     <div class="dash-content">
 
-      <!-- ✅ AUTH GATE (shown when expert_id missing) -->
+      <!-- ✅ AUTH GATE (unused now, kept for compatibility) -->
       <div class="card" id="authGate" style="display:none;">
         <div class="card-head">
           <div class="badge">
@@ -768,7 +768,7 @@
 (function(){
   try {
     // ---------------------------
-    // Supabase (guarded)
+    // Supabase (kept but unused; safe)
     // ---------------------------
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
@@ -838,19 +838,18 @@
       lang = browserLang.startsWith('fr') ? 'fr' : 'en';
     }
 
-    let expertId = qs("expert_id") || localStorage.getItem("runcall_expert_id") || null;
+    // ✅ NEW: token-based dashboard session
+    let dashToken = qs("token") || localStorage.getItem("runcall_dashboard_token") || null;
+    if (!dashToken) {
+      window.location.href = "/login.html";
+      return;
+    }
+    localStorage.setItem("runcall_dashboard_token", dashToken);
 
-// ✅ If no session (no expert_id), send user to the standard login page
-if (!expertId) {
-  window.location.href = "/login.html";
-  return;
-}
-
-let expertRow = null;
-let weekOffset = 0;
-let cachedSlots = [];
-let pendingPhotoDataUrl = null;
-
+    let expertId = null;
+    let expertRow = null;
+    let weekOffset = 0;
+    let cachedSlots = [];
 
     // ---------------------------
     // Router
@@ -866,7 +865,6 @@ let pendingPhotoDataUrl = null;
 
       if (tab === "analytics" || tab === "settings"){
         showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-        // keep current tab
         const fallback = "home";
         document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
         const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
@@ -1056,28 +1054,38 @@ let pendingPhotoDataUrl = null;
     applyLanguage(lang);
 
     // ---------------------------
-    // Expert load
+    // Expert load (NEW: /api/experts/session?token=...)
     // ---------------------------
-    async function fetchExpertViaApi(expertId){
+    async function fetchSession(){
       try{
-        const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
+        const r = await fetch(`/api/experts/session?token=${encodeURIComponent(dashToken)}`, {
           headers: { "Accept":"application/json" }
         });
         if (!r.ok) return null;
-        const data = await r.json();
-        return data?.expert || data || null;
+        return await r.json();
       }catch(_){
         return null;
       }
     }
 
     async function loadExpert(){
-      if (expertId) localStorage.setItem("runcall_expert_id", expertId);
+      const session = await fetchSession();
+      if (!session?.expert_id){
+        window.location.href = "/login.html";
+        return;
+      }
 
-      const publicUrl = expertId
-        ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
-        : `https://www.run-call.com/intervenant.html`;
+      expertId = session.expert_id;
+      localStorage.setItem("runcall_expert_id", expertId);
 
+      expertRow = {
+        id: expertId,
+        name: session.name,
+        presentation: session.presentation,
+        photo_url: session.photo_url
+      };
+
+      const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
       publicPageBtn.href = publicUrl;
 
       copyLinkBtn.onclick = async () => {
@@ -1089,49 +1097,30 @@ let pendingPhotoDataUrl = null;
         }
       };
 
-      // 1) API first
-      if (expertId){
-        const apiRow = await fetchExpertViaApi(expertId);
-        if (apiRow) expertRow = apiRow;
+      const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
+      const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
+
+      pname.textContent = name;
+      pbio.textContent = bio;
+
+      const photo = (expertRow.photo_url || "").trim();
+      avatar.innerHTML = "";
+      if (photo){
+        const img = document.createElement("img");
+        img.src = photo;
+        img.alt = "Profile photo";
+        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+        avatar.appendChild(img);
+      } else {
+        avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
       }
 
-      // 2) fallback supabase read
-      if (!expertRow && supabase && expertId){
-        const { data: row } = await supabase
-          .from("experts")
-          .select("id,name,presentation,photo_url,auth_user_id")
-          .eq("id", expertId)
-          .maybeSingle();
-        if (row) expertRow = row;
-      }
-
-      if (expertRow){
-        const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-        const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
-
-        pname.textContent = name;
-        pbio.textContent = bio;
-
-        const photo = (expertRow.photo_url || "").trim();
-        avatar.innerHTML = "";
-        if (photo){
-          const img = document.createElement("img");
-          img.src = photo;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-        } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-        }
-
-        // fill Profile view
-        profileName.value = (expertRow.name || "").trim();
-        profileBio.value  = (expertRow.presentation || "").trim();
-      }
+      profileName.value = (expertRow.name || "").trim();
+      profileBio.value  = (expertRow.presentation || "").trim();
     }
 
     // ---------------------------
-    // Save (API first, fallback supabase)
+    // Save profile (API update + avatar upload)
     // ---------------------------
     async function updateExpertViaApi(payload){
       try{
@@ -1148,38 +1137,54 @@ let pendingPhotoDataUrl = null;
       }
     }
 
-    // ---------------------------
-    // Profile photo upload (TEMP: dataURL in photo_url)
-    // ---------------------------
-    profilePhotoFile?.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      pendingPhotoDataUrl = null;
-      if (!file) return;
+    // ✅ NEW: Avatar upload to Storage via API (signed URL returned)
+    async function uploadAvatarIfNeeded(){
+      const file = profilePhotoFile?.files?.[0];
+      if (!file) return null;
 
       if (file.size > 500 * 1024){
         showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-        e.target.value = "";
-        return;
+        profilePhotoFile.value = "";
+        return null;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        pendingPhotoDataUrl = String(reader.result || "");
-        showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
-      };
-      reader.onerror = () => showToast("err", lang === "fr" ? "Impossible de lire l’image." : "Unable to read image.");
-      reader.readAsDataURL(file);
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const r = await fetch("/api/experts/avatar/upload", {
+        method: "POST",
+        headers: { "x-dashboard-token": dashToken },
+        body: fd
+      });
+
+      if (!r.ok){
+        throw new Error("Avatar upload failed");
+      }
+
+      const data = await r.json();
+      return data?.photo_url || null;
+    }
+
+    // Optional UX: when selecting a file, toast "ready"
+    profilePhotoFile?.addEventListener("change", () => {
+      const file = profilePhotoFile?.files?.[0];
+      if (!file) return;
+      if (file.size > 500 * 1024){
+        showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
+        profilePhotoFile.value = "";
+        return;
+      }
+      showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
     });
 
     profileSaveBtn?.addEventListener("click", async () => {
       if (!expertId){
-        showToast("err", lang === "fr" ? "Identifiant manquant." : "Missing id.");
+        showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
         return;
       }
 
       const name = (profileName.value || "").trim();
       const presentation = (profileBio.value || "").trim();
-      const photo_url = pendingPhotoDataUrl || (expertRow?.photo_url || null);
 
       if (!name || !presentation){
         showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
@@ -1188,40 +1193,31 @@ let pendingPhotoDataUrl = null;
 
       profileSaveBtn.disabled = true;
       try{
-        let updated = await updateExpertViaApi({ expert_id: expertId, name, presentation, photo_url });
+        // 1) upload avatar if selected
+        const newPhotoUrl = await uploadAvatarIfNeeded();
 
-        // fallback if API fails
-        if (!updated){
-          if (!supabase) throw new Error("API update failed.");
-          const { data, error } = await supabase
-            .from("experts")
-            .update({ name, presentation, photo_url, updated_at: new Date().toISOString() })
-            .eq("id", expertId)
-            .select("id,name,presentation,photo_url")
-            .single();
-          if (error) throw error;
-          updated = data;
-        }
+        // 2) update profile text (no photo_url in payload)
+        const updated = await updateExpertViaApi({ expert_id: expertId, name, presentation });
+        if (updated) expertRow = { ...(expertRow || {}), ...updated };
 
-        expertRow = updated;
+        // 3) refresh UI
+        pname.textContent = name;
+        pbio.textContent = presentation;
 
-        // refresh top header UI
-        pname.textContent = updated.name || name;
-        pbio.textContent = updated.presentation || presentation;
-
-        const finalPhoto = (updated.photo_url || "").trim();
+        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
         avatar.innerHTML = "";
         if (finalPhoto){
           const img = document.createElement("img");
           img.src = finalPhoto;
           img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`; };
+          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
           avatar.appendChild(img);
+          if (expertRow) expertRow.photo_url = finalPhoto;
         } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`;
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+          if (expertRow) expertRow.photo_url = "";
         }
 
-        pendingPhotoDataUrl = null;
         profilePhotoFile.value = "";
         showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
       }catch(e){
@@ -1258,18 +1254,9 @@ let pendingPhotoDataUrl = null;
     // ---------------------------
     // Init
     // ---------------------------
-    // Paint skeleton early (safe)
     paintWeek();
 
     (async () => {
-      // ✅ AUTH GATE (standard login page)
-if (!expertId){
-  window.location.href = "/login.html";
-  return;
-}
-
-
-    
       showView("home");
 
       await loadExpert();
