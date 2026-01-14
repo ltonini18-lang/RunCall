@@ -1,4 +1,4 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload) -->
+<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload + secure update) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -538,7 +538,7 @@
 
     <div class="dash-content">
 
-      <!-- ✅ AUTH GATE (unused now, kept for compatibility) -->
+      <!-- ✅ AUTH GATE (kept for UI compatibility; real auth uses token->session) -->
       <div class="card" id="authGate" style="display:none;">
         <div class="card-head">
           <div class="badge">
@@ -796,9 +796,6 @@
     // ---------------------------
     // Elements
     // ---------------------------
-    const dashSidebar = document.getElementById("dashSidebar");
-    const dashTop = document.getElementById("dashTop");
-
     const langButtons = document.querySelectorAll('.lang-switch button');
 
     const avatar = document.getElementById("avatar");
@@ -838,7 +835,7 @@
       lang = browserLang.startsWith('fr') ? 'fr' : 'en';
     }
 
-    // ✅ NEW: token-based dashboard session
+    // ✅ token-based dashboard session
     let dashToken = qs("token") || localStorage.getItem("runcall_dashboard_token") || null;
     if (!dashToken) {
       window.location.href = "/login.html";
@@ -1054,7 +1051,7 @@
     applyLanguage(lang);
 
     // ---------------------------
-    // Expert load (NEW: /api/experts/session?token=...)
+    // Expert load (token session)
     // ---------------------------
     async function fetchSession(){
       try{
@@ -1076,8 +1073,8 @@
       }
 
       expertId = session.expert_id;
-      localStorage.setItem("runcall_expert_id", expertId);
 
+      // expertRow is driven from session endpoint
       expertRow = {
         id: expertId,
         name: session.name,
@@ -1085,6 +1082,7 @@
         photo_url: session.photo_url
       };
 
+      // public page link
       const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
       publicPageBtn.href = publicUrl;
 
@@ -1115,43 +1113,45 @@
         avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
       }
 
+      // fill Profile view
       profileName.value = (expertRow.name || "").trim();
       profileBio.value  = (expertRow.presentation || "").trim();
     }
 
     // ---------------------------
-// Save profile (API update)
-// ---------------------------
-async function updateExpertViaApi(payload){
-  try{
-    const dashboardToken =
-      qs("token") ||
-      localStorage.getItem("runcall_dashboard_token") ||
-      "";
+    // Save profile text (API update) — token header required
+    // ---------------------------
+    async function updateExpertViaApi(payload){
+      try{
+        const dashboardToken =
+          qs("token") ||
+          localStorage.getItem("runcall_dashboard_token") ||
+          "";
 
-    if (!dashboardToken) return null;
+        if (!dashboardToken) return null;
 
-    const r = await fetch("/api/experts/update", {
-      method: "POST",
-      headers: {
-        "Content-Type":"application/json",
-        "Accept":"application/json",
-        "x-dashboard-token": dashboardToken
-      },
-      body: JSON.stringify(payload)
-    });
+        const r = await fetch("/api/experts/update", {
+          method: "POST",
+          headers: {
+            "Content-Type":"application/json",
+            "Accept":"application/json",
+            "x-dashboard-token": dashboardToken
+          },
+          body: JSON.stringify(payload)
+        });
 
-    if (!r.ok) return null;
+        if (!r.ok) return null;
 
-    const data = await r.json();
-    return data?.expert || data || null;
-  }catch(_){
-    return null;
-  }
-}
+        const data = await r.json();
+        return data?.expert || data || null;
+      }catch(_){
+        return null;
+      }
+    }
 
-
-    // ✅ NEW: Avatar upload to Storage via API (signed URL returned)
+    // ---------------------------
+    // Avatar upload to Storage via API (returns signed url)
+    // ---------------------------
     async function uploadAvatarIfNeeded(){
       const file = profilePhotoFile?.files?.[0];
       if (!file) return null;
@@ -1210,7 +1210,7 @@ async function updateExpertViaApi(payload){
         // 1) upload avatar if selected
         const newPhotoUrl = await uploadAvatarIfNeeded();
 
-        // 2) update profile text (no photo_url in payload)
+        // 2) update profile text (server reads token -> expert)
         const updated = await updateExpertViaApi({ name, presentation });
         if (updated) expertRow = { ...(expertRow || {}), ...updated };
 
