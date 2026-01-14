@@ -1120,22 +1120,36 @@
     }
 
     // ---------------------------
-    // Save profile (API update + avatar upload)
-    // ---------------------------
-    async function updateExpertViaApi(payload){
-      try{
-        const r = await fetch("/api/experts/update", {
-          method: "POST",
-          headers: { "Content-Type":"application/json", "Accept":"application/json" },
-          body: JSON.stringify(payload)
-        });
-        if (!r.ok) return null;
-        const data = await r.json();
-        return data?.expert || data || null;
-      }catch(_){
-        return null;
-      }
-    }
+// Save profile (API update)
+// ---------------------------
+async function updateExpertViaApi(payload){
+  try{
+    const dashboardToken =
+      qs("token") ||
+      localStorage.getItem("runcall_dashboard_token") ||
+      "";
+
+    if (!dashboardToken) return null;
+
+    const r = await fetch("/api/experts/update", {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "Accept":"application/json",
+        "x-dashboard-token": dashboardToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!r.ok) return null;
+
+    const data = await r.json();
+    return data?.expert || data || null;
+  }catch(_){
+    return null;
+  }
+}
+
 
     // ✅ NEW: Avatar upload to Storage via API (signed URL returned)
     async function uploadAvatarIfNeeded(){
@@ -1197,7 +1211,7 @@
         const newPhotoUrl = await uploadAvatarIfNeeded();
 
         // 2) update profile text (no photo_url in payload)
-        const updated = await updateExpertViaApi({ expert_id: expertId, name, presentation });
+        const updated = await updateExpertViaApi({ name, presentation });
         if (updated) expertRow = { ...(expertRow || {}), ...updated };
 
         // 3) refresh UI
