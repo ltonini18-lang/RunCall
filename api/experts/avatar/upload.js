@@ -1,10 +1,10 @@
 import formidable from "formidable";
 import fs from "fs";
 import { supabaseAdmin } from "../../_lib/supabase";
+import { resolveSession } from "../../_lib/session";
 
 export const config = { api: { bodyParser: false } };
 
-// ✅ CORS for preview + prod (needed for dashboard calls)
 function setCors(req, res) {
   const origin = req.headers.origin || "";
   const allowed = new Set([
@@ -12,11 +12,10 @@ function setCors(req, res) {
     "https://run-call.com",
     "https://preview.run-call.com"
   ]);
-
   if (allowed.has(origin)) res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dashboard-token");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-session-token, x-runcall-token");
 }
 
 function extFromMime(mime) {
@@ -41,26 +40,15 @@ export default async function handler(req, res) {
     if (req.method === "OPTIONS") return res.status(204).end();
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-    const token = String(req.headers["x-dashboard-token"] || "").trim();
-    if (!token) return res.status(401).json({ error: "Missing dashboard token" });
+    const r = await resolveSession(req);
+    if (!r.ok) return res.status(r.status).json({ error: r.error, details: r.details });
 
     const sb = supabaseAdmin();
 
-    const { data: expert, error: e1 } = await sb
-      .from("experts")
-      .select("id,photo_path")
-      .eq("dashboard_token", token)
-      .maybeSingle();
-
-    if (e1) return res.status(500).json({ error: "DB error", details: e1.message });
-    if (!expert) return res.status(403).json({ error: "Invalid token" });
-
     const { files } = await parseForm(req);
 
-    // ✅ formidable can return an array depending on version/config
     const fileRaw = files?.file;
     const file = Array.isArray(fileRaw) ? fileRaw[0] : fileRaw;
-
     if (!file) return res.status(400).json({ error: "Missing file field 'file'" });
 
     const filepath = file.filepath || file.path;
@@ -71,8 +59,8 @@ export default async function handler(req, res) {
 
     const buffer = await fs.promises.readFile(filepath);
 
-    // ✅ stable path (overwrite), clean long-term
-    const path = `experts/${expert.id}/avatar.${ext}`;
+    // upsert stable path
+    const path = `experts/${r.expert_id}/avatar.${ext}`;
 
     const { error: upErr } = await sb.storage.from("avatars").upload(path, buffer, {
       contentType: mime || "image/jpeg",
@@ -83,11 +71,10 @@ export default async function handler(req, res) {
     const { error: dbErr } = await sb
       .from("experts")
       .update({ photo_path: path, photo_updated_at: new Date().toISOString() })
-      .eq("id", expert.id);
+      .eq("id", r.expert_id);
 
     if (dbErr) return res.status(500).json({ error: "DB update error", details: dbErr.message });
 
-    // return signed url for immediate UI refresh
     const { data: signed, error: signErr } = await sb.storage
       .from("avatars")
       .createSignedUrl(path, 60 * 10);

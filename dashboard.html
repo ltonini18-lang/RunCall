@@ -1,4 +1,4 @@
-<!-- dashboard.html (FIXED: token session + storage avatar upload + secure update + no supabase writes) -->
+<!-- dashboard.html (FIXED: sessions.token + secure API-only writes + no client supabase) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -16,7 +16,6 @@
   </script>
 
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root{
@@ -428,7 +427,6 @@
     .toast.ok{ border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
     .toast.err{ border-color:#fecaca; background:#fff1f2; color:#881337; }
 
-    /* form helpers */
     .form-row{ display:grid; gap:6px; margin-bottom: 10px; }
     .form-row label{ font-weight: 900; color: var(--text); }
     .input, .textarea, select.input{
@@ -548,7 +546,6 @@
 
     <div class="dash-content">
 
-      <!-- (kept for UI compatibility; real auth uses token session) -->
       <div class="card" id="authGate" style="display:none;"></div>
 
       <!-- ✅ HOME VIEW -->
@@ -832,7 +829,7 @@
   applyLanguage(lang);
 
   // ---------------------------
-  // Auth: token => session
+  // Auth: sessions.token
   // ---------------------------
   const tokenFromUrl = qs("token");
   const tokenFromStorage = localStorage.getItem("runcall_token");
@@ -843,53 +840,32 @@
     return;
   }
 
-  // store + clean URL
   if (tokenFromUrl) localStorage.setItem("runcall_token", tokenFromUrl);
   cleanUrlParams(["token", "connected"]);
 
-  // Supabase client (read-only fallback only)
-  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const supabase = (window.supabase && window.supabase.createClient)
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-    : null;
-
-  let expertId = null;
-  let expertRow = null;
-  let weekOffset = 0;
-  let cachedSlots = [];
-
-  async function fetchSession(){
+  async function resolveSessionToken(){
     try{
-      const r = await fetch(`/api/experts/session?token=${encodeURIComponent(token)}`, {
+      const r = await fetch(`/api/sessions/resolve?token=${encodeURIComponent(token)}`, {
         headers: { "Accept":"application/json" }
       });
       if (!r.ok) return null;
-      return await r.json();
+      return await r.json(); // { expert_id }
     }catch(_){
       return null;
     }
   }
 
-  const session = await fetchSession();
-  if (!session || !session.expert_id){
+  const resolved = await resolveSessionToken();
+  if (!resolved || !resolved.expert_id){
     localStorage.removeItem("runcall_token");
     window.location.replace("/login.html");
     return;
   }
 
-  expertId = session.expert_id;
+  const expertId = String(resolved.expert_id);
   localStorage.setItem("runcall_expert_id", expertId);
 
-  // Build base expertRow from session
-  expertRow = {
-    id: expertId,
-    name: session.name || "",
-    presentation: session.presentation || "",
-    photo_url: session.photo_url || ""
-  };
-
-  // Now that auth is OK, show UI
+  // Now auth is OK, show UI
   document.documentElement.classList.remove('auth-pending');
 
   // ---------------------------
@@ -906,7 +882,6 @@
 
     if (tab === "analytics" || tab === "settings"){
       showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-      // keep current tab
       const fallback = "home";
       document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
       const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
@@ -929,6 +904,9 @@
   // ---------------------------
   // Dates
   // ---------------------------
+  let weekOffset = 0;
+  let cachedSlots = [];
+
   function startOfWeek(d){
     const x = new Date(d);
     const day = x.getDay();
@@ -1033,7 +1011,7 @@
     }
   }
 
-  async function fetchSlots(expertId, fromISO, toISO){
+  async function fetchSlots(fromISO, toISO){
     const q = new URLSearchParams({ expert_id: expertId });
     if (fromISO) q.set("from", fromISO);
     if (toISO) q.set("to", toISO);
@@ -1057,11 +1035,10 @@
   }
 
   async function reloadWeek(){
-    if (!expertId) return;
     const monday = getMondayForOffset(weekOffset);
     const fromISO = monday.toISOString();
     const toISO = addDays(monday, 7).toISOString();
-    cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+    cachedSlots = await fetchSlots(fromISO, toISO);
     paintWeek();
   }
 
@@ -1079,6 +1056,7 @@
   // ---------------------------
   const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
   publicPageBtn.href = publicUrl;
+
   copyLinkBtn.addEventListener("click", async () => {
     try{
       await navigator.clipboard.writeText(publicUrl);
@@ -1089,8 +1067,28 @@
   });
 
   // ---------------------------
-  // Render header + fill profile form
+  // Expert profile load (API)
   // ---------------------------
+  let expertRow = { id: expertId, name: "", presentation: "", photo_url: "" };
+
+  async function fetchExpertPublic(){
+    const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
+      headers: { "Accept":"application/json" }
+    });
+    if (!r.ok) return null;
+    return await r.json(); // {id,name,presentation,photo_url}
+  }
+
+  const fetched = await fetchExpertPublic();
+  if (fetched && fetched.id){
+    expertRow = {
+      id: fetched.id,
+      name: fetched.name || "",
+      presentation: fetched.presentation || "",
+      photo_url: fetched.photo_url || ""
+    };
+  }
+
   function renderHeaderFromExpert(){
     const name = (expertRow?.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
     const bio  = (expertRow?.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
@@ -1113,23 +1111,7 @@
     profileName.value = (expertRow?.name || "").trim();
     profileBio.value  = (expertRow?.presentation || "").trim();
   }
-
   renderHeaderFromExpert();
-
-  // Optional: supabase read fallback if session didn't include info (safe)
-  if (supabase && (!expertRow.name && !expertRow.presentation && !expertRow.photo_url)){
-    try{
-      const { data: row } = await supabase
-        .from("experts")
-        .select("id,name,presentation,photo_url")
-        .eq("id", expertId)
-        .maybeSingle();
-      if (row){
-        expertRow = row;
-        renderHeaderFromExpert();
-      }
-    }catch(_){}
-  }
 
   // ---------------------------
   // Profile save (API only)
@@ -1160,7 +1142,7 @@
 
     const r = await fetch("/api/experts/avatar/upload", {
       method: "POST",
-      headers: { "x-dashboard-token": token },
+      headers: { "x-session-token": token },
       body: fd
     });
 
@@ -1173,13 +1155,17 @@
     return data?.photo_url || null;
   }
 
-  async function updateExpertViaApi(payload){
+  async function updateExpertViaApi(name, presentation, photoUrlOrNull){
+    const payload = { name, presentation };
+    // if provided, send photo_url (string or null)
+    if (photoUrlOrNull !== undefined) payload.photo_url = photoUrlOrNull;
+
     const r = await fetch("/api/experts/update", {
       method: "POST",
       headers: {
         "Content-Type":"application/json",
         "Accept":"application/json",
-        "x-dashboard-token": token
+        "x-session-token": token
       },
       body: JSON.stringify(payload)
     });
@@ -1190,65 +1176,12 @@
     }
 
     const data = await r.json();
-    return data?.expert || data || null;
+    return data?.expert || null;
   }
 
   profileSaveBtn?.addEventListener("click", async () => {
-    if (!expertId){
-      showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
-      return;
-    }
-
-      profileSaveBtn.disabled = true;
-      try{
-        // 1) upload avatar if selected
-        const newPhotoUrl = await uploadAvatarIfNeeded();
-
-      // 2) update profile text (server reads token -> expert)
-const updated = await updateExpertViaApi({
-  expert_id: expertId,
-  name,
-  presentation
-});
-
-if (updated) {
-  // ✅ preserve existing photo_url if API doesn't return it
-  const prevPhoto = (expertRow?.photo_url || "").trim();
-  expertRow = { ...(expertRow || {}), ...updated };
-  if (!(expertRow?.photo_url || "").trim() && prevPhoto) {
-    expertRow.photo_url = prevPhoto;
-  }
-}
-
-
-
-        // 3) refresh UI
-        pname.textContent = name;
-        pbio.textContent = presentation;
-
-        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
-        avatar.innerHTML = "";
-        if (finalPhoto){
-          const img = document.createElement("img");
-          img.src = finalPhoto;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-          if (expertRow) expertRow.photo_url = finalPhoto;
-        } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-          if (expertRow) expertRow.photo_url = "";
-        }
-
-        profilePhotoFile.value = "";
-        showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-      }catch(e){
-        console.error(e);
-        showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-      }finally{
-        profileSaveBtn.disabled = false;
-      }
-    });
+    const name = (profileName.value || "").trim();
+    const presentation = (profileBio.value || "").trim();
 
     if (!name || !presentation){
       showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
@@ -1257,27 +1190,37 @@ if (updated) {
 
     profileSaveBtn.disabled = true;
     try{
-      // 1) upload avatar if a file was selected
+      // 1) upload avatar if selected
       const newPhotoUrl = await uploadAvatarIfNeeded();
 
-      // 2) update expert via API only (no supabase write)
-      const updated = await updateExpertViaApi({
-        expert_id: expertId,
-        name,
-        presentation,
-        photo_url: (newPhotoUrl || expertRow?.photo_url || null)
-      });
+      // 2) update text + optional photo_url
+      const photoToSend =
+        newPhotoUrl ? newPhotoUrl :
+        ((expertRow?.photo_url || "").trim() ? expertRow.photo_url : null);
 
-      // 3) update local state + UI
-      expertRow = {
-        ...(expertRow || {}),
-        ...(updated || {}),
-        id: expertId,
-        name,
-        presentation,
-        photo_url: (updated?.photo_url || newPhotoUrl || expertRow?.photo_url || "")
-      };
+      const updated = await updateExpertViaApi(name, presentation, photoToSend);
 
+      // 3) update local state
+      if (updated){
+        expertRow = {
+          ...(expertRow || {}),
+          ...(updated || {}),
+          id: expertId,
+          name,
+          presentation,
+          photo_url: (updated.photo_url || newPhotoUrl || expertRow.photo_url || "")
+        };
+      } else {
+        expertRow = {
+          ...(expertRow || {}),
+          id: expertId,
+          name,
+          presentation,
+          photo_url: (newPhotoUrl || expertRow.photo_url || "")
+        };
+      }
+
+      // 4) refresh UI
       renderHeaderFromExpert();
 
       profilePhotoFile.value = "";
@@ -1322,7 +1265,6 @@ if (updated) {
 
 })().catch((e) => {
   console.error("Dashboard fatal error:", e);
-  // IMPORTANT: si crash, on montre quand même la page (sinon blanc)
   document.documentElement.classList.remove('auth-pending');
   alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
 });
