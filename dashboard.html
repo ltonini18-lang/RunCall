@@ -1214,9 +1214,14 @@ copyLinkBtn.onclick = async () => {
         // 1) upload avatar if selected
         const newPhotoUrl = await uploadAvatarIfNeeded();
 
-        // 2) update profile text (server reads token -> expert)
-        const updated = await updateExpertViaApi({ name, presentation });
-        if (updated) expertRow = { ...(expertRow || {}), ...updated };
+      // 2) update profile text (server reads token -> expert)
+const updated = await updateExpertViaApi({
+  expert_id: expertId,
+  name,
+  presentation
+});
+if (updated) expertRow = { ...(expertRow || {}), ...updated };
+
 
         // 3) refresh UI
         pname.textContent = name;
