@@ -3,12 +3,23 @@
 // Requires header: x-dashboard-token
 // Returns: { expert: { id, name, presentation, photo_url } }
 
-function setCors(res) {
-  res.setHeader("Access-Control-Allow-Origin", "https://run-call.com");
+function setCors(req, res) {
+  const origin = req.headers.origin || "";
+  const allowed = new Set([
+    "https://www.run-call.com",
+    "https://run-call.com",
+    "https://preview.run-call.com"
+  ]);
+
+  if (allowed.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  // ✅ allow dashboard token header
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dashboard-token");
 }
+
 
 export default async function handler(req, res) {
   setCors(res);
