@@ -807,6 +807,11 @@
   const payoutEmail = document.getElementById("payoutEmail");
   const payoutSaveBtn = document.getElementById("payoutSaveBtn");
 
+let expertId = null;
+let expertRow = null;
+let weekOffset = 0;
+let cachedSlots = [];
+  
   // ---------------------------
   // Language
   // ---------------------------
@@ -823,7 +828,8 @@
     });
     langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     localStorage.setItem('runcall_lang', lang);
-    paintWeek();
+    if (typeof weekOffset !== "undefined") paintWeek();
+
   }
   langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
