@@ -1186,8 +1186,61 @@ let cachedSlots = [];
   }
 
   profileSaveBtn?.addEventListener("click", async () => {
-    const name = (profileName.value || "").trim();
-    const presentation = (profileBio.value || "").trim();
+    if (!expertId){
+      showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
+      return;
+    }
+
+      profileSaveBtn.disabled = true;
+      try{
+        // 1) upload avatar if selected
+        const newPhotoUrl = await uploadAvatarIfNeeded();
+
+      // 2) update profile text (server reads token -> expert)
+const updated = await updateExpertViaApi({
+  expert_id: expertId,
+  name,
+  presentation
+});
+
+if (updated) {
+  // ✅ preserve existing photo_url if API doesn't return it
+  const prevPhoto = (expertRow?.photo_url || "").trim();
+  expertRow = { ...(expertRow || {}), ...updated };
+  if (!(expertRow?.photo_url || "").trim() && prevPhoto) {
+    expertRow.photo_url = prevPhoto;
+  }
+}
+
+
+
+        // 3) refresh UI
+        pname.textContent = name;
+        pbio.textContent = presentation;
+
+        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
+        avatar.innerHTML = "";
+        if (finalPhoto){
+          const img = document.createElement("img");
+          img.src = finalPhoto;
+          img.alt = "Profile photo";
+          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+          avatar.appendChild(img);
+          if (expertRow) expertRow.photo_url = finalPhoto;
+        } else {
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+          if (expertRow) expertRow.photo_url = "";
+        }
+
+        profilePhotoFile.value = "";
+        showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
+      }catch(e){
+        console.error(e);
+        showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
+      }finally{
+        profileSaveBtn.disabled = false;
+      }
+    });
 
     if (!name || !presentation){
       showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
