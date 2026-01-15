@@ -1,4 +1,4 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + real photo upload (dataURL) + auth gate) -->
+<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload + secure update) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -548,7 +548,7 @@
 
     <div class="dash-content">
 
-      <!-- ✅ AUTH GATE (shown when expert_id missing) -->
+      <!-- ✅ AUTH GATE (kept for UI compatibility; real auth uses token->session) -->
       <div class="card" id="authGate" style="display:none;">
         <div class="card-head">
           <div class="badge">
@@ -778,7 +778,7 @@
 (async function(){  <!-- ✅ MODIF #1 : async -->
   try {
     // ---------------------------
-    // Supabase (guarded)
+    // Supabase (kept but unused; safe)
     // ---------------------------
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
@@ -1118,37 +1118,33 @@
     applyLanguage(lang);
 
     // ---------------------------
-    // Expert load
+    // Expert load (token session)
     // ---------------------------
-    async function fetchExpertViaApi(expertId){
+    async function fetchSession(){
       try{
-        const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
+        const r = await fetch(`/api/experts/session?token=${encodeURIComponent(dashToken)}`, {
           headers: { "Accept":"application/json" }
         });
         if (!r.ok) return null;
-        const data = await r.json();
-        return data?.expert || data || null;
+        return await r.json();
       }catch(_){
         return null;
       }
     }
 
     async function loadExpert(){
-      if (expertId) localStorage.setItem("runcall_expert_id", expertId);
-
-      const publicUrl = expertId
-        ? `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`
-        : `https://www.run-call.com/intervenant.html`;
-
-      publicPageBtn.href = publicUrl;
-
-      copyLinkBtn.onclick = async () => {
-        try{
-          await navigator.clipboard.writeText(publicUrl);
-          showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-        }catch(_){
-          showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
-        }
+      const session = await fetchSession();
+      if (!session?.expert_id){
+        window.location.href = "/login.html";
+        return;
+      }
+expertId = session.expert_id;
+      // expertRow is driven from session endpoint
+      expertRow = {
+        id: expertId,
+        name: session.name,
+        presentation: session.presentation,
+        photo_url: session.photo_url
       };
 
       if (expertId){
@@ -1165,41 +1161,55 @@
         if (row) expertRow = row;
       }
 
-      if (expertRow){
-        const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-        const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
+copyLinkBtn.onclick = async () => {
+  try{
+    await navigator.clipboard.writeText(publicUrl);
+    showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+  }catch(_){
+    showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+  }
+};
 
-        pname.textContent = name;
-        pbio.textContent = bio;
 
-        const photo = (expertRow.photo_url || "").trim();
-        avatar.innerHTML = "";
-        if (photo){
-          const img = document.createElement("img");
-          img.src = photo;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-        } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-        }
+      const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
+      const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
+
+      pname.textContent = name;
+      pbio.textContent = bio;
 
         profileName.value = (expertRow.name || "").trim();
         profileBio.value  = (expertRow.presentation || "").trim();
       }
+
+      // fill Profile view
+      profileName.value = (expertRow.name || "").trim();
+      profileBio.value  = (expertRow.presentation || "").trim();
     }
 
     // ---------------------------
-    // Save (API first, fallback supabase)
+    // Save profile text (API update) — token header required
     // ---------------------------
     async function updateExpertViaApi(payload){
       try{
+        const dashboardToken =
+          qs("token") ||
+          localStorage.getItem("runcall_dashboard_token") ||
+          "";
+
+        if (!dashboardToken) return null;
+
         const r = await fetch("/api/experts/update", {
           method: "POST",
-          headers: { "Content-Type":"application/json", "Accept":"application/json" },
+          headers: {
+            "Content-Type":"application/json",
+            "Accept":"application/json",
+            "x-dashboard-token": dashboardToken
+          },
           body: JSON.stringify(payload)
         });
+
         if (!r.ok) return null;
+
         const data = await r.json();
         return data?.expert || data || null;
       }catch(_){
@@ -1208,37 +1218,58 @@
     }
 
     // ---------------------------
-    // Profile photo upload (TEMP: dataURL in photo_url)
+    // Avatar upload to Storage via API (returns signed url)
     // ---------------------------
-    profilePhotoFile?.addEventListener("change", async (e) => {
-      const file = e.target.files?.[0];
-      pendingPhotoDataUrl = null;
-      if (!file) return;
+    async function uploadAvatarIfNeeded(){
+      const file = profilePhotoFile?.files?.[0];
+      if (!file) return null;
 
       if (file.size > 500 * 1024){
         showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-        e.target.value = "";
-        return;
+        profilePhotoFile.value = "";
+        return null;
       }
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        pendingPhotoDataUrl = String(reader.result || "");
-        showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
-      };
-      reader.onerror = () => showToast("err", lang === "fr" ? "Impossible de lire l’image." : "Unable to read image.");
-      reader.readAsDataURL(file);
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const r = await fetch("/api/experts/avatar/upload", {
+        method: "POST",
+        headers: { "x-dashboard-token": dashToken },
+        body: fd
+      });
+
+      if (!r.ok){
+  const txt = await r.text().catch(()=> "");
+  throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
+}
+
+
+
+      const data = await r.json();
+      return data?.photo_url || null;
+    }
+
+    // Optional UX: when selecting a file, toast "ready"
+    profilePhotoFile?.addEventListener("change", () => {
+      const file = profilePhotoFile?.files?.[0];
+      if (!file) return;
+      if (file.size > 500 * 1024){
+        showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
+        profilePhotoFile.value = "";
+        return;
+      }
+      showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
     });
 
     profileSaveBtn?.addEventListener("click", async () => {
       if (!expertId){
-        showToast("err", lang === "fr" ? "Identifiant manquant." : "Missing id.");
+        showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
         return;
       }
 
       const name = (profileName.value || "").trim();
       const presentation = (profileBio.value || "").trim();
-      const photo_url = pendingPhotoDataUrl || (expertRow?.photo_url || null);
 
       if (!name || !presentation){
         showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
@@ -1261,24 +1292,28 @@
           updated = data;
         }
 
-        expertRow = updated;
 
         pname.textContent = updated.name || name;
         pbio.textContent = updated.presentation || presentation;
 
-        const finalPhoto = (updated.photo_url || "").trim();
+        // 3) refresh UI
+        pname.textContent = name;
+        pbio.textContent = presentation;
+
+        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
         avatar.innerHTML = "";
         if (finalPhoto){
           const img = document.createElement("img");
           img.src = finalPhoto;
           img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`; };
+          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
           avatar.appendChild(img);
+          if (expertRow) expertRow.photo_url = finalPhoto;
         } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(updated.name || name)}</div>`;
+          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+          if (expertRow) expertRow.photo_url = "";
         }
 
-        pendingPhotoDataUrl = null;
         profilePhotoFile.value = "";
         showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
       }catch(e){
