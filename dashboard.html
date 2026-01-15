@@ -1220,7 +1220,16 @@ const updated = await updateExpertViaApi({
   name,
   presentation
 });
-if (updated) expertRow = { ...(expertRow || {}), ...updated };
+
+if (updated) {
+  // ✅ preserve existing photo_url if API doesn't return it
+  const prevPhoto = (expertRow?.photo_url || "").trim();
+  expertRow = { ...(expertRow || {}), ...updated };
+  if (!(expertRow?.photo_url || "").trim() && prevPhoto) {
+    expertRow.photo_url = prevPhoto;
+  }
+}
+
 
 
         // 3) refresh UI
