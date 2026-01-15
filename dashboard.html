@@ -796,6 +796,18 @@
       setTimeout(() => toast.classList.remove("show"), 3200);
     }
     function qs(name){ return new URLSearchParams(window.location.search).get(name); }
+
+    // ✅ MODIF #2 : helper pour nettoyer l'URL (enlever token)
+    function cleanUrlParam(key){
+      try{
+        const u = new URL(window.location.href);
+        if (u.searchParams.has(key)){
+          u.searchParams.delete(key);
+          window.history.replaceState({}, "", u.toString());
+        }
+      }catch(_){}
+    }
+
     function initials(str){
       const s = (str || "").trim();
       if (!s) return "RC";
@@ -862,6 +874,7 @@
     let expertRow = null;
     let weekOffset = 0;
     let cachedSlots = [];
+    let pendingPhotoDataUrl = null;
 
     // token (URL first, then storage)
     const tokenFromUrl = qs("token");
