@@ -1,10 +1,20 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload + secure update) -->
+<!-- dashboard.html (FIXED: token session + storage avatar upload + secure update + no supabase writes) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <title>RunCall – Dashboard intervenant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- 🔒 AUTH GATE: cache TOUT immédiatement (anti flash) -->
+  <style>
+    html.auth-pending body { visibility: hidden; }
+  </style>
+  <script>
+    // cache tout dès le parsing HTML (avant rendu)
+    document.documentElement.classList.add('auth-pending');
+  </script>
+
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -538,32 +548,8 @@
 
     <div class="dash-content">
 
-      <!-- ✅ AUTH GATE (kept for UI compatibility; real auth uses token->session) -->
-      <div class="card" id="authGate" style="display:none;">
-        <div class="card-head">
-          <div class="badge">
-            <span class="dot"></span>
-            <span data-fr="Connexion" data-en="Sign in">Connexion</span>
-          </div>
-
-          <h1 class="title" data-fr="Connecte ton Google Calendar" data-en="Connect your Google Calendar">
-            Connecte ton Google Calendar
-          </h1>
-
-          <p class="subtitle"
-             data-fr="Pour accéder à ton dashboard, tu dois connecter Google. RunCall ne gère pas ton planning : il se contente de lire tes événements “RunCall”."
-             data-en="To access your dashboard, you need to connect Google. RunCall doesn’t manage your schedule: it only reads your “RunCall” events.">
-            Pour accéder à ton dashboard, tu dois connecter Google…
-          </p>
-        </div>
-
-        <div class="card-body">
-          <a class="btn btn-primary" href="connect-calendar.html"
-             data-fr="Se connecter avec Google" data-en="Continue with Google">
-            Se connecter avec Google
-          </a>
-        </div>
-      </div>
+      <!-- (kept for UI compatibility; real auth uses token session) -->
+      <div class="card" id="authGate" style="display:none;"></div>
 
       <!-- ✅ HOME VIEW -->
       <div id="viewHome">
@@ -765,449 +751,453 @@
 <div class="toast" id="toast"></div>
 
 <script>
-(function(){
-  try {
-    // ---------------------------
-    // Supabase (kept but unused; safe)
-    // ---------------------------
-    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-    const supabase = (window.supabase && window.supabase.createClient)
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
-      : null;
+(async function(){
+  // ---------------------------
+  // Helpers
+  // ---------------------------
+  function qs(name){ return new URLSearchParams(window.location.search).get(name); }
+  function cleanUrlParams(keys){
+    try{
+      const u = new URL(window.location.href);
+      let changed = false;
+      keys.forEach(k => {
+        if (u.searchParams.has(k)){ u.searchParams.delete(k); changed = true; }
+      });
+      if (changed) window.history.replaceState({}, "", u.toString());
+    }catch(_){}
+  }
+  function initials(str){
+    const s = (str || "").trim();
+    if (!s) return "RC";
+    const parts = s.split(/\s+/).slice(0,2);
+    return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
+  }
 
-    // ---------------------------
-    // UI helpers
-    // ---------------------------
-    const toast = document.getElementById("toast");
-    function showToast(type, text){
-      toast.className = "toast show " + (type === "err" ? "err" : "ok");
-      toast.textContent = text;
-      setTimeout(() => toast.classList.remove("show"), 3200);
+  // UI
+  const toast = document.getElementById("toast");
+  function showToast(type, text){
+    toast.className = "toast show " + (type === "err" ? "err" : "ok");
+    toast.textContent = text;
+    setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  // Elements
+  const langButtons = document.querySelectorAll('.lang-switch button');
+  const avatar = document.getElementById("avatar");
+  const pname = document.getElementById("pname");
+  const pbio = document.getElementById("pbio");
+  const publicPageBtn = document.getElementById("publicPageBtn");
+  const copyLinkBtn = document.getElementById("copyLinkBtn");
+  const editProfileBtn = document.getElementById("editProfileBtn");
+
+  const viewHome = document.getElementById("viewHome");
+  const viewProfile = document.getElementById("viewProfile");
+  const viewPayouts = document.getElementById("viewPayouts");
+
+  const calendarWrap = document.getElementById("calendarWrap");
+  const weekGrid = document.getElementById("weekGrid");
+  const emptyOverlay = document.getElementById("emptyOverlay");
+  const weekRangeLabel = document.getElementById("weekRangeLabel");
+  const prevWeekBtn = document.getElementById("prevWeekBtn");
+  const nextWeekBtn = document.getElementById("nextWeekBtn");
+
+  const profilePhotoFile = document.getElementById("profilePhotoFile");
+  const profileName = document.getElementById("profileName");
+  const profileBio = document.getElementById("profileBio");
+  const profileSaveBtn = document.getElementById("profileSaveBtn");
+
+  const payoutMethod = document.getElementById("payoutMethod");
+  const payoutEmail = document.getElementById("payoutEmail");
+  const payoutSaveBtn = document.getElementById("payoutSaveBtn");
+
+  // ---------------------------
+  // Language
+  // ---------------------------
+  let lang = localStorage.getItem('runcall_lang');
+  if (!lang) {
+    const browserLang = (navigator.language || "").toLowerCase();
+    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
+  }
+  function applyLanguage(nextLang){
+    lang = nextLang;
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
+      el.textContent = el.dataset[lang];
+    });
+    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
+    localStorage.setItem('runcall_lang', lang);
+    paintWeek();
+  }
+  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+  applyLanguage(lang);
+
+  // ---------------------------
+  // Auth: token => session
+  // ---------------------------
+  const tokenFromUrl = qs("token");
+  const tokenFromStorage = localStorage.getItem("runcall_token");
+  const token = tokenFromUrl || tokenFromStorage;
+
+  if (!token){
+    window.location.replace("/login.html");
+    return;
+  }
+
+  // store + clean URL
+  if (tokenFromUrl) localStorage.setItem("runcall_token", tokenFromUrl);
+  cleanUrlParams(["token", "connected"]);
+
+  // Supabase client (read-only fallback only)
+  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+  const supabase = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+    : null;
+
+  let expertId = null;
+  let expertRow = null;
+  let weekOffset = 0;
+  let cachedSlots = [];
+
+  async function fetchSession(){
+    try{
+      const r = await fetch(`/api/experts/session?token=${encodeURIComponent(token)}`, {
+        headers: { "Accept":"application/json" }
+      });
+      if (!r.ok) return null;
+      return await r.json();
+    }catch(_){
+      return null;
     }
-    function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-    function initials(str){
-      const s = (str || "").trim();
-      if (!s) return "RC";
-      const parts = s.split(/\s+/).slice(0,2);
-      return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
+  }
+
+  const session = await fetchSession();
+  if (!session || !session.expert_id){
+    localStorage.removeItem("runcall_token");
+    window.location.replace("/login.html");
+    return;
+  }
+
+  expertId = session.expert_id;
+  localStorage.setItem("runcall_expert_id", expertId);
+
+  // Build base expertRow from session
+  expertRow = {
+    id: expertId,
+    name: session.name || "",
+    presentation: session.presentation || "",
+    photo_url: session.photo_url || ""
+  };
+
+  // Now that auth is OK, show UI
+  document.documentElement.classList.remove('auth-pending');
+
+  // ---------------------------
+  // Router
+  // ---------------------------
+  function showView(tab){
+    document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+    const active = document.querySelector(`.sb-item[data-tab="${tab}"]`);
+    if (active) active.classList.add("active");
+
+    viewHome.style.display = (tab === "home") ? "" : "none";
+    viewProfile.style.display = (tab === "profile") ? "" : "none";
+    viewPayouts.style.display = (tab === "payouts") ? "" : "none";
+
+    if (tab === "analytics" || tab === "settings"){
+      showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
+      // keep current tab
+      const fallback = "home";
+      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
+      const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
+      if (a2) a2.classList.add("active");
+      viewHome.style.display = "";
+      viewProfile.style.display = "none";
+      viewPayouts.style.display = "none";
+    }
+  }
+
+  document.querySelectorAll(".sb-item").forEach(item => {
+    item.addEventListener("click", () => {
+      const tab = item.getAttribute("data-tab");
+      if (!tab) return;
+      showView(tab);
+    });
+  });
+  editProfileBtn.addEventListener("click", () => showView("profile"));
+
+  // ---------------------------
+  // Dates
+  // ---------------------------
+  function startOfWeek(d){
+    const x = new Date(d);
+    const day = x.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    x.setDate(x.getDate() + diff);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
+
+  function fmtTime(date){
+    const locale = (lang === "fr") ? "fr-FR" : "en-US";
+    return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
+  }
+  function fmtRange(monday){
+    const end = addDays(monday, 6);
+    const locale = (lang === "fr") ? "fr-FR" : "en-US";
+    const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
+    const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
+    return `${a} → ${b}`;
+  }
+  function getMondayForOffset(offset){
+    const base = startOfWeek(new Date());
+    return addDays(base, offset * 7);
+  }
+
+  // ---------------------------
+  // Calendar render
+  // ---------------------------
+  function renderWeekSkeleton(monday){
+    weekGrid.innerHTML = "";
+    const dayNames = (lang === "fr")
+      ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
+      : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+    for (let i=0;i<7;i++){
+      const dayDate = addDays(monday, i);
+      const dd = String(dayDate.getDate()).padStart(2,'0');
+      const mm = String(dayDate.getMonth()+1).padStart(2,'0');
+
+      const col = document.createElement("div");
+      col.className = "day-col";
+      col.innerHTML = `
+        <div class="day-head">
+          <span>${dayNames[i]}</span>
+          <span class="day-date">${dd}/${mm}</span>
+        </div>
+        <div class="slots" data-day="${ymd(dayDate)}"></div>
+      `;
+      weekGrid.appendChild(col);
+    }
+  }
+
+  function normalizeSlots(raw){
+    return (raw || []).map(s => {
+      const startRaw = s.start || s.slot_start;
+      const endRaw   = s.end   || s.slot_end;
+      return {
+        start: startRaw ? new Date(startRaw) : null,
+        end: endRaw ? new Date(endRaw) : null,
+        title: s.title || s.summary || "RunCall"
+      };
+    }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
+  }
+
+  function filterSlotsForWeek(monday, slots){
+    const start = new Date(monday);
+    const end = addDays(start, 7);
+    return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
+  }
+
+  function setEmptyState(hasAnySlots){
+    if (!hasAnySlots){
+      calendarWrap.classList.add("is-empty");
+      emptyOverlay.classList.add("show");
+    } else {
+      calendarWrap.classList.remove("is-empty");
+      emptyOverlay.classList.remove("show");
+    }
+  }
+
+  function paintWeek(){
+    const monday = getMondayForOffset(weekOffset);
+    weekRangeLabel.textContent = fmtRange(monday);
+
+    renderWeekSkeleton(monday);
+
+    const slots = normalizeSlots(cachedSlots);
+    setEmptyState(slots.length > 0);
+
+    const inWeek = filterSlotsForWeek(monday, slots);
+    for (const s of inWeek){
+      const key = ymd(s.start);
+      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
+      if (!bucket) continue;
+
+      const item = document.createElement("div");
+      item.className = "slot";
+      item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
+      bucket.appendChild(item);
+    }
+  }
+
+  async function fetchSlots(expertId, fromISO, toISO){
+    const q = new URLSearchParams({ expert_id: expertId });
+    if (fromISO) q.set("from", fromISO);
+    if (toISO) q.set("to", toISO);
+
+    const urls = [
+      `/api/experts/slots?${q.toString()}`,
+      `/api/slots?${q.toString()}`
+    ];
+
+    for (const url of urls){
+      try{
+        const r = await fetch(url, { headers: { "Accept":"application/json" } });
+        if (!r.ok) continue;
+        const data = await r.json();
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.slots)) return data.slots;
+        return [];
+      }catch(_){}
+    }
+    return [];
+  }
+
+  async function reloadWeek(){
+    if (!expertId) return;
+    const monday = getMondayForOffset(weekOffset);
+    const fromISO = monday.toISOString();
+    const toISO = addDays(monday, 7).toISOString();
+    cachedSlots = await fetchSlots(expertId, fromISO, toISO);
+    paintWeek();
+  }
+
+  prevWeekBtn.addEventListener("click", async () => {
+    weekOffset -= 1;
+    await reloadWeek();
+  });
+  nextWeekBtn.addEventListener("click", async () => {
+    weekOffset += 1;
+    await reloadWeek();
+  });
+
+  // ---------------------------
+  // Public page link
+  // ---------------------------
+  const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
+  publicPageBtn.href = publicUrl;
+  copyLinkBtn.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(publicUrl);
+      showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+    }catch(_){
+      showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+    }
+  });
+
+  // ---------------------------
+  // Render header + fill profile form
+  // ---------------------------
+  function renderHeaderFromExpert(){
+    const name = (expertRow?.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
+    const bio  = (expertRow?.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
+    const photo = (expertRow?.photo_url || "").trim();
+
+    pname.textContent = name;
+    pbio.textContent = bio;
+
+    avatar.innerHTML = "";
+    if (photo){
+      const img = document.createElement("img");
+      img.src = photo;
+      img.alt = "Profile photo";
+      img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
+      avatar.appendChild(img);
+    } else {
+      avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
     }
 
-    // ---------------------------
-    // Elements
-    // ---------------------------
-    const langButtons = document.querySelectorAll('.lang-switch button');
+    profileName.value = (expertRow?.name || "").trim();
+    profileBio.value  = (expertRow?.presentation || "").trim();
+  }
 
-    const avatar = document.getElementById("avatar");
-    const pname = document.getElementById("pname");
-    const pbio = document.getElementById("pbio");
-    const publicPageBtn = document.getElementById("publicPageBtn");
-    const copyLinkBtn = document.getElementById("copyLinkBtn");
-    const editProfileBtn = document.getElementById("editProfileBtn");
+  renderHeaderFromExpert();
 
-    const authGate = document.getElementById("authGate");
-    const viewHome = document.getElementById("viewHome");
-    const viewProfile = document.getElementById("viewProfile");
-    const viewPayouts = document.getElementById("viewPayouts");
+  // Optional: supabase read fallback if session didn't include info (safe)
+  if (supabase && (!expertRow.name && !expertRow.presentation && !expertRow.photo_url)){
+    try{
+      const { data: row } = await supabase
+        .from("experts")
+        .select("id,name,presentation,photo_url")
+        .eq("id", expertId)
+        .maybeSingle();
+      if (row){
+        expertRow = row;
+        renderHeaderFromExpert();
+      }
+    }catch(_){}
+  }
 
-    const calendarWrap = document.getElementById("calendarWrap");
-    const weekGrid = document.getElementById("weekGrid");
-    const emptyOverlay = document.getElementById("emptyOverlay");
-    const weekRangeLabel = document.getElementById("weekRangeLabel");
-    const prevWeekBtn = document.getElementById("prevWeekBtn");
-    const nextWeekBtn = document.getElementById("nextWeekBtn");
-
-    const profilePhotoFile = document.getElementById("profilePhotoFile");
-    const profileName = document.getElementById("profileName");
-    const profileBio = document.getElementById("profileBio");
-    const profileSaveBtn = document.getElementById("profileSaveBtn");
-
-    const payoutMethod = document.getElementById("payoutMethod");
-    const payoutEmail = document.getElementById("payoutEmail");
-    const payoutSaveBtn = document.getElementById("payoutSaveBtn");
-
-    // ---------------------------
-    // State
-    // ---------------------------
-    let lang = localStorage.getItem('runcall_lang');
-    if (!lang) {
-      const browserLang = (navigator.language || "").toLowerCase();
-      lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-    }
-
-    // ✅ token-based dashboard session
-    let dashToken = qs("token") || localStorage.getItem("runcall_dashboard_token") || null;
-    if (!dashToken) {
-      window.location.href = "/login.html";
+  // ---------------------------
+  // Profile save (API only)
+  // ---------------------------
+  profilePhotoFile?.addEventListener("change", () => {
+    const file = profilePhotoFile?.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024){
+      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
+      profilePhotoFile.value = "";
       return;
     }
-    localStorage.setItem("runcall_dashboard_token", dashToken);
+    showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
+  });
 
-    let expertId = null;
-    let expertRow = null;
-    let weekOffset = 0;
-    let cachedSlots = [];
+  async function uploadAvatarIfNeeded(){
+    const file = profilePhotoFile?.files?.[0];
+    if (!file) return null;
 
-    // ---------------------------
-    // Router
-    // ---------------------------
-    function showView(tab){
-      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-      const active = document.querySelector(`.sb-item[data-tab="${tab}"]`);
-      if (active) active.classList.add("active");
-
-      viewHome.style.display = (tab === "home") ? "" : "none";
-      viewProfile.style.display = (tab === "profile") ? "" : "none";
-      viewPayouts.style.display = (tab === "payouts") ? "" : "none";
-
-      if (tab === "analytics" || tab === "settings"){
-        showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-        const fallback = "home";
-        document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-        const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
-        if (a2) a2.classList.add("active");
-        viewHome.style.display = "";
-        viewProfile.style.display = "none";
-        viewPayouts.style.display = "none";
-      }
+    if (file.size > 500 * 1024){
+      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
+      profilePhotoFile.value = "";
+      return null;
     }
 
-    document.querySelectorAll(".sb-item").forEach(item => {
-      item.addEventListener("click", () => {
-        const tab = item.getAttribute("data-tab");
-        if (!tab) return;
-        showView(tab);
-      });
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const r = await fetch("/api/experts/avatar/upload", {
+      method: "POST",
+      headers: { "x-dashboard-token": token },
+      body: fd
     });
 
-    editProfileBtn.addEventListener("click", () => showView("profile"));
-
-    // ---------------------------
-    // Dates
-    // ---------------------------
-    function startOfWeek(d){
-      const x = new Date(d);
-      const day = x.getDay();
-      const diff = (day === 0 ? -6 : 1) - day;
-      x.setDate(x.getDate() + diff);
-      x.setHours(0,0,0,0);
-      return x;
-    }
-    function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-    function ymd(d){ return new Date(d).toISOString().slice(0,10); }
-
-    function fmtTime(date){
-      const locale = (lang === "fr") ? "fr-FR" : "en-US";
-      return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
-    }
-    function fmtRange(monday){
-      const end = addDays(monday, 6);
-      const locale = (lang === "fr") ? "fr-FR" : "en-US";
-      const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
-      const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
-      return `${a} → ${b}`;
-    }
-    function getMondayForOffset(offset){
-      const base = startOfWeek(new Date());
-      return addDays(base, offset * 7);
+    if (!r.ok){
+      const txt = await r.text().catch(()=> "");
+      throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
     }
 
-    // ---------------------------
-    // Calendar render
-    // ---------------------------
-    function renderWeekSkeleton(monday){
-      weekGrid.innerHTML = "";
-      const dayNames = (lang === "fr")
-        ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
-        : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-
-      for (let i=0;i<7;i++){
-        const dayDate = addDays(monday, i);
-        const dd = String(dayDate.getDate()).padStart(2,'0');
-        const mm = String(dayDate.getMonth()+1).padStart(2,'0');
-
-        const col = document.createElement("div");
-        col.className = "day-col";
-        col.innerHTML = `
-          <div class="day-head">
-            <span>${dayNames[i]}</span>
-            <span class="day-date">${dd}/${mm}</span>
-          </div>
-          <div class="slots" data-day="${ymd(dayDate)}"></div>
-        `;
-        weekGrid.appendChild(col);
-      }
-    }
-
-    function normalizeSlots(raw){
-      return (raw || []).map(s => {
-        const startRaw = s.start || s.slot_start;
-        const endRaw   = s.end   || s.slot_end;
-        return {
-          start: startRaw ? new Date(startRaw) : null,
-          end: endRaw ? new Date(endRaw) : null,
-          title: s.title || s.summary || "RunCall"
-        };
-      }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
-    }
-
-    function filterSlotsForWeek(monday, slots){
-      const start = new Date(monday);
-      const end = addDays(start, 7);
-      return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
-    }
-
-    function setEmptyState(hasAnySlots){
-      if (!hasAnySlots){
-        calendarWrap.classList.add("is-empty");
-        emptyOverlay.classList.add("show");
-      } else {
-        calendarWrap.classList.remove("is-empty");
-        emptyOverlay.classList.remove("show");
-      }
-    }
-
-    function paintWeek(){
-      const monday = getMondayForOffset(weekOffset);
-      weekRangeLabel.textContent = fmtRange(monday);
-
-      renderWeekSkeleton(monday);
-
-      const slots = normalizeSlots(cachedSlots);
-      setEmptyState(slots.length > 0);
-
-      const inWeek = filterSlotsForWeek(monday, slots);
-      for (const s of inWeek){
-        const key = ymd(s.start);
-        const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
-        if (!bucket) continue;
-
-        const item = document.createElement("div");
-        item.className = "slot";
-        item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
-        bucket.appendChild(item);
-      }
-    }
-
-    async function fetchSlots(expertId, fromISO, toISO){
-      const q = new URLSearchParams({ expert_id: expertId });
-      if (fromISO) q.set("from", fromISO);
-      if (toISO) q.set("to", toISO);
-
-      const urls = [
-        `/api/experts/slots?${q.toString()}`,
-        `/api/slots?${q.toString()}`
-      ];
-
-      for (const url of urls){
-        try{
-          const r = await fetch(url, { headers: { "Accept":"application/json" } });
-          if (!r.ok) continue;
-          const data = await r.json();
-          if (Array.isArray(data)) return data;
-          if (Array.isArray(data?.slots)) return data.slots;
-          return [];
-        }catch(_){}
-      }
-      return [];
-    }
-
-    async function reloadWeek(){
-      if (!expertId) return;
-      const monday = getMondayForOffset(weekOffset);
-      const fromISO = monday.toISOString();
-      const toISO = addDays(monday, 7).toISOString();
-      cachedSlots = await fetchSlots(expertId, fromISO, toISO);
-      paintWeek();
-    }
-
-    prevWeekBtn.addEventListener("click", async () => {
-      weekOffset -= 1;
-      await reloadWeek();
-    });
-
-    nextWeekBtn.addEventListener("click", async () => {
-      weekOffset += 1;
-      await reloadWeek();
-    });
-
-    // ---------------------------
-    // Language switch
-    // ---------------------------
-    function applyLanguage(nextLang){
-      lang = nextLang;
-      document.documentElement.lang = lang;
-
-      document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-        el.textContent = el.dataset[lang];
-      });
-
-      langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-      localStorage.setItem('runcall_lang', lang);
-
-      paintWeek();
-    }
-    langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-    applyLanguage(lang);
-
-    // ---------------------------
-    // Expert load (token session)
-    // ---------------------------
-    async function fetchSession(){
-      try{
-        const r = await fetch(`/api/experts/session?token=${encodeURIComponent(dashToken)}`, {
-          headers: { "Accept":"application/json" }
-        });
-        if (!r.ok) return null;
-        return await r.json();
-      }catch(_){
-        return null;
-      }
-    }
-
-    async function loadExpert(){
-      const session = await fetchSession();
-      if (!session?.expert_id){
-        window.location.href = "/login.html";
-        return;
-      }
-expertId = session.expert_id;
-      // expertRow is driven from session endpoint
-      expertRow = {
-        id: expertId,
-        name: session.name,
-        presentation: session.presentation,
-        photo_url: session.photo_url
-      };
-
-      // ✅ Public page on the SAME origin (preview → preview, prod → prod)
-const publicUrl =
-  `${window.location.origin}/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
-
-publicPageBtn.href = publicUrl;
-
-copyLinkBtn.onclick = async () => {
-  try{
-    await navigator.clipboard.writeText(publicUrl);
-    showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-  }catch(_){
-    showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+    const data = await r.json();
+    return data?.photo_url || null;
   }
-};
 
-
-      const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-      const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
-
-      pname.textContent = name;
-      pbio.textContent = bio;
-
-      const photo = (expertRow.photo_url || "").trim();
-      avatar.innerHTML = "";
-      if (photo){
-        const img = document.createElement("img");
-        img.src = photo;
-        img.alt = "Profile photo";
-        img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-        avatar.appendChild(img);
-      } else {
-        avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-      }
-
-      // fill Profile view
-      profileName.value = (expertRow.name || "").trim();
-      profileBio.value  = (expertRow.presentation || "").trim();
-    }
-
-    // ---------------------------
-    // Save profile text (API update) — token header required
-    // ---------------------------
-    async function updateExpertViaApi(payload){
-      try{
-        const dashboardToken =
-          qs("token") ||
-          localStorage.getItem("runcall_dashboard_token") ||
-          "";
-
-        if (!dashboardToken) return null;
-
-        const r = await fetch("/api/experts/update", {
-          method: "POST",
-          headers: {
-            "Content-Type":"application/json",
-            "Accept":"application/json",
-            "x-dashboard-token": dashboardToken
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!r.ok) return null;
-
-        const data = await r.json();
-        return data?.expert || data || null;
-      }catch(_){
-        return null;
-      }
-    }
-
-    // ---------------------------
-    // Avatar upload to Storage via API (returns signed url)
-    // ---------------------------
-    async function uploadAvatarIfNeeded(){
-      const file = profilePhotoFile?.files?.[0];
-      if (!file) return null;
-
-      if (file.size > 500 * 1024){
-        showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-        profilePhotoFile.value = "";
-        return null;
-      }
-
-      const fd = new FormData();
-      fd.append("file", file);
-
-      const r = await fetch("/api/experts/avatar/upload", {
-        method: "POST",
-        headers: { "x-dashboard-token": dashToken },
-        body: fd
-      });
-
-      if (!r.ok){
-  const txt = await r.text().catch(()=> "");
-  throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
-}
-
-
-
-      const data = await r.json();
-      return data?.photo_url || null;
-    }
-
-    // Optional UX: when selecting a file, toast "ready"
-    profilePhotoFile?.addEventListener("change", () => {
-      const file = profilePhotoFile?.files?.[0];
-      if (!file) return;
-      if (file.size > 500 * 1024){
-        showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-        profilePhotoFile.value = "";
-        return;
-      }
-      showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
+  async function updateExpertViaApi(payload){
+    const r = await fetch("/api/experts/update", {
+      method: "POST",
+      headers: {
+        "Content-Type":"application/json",
+        "Accept":"application/json",
+        "x-dashboard-token": token
+      },
+      body: JSON.stringify(payload)
     });
 
-    profileSaveBtn?.addEventListener("click", async () => {
-      if (!expertId){
-        showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
-        return;
-      }
+    if (!r.ok){
+      const txt = await r.text().catch(()=> "");
+      throw new Error(`Update failed (${r.status}) ${txt}`);
+    }
 
-      const name = (profileName.value || "").trim();
-      const presentation = (profileBio.value || "").trim();
+    const data = await r.json();
+    return data?.expert || data || null;
+  }
 
-      if (!name || !presentation){
-        showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
-        return;
-      }
+  profileSaveBtn?.addEventListener("click", async () => {
+    if (!expertId){
+      showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
+      return;
+    }
 
       profileSaveBtn.disabled = true;
       try{
@@ -1260,51 +1250,82 @@ if (updated) {
       }
     });
 
-    // ---------------------------
-    // Payouts (TEMP: localStorage)
-    // ---------------------------
-    function loadPayoutLocal(){
-      const m = localStorage.getItem("runcall_payout_method");
-      const e = localStorage.getItem("runcall_payout_email");
-      if (m) payoutMethod.value = m;
-      if (e) payoutEmail.value = e;
+    if (!name || !presentation){
+      showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
+      return;
     }
-    loadPayoutLocal();
 
-    payoutSaveBtn?.addEventListener("click", async () => {
-      const method = payoutMethod.value;
-      const email = (payoutEmail.value || "").trim();
-      if (!email){
-        showToast("err", lang === "fr" ? "Email requis." : "Email required.");
-        return;
-      }
-      localStorage.setItem("runcall_payout_method", method);
-      localStorage.setItem("runcall_payout_email", email);
-      showToast("ok", lang === "fr" ? "Enregistré ✅ (temporaire)" : "Saved ✅ (temporary)");
-    });
+    profileSaveBtn.disabled = true;
+    try{
+      // 1) upload avatar if a file was selected
+      const newPhotoUrl = await uploadAvatarIfNeeded();
 
-    // ---------------------------
-    // Init
-    // ---------------------------
-    paintWeek();
+      // 2) update expert via API only (no supabase write)
+      const updated = await updateExpertViaApi({
+        expert_id: expertId,
+        name,
+        presentation,
+        photo_url: (newPhotoUrl || expertRow?.photo_url || null)
+      });
 
-    (async () => {
-      showView("home");
+      // 3) update local state + UI
+      expertRow = {
+        ...(expertRow || {}),
+        ...(updated || {}),
+        id: expertId,
+        name,
+        presentation,
+        photo_url: (updated?.photo_url || newPhotoUrl || expertRow?.photo_url || "")
+      };
 
-      await loadExpert();
+      renderHeaderFromExpert();
 
-      const monday = getMondayForOffset(weekOffset);
-      const fromISO = monday.toISOString();
-      const toISO = addDays(monday, 7).toISOString();
-      cachedSlots = await fetchSlots(expertId, fromISO, toISO);
-      paintWeek();
-    })();
+      profilePhotoFile.value = "";
+      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
+    }catch(e){
+      console.error(e);
+      showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
+    }finally{
+      profileSaveBtn.disabled = false;
+    }
+  });
 
-  } catch (e) {
-    console.error("Dashboard fatal error:", e);
-    alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
+  // ---------------------------
+  // Payouts (TEMP: localStorage)
+  // ---------------------------
+  function loadPayoutLocal(){
+    const m = localStorage.getItem("runcall_payout_method");
+    const e = localStorage.getItem("runcall_payout_email");
+    if (m) payoutMethod.value = m;
+    if (e) payoutEmail.value = e;
   }
-})();
+  loadPayoutLocal();
+
+  payoutSaveBtn?.addEventListener("click", async () => {
+    const method = payoutMethod.value;
+    const email = (payoutEmail.value || "").trim();
+    if (!email){
+      showToast("err", lang === "fr" ? "Email requis." : "Email required.");
+      return;
+    }
+    localStorage.setItem("runcall_payout_method", method);
+    localStorage.setItem("runcall_payout_email", email);
+    showToast("ok", lang === "fr" ? "Enregistré ✅ (temporaire)" : "Saved ✅ (temporary)");
+  });
+
+  // ---------------------------
+  // Init
+  // ---------------------------
+  showView("home");
+  paintWeek();
+  await reloadWeek();
+
+})().catch((e) => {
+  console.error("Dashboard fatal error:", e);
+  // IMPORTANT: si crash, on montre quand même la page (sinon blanc)
+  document.documentElement.classList.remove('auth-pending');
+  alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
+});
 </script>
 
 </body>
