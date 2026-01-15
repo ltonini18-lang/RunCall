@@ -41,72 +41,68 @@
       overflow:hidden;
     }
 
-    /* ✅ Header tagline next to logo (premium typography + single-line on mobile) */
     /* ✅ Header tagline next to logo (handwritten/calligraphy vibe + tighter spacing) */
-.site-header .header-inner{
-  display:flex;
-  align-items:baseline;     /* feels more “logo + signature” */
-  gap:6px;                 /* ✅ less space between logo and phrase */
-}
+    .site-header .header-inner{
+      display:flex;
+      align-items:baseline;     /* feels more “logo + signature” */
+      gap:6px;                 /* ✅ less space between logo and phrase */
+    }
 
-/* in case style.css adds spacing somewhere */
-.site-header .logo-link{ display:inline-flex; align-items:baseline; }
-.site-header .logo{ line-height: 1; }
+    /* in case style.css adds spacing somewhere */
+    .site-header .logo-link{ display:inline-flex; align-items:baseline; }
+    .site-header .logo{ line-height: 1; }
 
-.rc-tagline{
-  /* ✅ Premium SaaS / "licorne" typography, very readable */
-  font-family: ui-sans-serif, system-ui, -apple-system,
-               "SF Pro Display", "SF Pro Text",
-               Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    .rc-tagline{
+      /* ✅ Premium SaaS / "licorne" typography, very readable */
+      font-family: ui-sans-serif, system-ui, -apple-system,
+                   "SF Pro Display", "SF Pro Text",
+                   Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  font-style: italic;
-  font-weight: 650;
-  font-size: 1.02rem;              /* desktop size */
-  color: rgba(15,23,42,.72);          /* darker, readable */
+      font-style: italic;
+      font-weight: 650;
+      font-size: 1.02rem;              /* desktop size */
+      color: rgba(15,23,42,.72);          /* darker, readable */
 
-  letter-spacing: -.02em;
-  line-height: 1;
+      letter-spacing: -.02em;
+      line-height: 1;
 
-  white-space: nowrap;
-  margin-left: 2px;                   /* glued to logo */
-  transform: translateY(1px);
-  text-shadow: 0 1px 0 rgba(255,255,255,.35);
-}
+      white-space: nowrap;
+      margin-left: 2px;                   /* glued to logo */
+      transform: translateY(1px);
+      text-shadow: 0 1px 0 rgba(255,255,255,.35);
+    }
 
+    @media (max-width: 640px){
+      .site-header .header-inner{
+        flex-direction: row;                 /* ✅ reste en ligne */
+        align-items: baseline;
+        justify-content: flex-start !important;
+        gap: 6px;
+      }
 
-@media (max-width: 640px){
-  .site-header .header-inner{
-    flex-direction: row;                 /* ✅ reste en ligne */
-    align-items: baseline;
-    justify-content: flex-start !important;
-    gap: 6px;
-  }
+      /* Empêche le logo de casser la ligne */
+      .site-header .logo-link{ flex: 0 0 auto; }
+      .site-header .logo{ white-space: nowrap; }
 
-  /* Empêche le logo de casser la ligne */
-  .site-header .logo-link{ flex: 0 0 auto; }
-  .site-header .logo{ white-space: nowrap; }
+      /* La phrase reste collée, et s’adapte en taille pour rentrer */
+      .rc-tagline{
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-left: 0;
+        white-space: nowrap;
 
-  /* La phrase reste collée, et s’adapte en taille pour rentrer */
- .rc-tagline{
-  flex: 1 1 auto;
-  min-width: 0;
-  margin-left: 0;
-  white-space: nowrap;
+        /* ✅ smaller so it fits (no missing letters) */
+        font-size: clamp(0.64rem, 2.2vw, 0.86rem);
 
-  /* ✅ smaller so it fits (no missing letters) */
-  font-size: clamp(0.64rem, 2.2vw, 0.86rem);
+        /* ✅ fix cut descenders (g, q, y, p) */
+        line-height: 1.18;
+        padding-bottom: 2px;
+        transform: none;
 
-  /* ✅ fix cut descenders (g, q, y, p) */
-  line-height: 1.18;
-  padding-bottom: 2px;
-  transform: none;
-
-  overflow: hidden;
-  text-overflow: clip; /* ✅ don't hide extra letters behind ellipsis */
-}
-
-}
-
+        overflow: hidden;
+        text-overflow: clip; /* ✅ don't hide extra letters behind ellipsis */
+      }
+    }
 
     .p-hero{
       padding: 22px 24px 18px;
@@ -324,7 +320,7 @@
       font-weight: 950;
       letter-spacing: -.01em;
 
-      transition: transform 140ms ease, background-color 160ms ease, box-shadow 180ms ease;
+      transition: transform 140ms ease, background-color 160ms ease, box-shadow 180ms ease, opacity 160ms ease;
       cursor:pointer;
       background:#fff;
     }
@@ -368,6 +364,20 @@
       border-radius: 999px;
       background: rgba(22,119,255,.30);
       box-shadow: none;
+    }
+
+    /* ✅ NEW: past days not clickable */
+    .p-mday.is-past{
+      opacity: .35;
+      cursor: not-allowed !important;
+      transform:none !important;
+      background: transparent !important;
+      box-shadow:none !important;
+      color: #94a3b8 !important;
+    }
+    .p-mday.is-past.has-any{
+      background: transparent !important;
+      color: #94a3b8 !important;
     }
 
     .p-slots-date{
@@ -572,12 +582,11 @@
       <div class="logo">RunCall</div>
     </a>
 
-    <!-- ✅ Premium, single-line on mobile (fits because full width under logo on mobile) -->
-<div class="rc-tagline"
-     data-fr="Un échange en visio pour poser toutes tes questions"
-     data-en="A video chat to ask all your questions and improve">
-  Un échange en visio pour poser toutes tes questions
-</div>
+    <div class="rc-tagline"
+         data-fr="Un échange en visio pour poser toutes tes questions"
+         data-en="A video chat to ask all your questions and improve">
+      Un échange en visio pour poser toutes tes questions
+    </div>
 
   </div>
 </header>
@@ -723,6 +732,13 @@
     return `${y}-${m}-${day}`;
   }
 
+  // ✅ NEW: day start (local) for “past days”
+  function startOfToday(){
+    const t = new Date();
+    t.setHours(0,0,0,0);
+    return t;
+  }
+
   function showError(el, msg){
     el.style.display = "block";
     el.textContent = msg;
@@ -789,7 +805,10 @@
     }
 
     try{
-      const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`);
+      // ✅ expects API to return { name, presentation, photo_url } (photo_url is signed from photo_path)
+      const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
+        headers: { "Accept":"application/json" }
+      });
       if (!r.ok) throw new Error("fetch failed");
       const d = await r.json();
 
@@ -803,7 +822,7 @@
       const initial = String(name || "R").trim().slice(0,1).toUpperCase() || "R";
       fallback.textContent = initial;
 
-      const photoUrl = d?.photo_url || "";
+      const photoUrl = String(d?.photo_url || "").trim();
       if (photoUrl) {
         img.onload = () => { img.style.display = "block"; fallback.style.display = "none"; };
         img.onerror = () => { img.style.display = "none"; fallback.style.display = "grid"; };
@@ -837,12 +856,20 @@
 
   function groupSlotsByDay(slots){
     const map = new Map();
+    const today0 = startOfToday().getTime();
+
     slots.forEach(s => {
       const start = new Date(s.start);
+      if (isNaN(start.getTime())) return;
+
+      // ✅ NEW: ignore past slots
+      if (start.getTime() < today0) return;
+
       const key = localKey(start);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     });
+
     for (const [k, arr] of map.entries()){
       arr.sort((a,b) => new Date(a.start) - new Date(b.start));
       map.set(k, arr);
@@ -1002,6 +1029,7 @@
     latestGrouped = groupSlotsByDay(slots);
 
     const currentMonth = viewMonth.getMonth();
+    const today0 = startOfToday().getTime();
 
     days.forEach(d => {
       const key = localKey(d);
@@ -1021,6 +1049,27 @@
 
       cell.textContent = String(d.getDate());
 
+      // ✅ NEW: past days = disabled (and can't open slots panel)
+      const dayStart = new Date(d);
+      dayStart.setHours(0,0,0,0);
+      const isPast = dayStart.getTime() < today0;
+      if (isPast){
+        cell.classList.add("is-past");
+        cal.appendChild(cell);
+        return;
+      }
+
+      if (!hasAny){
+        // no slots -> do nothing on click (but keep hover behavior)
+        cell.addEventListener("click", () => {
+          setSlotsPanel(null);
+          selectedDayKey = null;
+          highlightSelectedDay();
+        });
+        cal.appendChild(cell);
+        return;
+      }
+
       cell.addEventListener("click", () => {
         setSlotsPanel(key);
         highlightSelectedDay();
@@ -1028,6 +1077,15 @@
 
       cal.appendChild(cell);
     });
+
+    // if selected day became invalid (past) => clear
+    if (selectedDayKey){
+      const [yy,mm,dd] = selectedDayKey.split("-").map(Number);
+      const sel = new Date(yy, mm-1, dd, 0,0,0,0);
+      if (sel.getTime() < today0){
+        selectedDayKey = null;
+      }
+    }
 
     if (!selectedDayKey){
       gridRoot.classList.remove("has-day");
@@ -1070,7 +1128,7 @@
   cancelModalBtn.addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
-  // ✅ CHANGED: Create a pending booking in backend, then redirect to support.html with booking_id
+  // Create a pending booking in backend, then redirect to support.html with booking_id
   goSupportBtn.addEventListener("click", async () => {
     modalError.style.display = "none";
     modalError.textContent = "";
@@ -1130,51 +1188,53 @@
   // ---------- Month nav ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
+    selectedDayKey = null;
     renderCalendar();
   });
   document.getElementById("nextMonth").addEventListener("click", () => {
     viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
+    selectedDayKey = null;
     renderCalendar();
   });
 
   // ======================================================
   // MOBILE bio collapse/expand
   // ======================================================
-(function initMobileBio(){
-  const wrap = document.getElementById("bioWrap");
-  const btn  = document.getElementById("bioToggle");
-  if (!wrap || !btn) return;
+  (function initMobileBio(){
+    const wrap = document.getElementById("bioWrap");
+    const btn  = document.getElementById("bioToggle");
+    if (!wrap || !btn) return;
 
-  const mq = window.matchMedia("(max-width: 640px)");
+    const mq = window.matchMedia("(max-width: 640px)");
 
-  function setOpen(open){
-    wrap.classList.toggle("is-open", open);
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
-  function apply(){
-    if (!mq.matches){
-      setOpen(true);
-      btn.style.display = "none";
-      return;
+    function setOpen(open){
+      wrap.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
     }
-    btn.style.display = "grid";
-    setOpen(false);
-  }
 
-  btn.addEventListener("click", () => {
-    setOpen(!wrap.classList.contains("is-open"));
-  });
+    function apply(){
+      if (!mq.matches){
+        setOpen(true);
+        btn.style.display = "none";
+        return;
+      }
+      btn.style.display = "grid";
+      setOpen(false);
+    }
 
-  apply();
-  window.addEventListener("resize", () => {
-    const wasOpen = wrap.classList.contains("is-open");
+    btn.addEventListener("click", () => {
+      setOpen(!wrap.classList.contains("is-open"));
+    });
+
     apply();
-    if (wasOpen) setOpen(true);
-  });
+    window.addEventListener("resize", () => {
+      const wasOpen = wrap.classList.contains("is-open");
+      apply();
+      if (wasOpen) setOpen(true);
+    });
 
-  window.__rcBioApply = apply;
-})();
+    window.__rcBioApply = apply;
+  })();
 
   // Init
   loadExpert().then(() => {
