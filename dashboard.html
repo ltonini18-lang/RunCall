@@ -1170,8 +1170,8 @@ expertId = session.expert_id;
       });
 
       if (!r.ok){
-const txt = await r.text().catch(() => "");
-throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
+  throw new Error("Avatar upload failed");
+}
 
 
       const data = await r.json();
