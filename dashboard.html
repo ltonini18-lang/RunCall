@@ -1071,7 +1071,9 @@
         window.location.href = "/login.html";
         return;
       }
-expertId = session.expert_id;
+
+      expertId = session.expert_id;
+
       // expertRow is driven from session endpoint
       expertRow = {
         id: expertId,
@@ -1170,9 +1172,8 @@ expertId = session.expert_id;
       });
 
       if (!r.ok){
-const txt = await r.text().catch(() => "");
-throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
-
+        throw new Error("Avatar upload failed");
+      }
 
       const data = await r.json();
       return data?.photo_url || null;
