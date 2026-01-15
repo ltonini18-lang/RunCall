@@ -15,6 +15,7 @@ function setCors(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-session-token, x-runcall-token");
 }
 
+
 export default async function handler(req, res) {
   setCors(req, res);
 
