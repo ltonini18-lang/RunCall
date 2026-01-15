@@ -796,6 +796,9 @@
     // ---------------------------
     // Elements
     // ---------------------------
+    const dashSidebar = document.getElementById("dashSidebar");
+    const dashTop = document.getElementById("dashTop");
+
     const langButtons = document.querySelectorAll('.lang-switch button');
 
     const avatar = document.getElementById("avatar");
@@ -1286,6 +1289,7 @@ if (updated) {
     // ---------------------------
     // Init
     // ---------------------------
+    // Paint skeleton early (safe)
     paintWeek();
 
     (async () => {
