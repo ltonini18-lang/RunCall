@@ -182,6 +182,38 @@ async function upsertGoogleAccount({ expertId, tokenData, googleEmail }) {
   return text;
 }
 
+/** ✅ NEW: Create a RunCall session token in `public.sessions` */
+async function createRunCallSessionToken(expertId) {
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SUPABASE_URL || !KEY) throw new Error("Missing Supabase env vars");
+
+  // Strong random token (UUID-like)
+  const token = (globalThis.crypto?.randomUUID?.())
+    || `tok_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
+
+  const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/sessions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: KEY,
+      Authorization: `Bearer ${KEY}`,
+      Prefer: "return=representation"
+    },
+    body: JSON.stringify([{ token, expert_id: expertId, expires_at }])
+  });
+
+  const text = await resp.text();
+  if (!resp.ok) {
+    console.error("Supabase create session failed", { status: resp.status, body: text });
+    throw new Error(`Supabase create session failed (${resp.status})`);
+  }
+
+  return { token, expires_at };
+}
+
 // Allowlist for redirects (avoid open redirect)
 function sanitizeNext(next) {
   if (!next) return null;
@@ -266,13 +298,17 @@ export default async function handler(req, res) {
 
     await upsertGoogleAccount({ expertId, tokenData, googleEmail });
 
+    /** ✅ NEW: create RunCall token session */
+    const { token } = await createRunCallSessionToken(expertId);
+
     const safeNext = sanitizeNext(next);
     const dest = safeNext || `/dashboard.html`;
     const join = dest.includes("?") ? "&" : "?";
 
+    // ✅ CHANGED: redirect with token (not expert_id)
     return res.redirect(
       302,
-      `${dest}${join}expert_id=${encodeURIComponent(expertId)}&connected=1`
+      `${dest}${join}token=${encodeURIComponent(token)}&connected=1`
     );
   } catch (err) {
     console.error("Callback crashed:", err);
