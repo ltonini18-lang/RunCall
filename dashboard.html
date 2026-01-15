@@ -1080,18 +1080,21 @@ expertId = session.expert_id;
         photo_url: session.photo_url
       };
 
-      // public page link
-      const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
-      publicPageBtn.href = publicUrl;
+      // ✅ Public page on the SAME origin (preview → preview, prod → prod)
+const publicUrl =
+  `${window.location.origin}/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
 
-      copyLinkBtn.onclick = async () => {
-        try{
-          await navigator.clipboard.writeText(publicUrl);
-          showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-        }catch(_){
-          showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
-        }
-      };
+publicPageBtn.href = publicUrl;
+
+copyLinkBtn.onclick = async () => {
+  try{
+    await navigator.clipboard.writeText(publicUrl);
+    showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
+  }catch(_){
+    showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
+  }
+};
+
 
       const name = (expertRow.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
       const bio  = (expertRow.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
