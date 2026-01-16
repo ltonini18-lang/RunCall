@@ -190,10 +190,12 @@
   // If already have an expert id, show "Continue"
   const expertId = localStorage.getItem("runcall_expert_id");
   const continueBtn = document.getElementById("continueBtn");
-  if (expertId) {
-    continueBtn.style.display = "flex";
-    continueBtn.href = `/dashboard.html?expert_id=${encodeURIComponent(expertId)}`;
-  }
+  const token = localStorage.getItem("runcall_token");
+if (token) {
+  continueBtn.style.display = "flex";
+  continueBtn.href = `/dashboard.html`;
+}
+
 })();
 </script>
 </body>
