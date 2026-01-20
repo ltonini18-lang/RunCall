@@ -5,198 +5,142 @@
   <title>RunCall – Connexion</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    :root{
-      --bg:#0b1020;
-      --card:#0f172a;
-      --border:rgba(148,163,184,.22);
-      --text:#e2e8f0;
-      --muted:#94a3b8;
-      --brand:#1677ff;
-      --shadow: 0 22px 80px rgba(0,0,0,.35);
-      --radius:22px;
+    /* Style simple et centré pour le login */
+    body {
+      background-color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
-    body{
-      margin:0;
-      min-height:100vh;
-      background:
-        radial-gradient(900px 420px at 20% 10%, rgba(22,119,255,.20), transparent 60%),
-        radial-gradient(700px 420px at 80% 20%, rgba(99,102,241,.16), transparent 55%),
-        var(--bg);
-      display:grid;
-      place-items:center;
-      font-family: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", Inter, Segoe UI, Roboto, Arial, sans-serif;
-      color: var(--text);
+    .login-card {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
     }
-    .wrap{
-      width:min(520px, 92vw);
-      padding: 28px;
-      box-sizing:border-box;
-    }
-    .brand{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      margin-bottom: 16px;
-    }
-    .logo{
-      font-weight: 950;
-      letter-spacing:-.03em;
-      font-size: 1.1rem;
-      opacity:.95;
-    }
-    .lang{
-      display:flex; gap:8px;
-    }
-    .lang button{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-      padding: 10px 10px;
-      border-radius: 14px;
-      cursor:pointer;
+    .logo {
+      font-size: 1.5rem;
       font-weight: 900;
-      line-height:1;
+      color: #0f172a;
+      margin-bottom: 24px;
+      display: inline-block;
+      text-decoration: none;
     }
-    .lang button.active{
-      color: var(--text);
-      border-color: rgba(22,119,255,.55);
-      background: rgba(22,119,255,.14);
+    .title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
     }
-
-    .card{
-      background: rgba(15,23,42,.86);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      backdrop-filter: blur(10px);
+    .subtitle {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+      line-height: 1.5;
     }
-    .head{
-      padding: 18px 18px 14px;
-      border-bottom: 1px solid rgba(148,163,184,.16);
-      background: radial-gradient(900px 320px at 18% 0%, rgba(22,119,255,.18), transparent 60%);
+    .btn-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 12px;
+      background: white;
+      color: #374151;
+      font-weight: 600;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      gap: 12px;
+      font-size: 1rem;
     }
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(148,163,184,.18);
-      background: rgba(255,255,255,.04);
-      color: var(--muted);
-      font-weight: 800;
-      font-size: .92rem;
-    }
-    .dot{ width:8px; height:8px; border-radius:999px; background: var(--brand); }
-    h1{
-      margin: 12px 0 0;
-      font-size: 2rem;
-      letter-spacing:-.03em;
-      line-height:1.1;
-    }
-
-    .body{
-      padding: 18px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-
-    .btn{
-      width:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      padding: 14px 14px;
-      border-radius: 16px;
-      border: 1px solid rgba(148,163,184,.22);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      cursor:pointer;
-      font-weight: 900;
-      letter-spacing:-.01em;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      text-decoration:none;
-      box-sizing:border-box;
-    }
-    .btn:hover{
+    .btn-google:hover {
+      background-color: #f8fafc;
+      border-color: #94a3b8;
       transform: translateY(-1px);
-      border-color: rgba(22,119,255,.55);
-      background: rgba(22,119,255,.14);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
-    .btn.primary{
-      border-color: rgba(22,119,255,.70);
-      background: rgba(22,119,255,.20);
+    .btn-google:active {
+      transform: translateY(0);
+    }
+    .error-msg {
+      color: #ef4444;
+      font-size: 0.875rem;
+      margin-top: 16px;
+      display: none;
+      background: #fef2f2;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #fee2e2;
     }
   </style>
 </head>
-
 <body>
-  <div class="wrap">
-    <div class="brand">
-      <div class="logo">RunCall</div>
-      <div class="lang">
-        <button type="button" data-lang="fr">FR</button>
-        <button type="button" data-lang="en">EN</button>
-      </div>
-    </div>
 
-    <div class="card">
-      <div class="head">
-        <div class="badge">
-          <span class="dot"></span>
-          <span data-fr="Connexion" data-en="Login">Connexion</span>
-        </div>
+  <div class="login-card">
+    <a href="index.html" class="logo">RunCall</a>
+    
+    <h1 class="title">Bon retour !</h1>
+    <p class="subtitle">Connecte-toi pour accéder à ton dashboard et gérer tes disponibilités.</p>
 
-        <h1 data-fr="Se connecter à RunCall" data-en="Log in to RunCall">Se connecter à RunCall</h1>
-      </div>
+    <button id="googleBtn" class="btn-google">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Continuer avec Google
+    </button>
 
-      <div class="body">
-        <!-- ✅ IMPORTANT: use /api/google/login (no expert_id required) -->
-        <a class="btn primary" id="googleBtn" href="/api/google/login">
-          <span style="font-weight:1000;">G</span>
-          <span data-fr="Continuer avec Google" data-en="Continue with Google">Continuer avec Google</span>
-        </a>
-
-        <!-- If already have an expert id (stored), show a direct shortcut -->
-        <a class="btn" id="continueBtn" href="/dashboard.html" style="display:none;">
-          <span data-fr="Continuer vers mon dashboard" data-en="Continue to my dashboard">Continuer vers mon dashboard</span>
-          <span aria-hidden="true">↗</span>
-        </a>
-      </div>
-    </div>
+    <div id="errorMsg" class="error-msg"></div>
   </div>
 
-<script>
-(function(){
-  // Language
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const bl = (navigator.language || "").toLowerCase();
-    lang = bl.startsWith('fr') ? 'fr' : 'en';
-  }
-  function applyLanguage(next){
-    lang = next;
-    document.documentElement.lang = lang;
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[lang]);
-    document.querySelectorAll('.lang button').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
-  }
-  document.querySelectorAll('.lang button').forEach(b => b.addEventListener('click', () => applyLanguage(b.dataset.lang)));
-  applyLanguage(lang);
+  <script src="js/config.js"></script>
+  <script>
+    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // If already have an expert id, show "Continue"
-  const expertId = localStorage.getItem("runcall_expert_id");
-  const continueBtn = document.getElementById("continueBtn");
-  const token = localStorage.getItem("runcall_token");
-if (token) {
-  continueBtn.style.display = "flex";
-  continueBtn.href = `/dashboard.html`;
-}
+    const btn = document.getElementById('googleBtn');
+    const errorMsg = document.getElementById('errorMsg');
 
-})();
-</script>
+    btn.addEventListener('click', async () => {
+      // UX: Feedback visuel
+      btn.innerHTML = 'Connexion...';
+      btn.style.opacity = '0.7';
+      
+      // LA CLÉ DU SUCCÈS : URL DYNAMIQUE
+      // On construit l'URL de retour en utilisant l'adresse actuelle du navigateur
+      // window.location.origin donne "https://run-call-git-gemini..." en preview
+      // et "https://www.run-call.com" en prod.
+      const redirectUrl = window.location.origin + CONFIG.URLS.dashboard;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl // C'est ici que la magie opère
+        }
+      });
+
+      if (error) {
+        console.error(error);
+        btn.innerHTML = 'Continuer avec Google';
+        btn.style.opacity = '1';
+        errorMsg.textContent = "Erreur : " + error.message;
+        errorMsg.style.display = 'block';
+      }
+    });
+  </script>
 </body>
 </html>
