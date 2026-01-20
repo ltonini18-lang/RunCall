@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    /* Scoped to this page only (aligned with devenir-intervenant-v2.html) */
+    /* Scoped to this page only */
     .start-page{ background:#f8fafc; }
     .start-wrap{ max-width: 860px; margin: 0 auto; padding: 18px 0 46px; }
     .start-card{
@@ -234,7 +234,6 @@
       <div class="start-body">
         <div class="start-grid">
 
-          <!-- LEFT: options -->
           <div class="start-panel">
             <button id="googleBtn" class="start-btn" type="button">
               <svg class="gmark" viewBox="0 0 48 48" aria-hidden="true">
@@ -272,7 +271,6 @@
             </form>
           </div>
 
-          <!-- RIGHT: info -->
           <div class="start-panel">
             <ol class="start-small" style="margin:0; padding-left:18px;">
               <li data-fr="Connexion (Google ou email)" data-en="Sign in (Google or email)"></li>
@@ -283,8 +281,8 @@
 
             <div style="height:12px;"></div>
             <a class="start-secondary" href="index.html"
-              data-fr="Retour à RunCall"
-              data-en="Back to RunCall"></a>
+               data-fr="Retour à RunCall"
+               data-en="Back to RunCall"></a>
           </div>
 
         </div>
@@ -294,221 +292,8 @@
   </div>
 </section>
 
-<script>
-(function () {
-  // ---------- Language ----------
-  const buttons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-  }
-  function applyLanguage(nextLang) {
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[nextLang];
-    });
-    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === nextLang));
-    localStorage.setItem('runcall_lang', nextLang);
-    lang = nextLang;
-  }
-  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
-
-  // ---------- Supabase ----------
-  const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-  // IMPORTANT: always return here after OAuth/magic link so we can create the DB row + redirect with expert_id
-  const RETURN_URL = "https://www.run-call.com/start-expert.html";
-
-  const googleBtn = document.getElementById("googleBtn");
-  const googleBtnLabel = document.getElementById("googleBtnLabel");
-  const magicForm = document.getElementById("magicForm");
-  const magicBtn = document.getElementById("magicBtn");
-  const msgBox = document.getElementById("msgBox");
-
-  let inFlight = false;
-
-  function showMsg(type, text){
-    msgBox.className = "start-msg " + (type === "error" ? "is-error" : "is-ok");
-    msgBox.style.display = "block";
-    msgBox.textContent = text;
-  }
-  function clearMsg(){
-    msgBox.style.display = "none";
-    msgBox.textContent = "";
-    msgBox.className = "start-msg";
-  }
-
-  function setGoogleLoading(isLoading){
-    googleBtn.disabled = isLoading;
-    googleBtnLabel.textContent = isLoading
-      ? (lang === "fr" ? "Chargement..." : "Loading...")
-      : (lang === "fr" ? googleBtnLabel.dataset.fr : googleBtnLabel.dataset.en);
-  }
-
-  function setMagicLoading(isLoading){
-    magicBtn.disabled = isLoading;
-    magicBtn.textContent = isLoading
-      ? (lang === "fr" ? "Chargement..." : "Loading...")
-      : (lang === "fr" ? magicBtn.dataset.fr : magicBtn.dataset.en);
-  }
-
-  function getNameFromUser(user){
-    const md = user?.user_metadata || {};
-    return (md.full_name || md.name || "").trim();
-  }
-
-  async function ensureIntervenantRowAndRedirect(user){
-  const authUserId = user.id;
-  const email = (user.email || "").trim().toLowerCase() || null;
-  const name = getNameFromUser(user) || null;
-
-  // 1) Try to find existing row by auth_user_id
-  const { data: existing, error: findErr } = await supabase
-    .from("experts")
-    .select("id, auth_user_id")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-
-  if (findErr) throw findErr;
-
-  // 2) If exists -> update (non destructif)
-  if (existing?.id) {
-    const { data: updated, error: updErr } = await supabase
-      .from("experts")
-      .update({
-        email,
-        name,
-        source: "auth_onboarding",
-        status: "draft",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", existing.id)
-      .select("id")
-      .single();
-
-    if (updErr) throw updErr;
-
-    window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(updated.id)}`;
-    return;
-  }
-
-  // 3) Else -> insert new
-  const { data: created, error: insErr } = await supabase
-    .from("experts")
-    .insert({
-      auth_user_id: authUserId,
-      email,
-      name,
-      presentation: "",
-      photo_url: null,
-      source: "auth_onboarding",
-      status: "draft"
-    })
-    .select("id")
-    .single();
-
-  if (insErr) throw insErr;
-
-  window.location.href = `devenir-intervenant-v2.html?expert_id=${encodeURIComponent(created.id)}`;
-}
-
-
-  async function finalizeIfAuthed(){
-    if (inFlight) return;
-    inFlight = true;
-
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-
-      const user = data?.session?.user;
-      if (!user) { inFlight = false; return; }
-
-      clearMsg();
-      setGoogleLoading(true);
-      setMagicLoading(true);
-
-      // Only show OK once we know DB is fine
-      showMsg("ok", lang === "fr"
-        ? "Connexion réussie. Finalisation…"
-        : "Signed in. Finalizing…");
-
-      await ensureIntervenantRowAndRedirect(user);
-    } catch (e) {
-      console.error(e);
-      setGoogleLoading(false);
-      setMagicLoading(false);
-      showMsg("error", (lang === "fr"
-        ? "Impossible de finaliser ton compte intervenant : "
-        : "Unable to finalize your account: ") + (e?.message || "unknown error"));
-      inFlight = false;
-    }
-  }
-
-  // Run on load (handles return from Google OAuth / magic link)
-  finalizeIfAuthed();
-
-  // Also listen to auth changes (session sometimes arrives after first paint)
-  supabase.auth.onAuthStateChange(() => {
-    finalizeIfAuthed();
-  });
-
-  // Google sign-in
-  googleBtn.addEventListener("click", async () => {
-    clearMsg();
-    setGoogleLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: RETURN_URL }
-      });
-      if (error) throw error;
-      // redirect happens automatically
-    } catch (e) {
-      setGoogleLoading(false);
-      showMsg("error", e?.message || (lang === "fr"
-        ? "Impossible de démarrer Google. Vérifie la config Supabase/Google."
-        : "Unable to start Google. Check Supabase/Google configuration."));
-    }
-  });
-
-  // Magic link
-  magicForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    clearMsg();
-
-    const email = (document.getElementById("email").value || "").trim();
-    if (!email) {
-      showMsg("error", lang === "fr" ? "Entre une adresse email." : "Enter an email address.");
-      return;
-    }
-
-    setMagicLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: RETURN_URL }
-      });
-      if (error) throw error;
-
-      showMsg("ok", lang === "fr"
-        ? "Lien envoyé. Vérifie ta boîte mail (et tes spams)."
-        : "Link sent. Check your inbox (and spam).");
-    } catch (e) {
-      showMsg("error", e?.message || (lang === "fr"
-        ? "Impossible d’envoyer le lien. Réessaie."
-        : "Unable to send the link. Please try again."));
-    } finally {
-      setMagicLoading(false);
-    }
-  });
-})();
-</script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 
 </body>
 </html>
