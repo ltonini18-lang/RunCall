@@ -106,40 +106,71 @@
     <div id="errorMsg" class="error-msg"></div>
   </div>
 
-  <script src="js/config.js"></script>
+ <script src="js/config.js"></script>
+  
   <script>
-    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
-    const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    const btn = document.getElementById('googleBtn');
-    const errorMsg = document.getElementById('errorMsg');
-
-    btn.addEventListener('click', async () => {
-      // UX: Feedback visuel
-      btn.innerHTML = 'Connexion...';
-      btn.style.opacity = '0.7';
-      
-      // LA CLÉ DU SUCCÈS : URL DYNAMIQUE
-      // On construit l'URL de retour en utilisant l'adresse actuelle du navigateur
-      // window.location.origin donne "https://run-call-git-gemini..." en preview
-      // et "https://www.run-call.com" en prod.
-      const redirectUrl = window.location.origin + CONFIG.URLS.dashboard;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl // C'est ici que la magie opère
+    document.addEventListener('DOMContentLoaded', async () => {
+        
+        // --- 1. DIAGNOSTIC AU CHARGEMENT ---
+        // On vérifie que les outils sont là
+        if (typeof CONFIG === 'undefined') {
+            alert("ERREUR CRITIQUE : Le fichier 'js/config.js' n'est pas chargé ou contient une erreur. Vérifie que le dossier 'js' existe bien.");
+            return; 
         }
-      });
 
-      if (error) {
-        console.error(error);
-        btn.innerHTML = 'Continuer avec Google';
-        btn.style.opacity = '1';
-        errorMsg.textContent = "Erreur : " + error.message;
-        errorMsg.style.display = 'block';
-      }
+        if (typeof window.supabase === 'undefined') {
+            alert("ERREUR CRITIQUE : La librairie Supabase n'a pas pu être chargée. Vérifie ta connexion internet.");
+            return;
+        }
+
+        // --- 2. INITIALISATION ---
+        const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+        // Ta clé publique spécifique
+        const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"; 
+        
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const btn = document.getElementById('googleBtn');
+        const errorMsg = document.getElementById('errorMsg');
+
+        console.log("Login Script: Prêt.");
+
+        // --- 3. GESTION DU CLIC ---
+        btn.addEventListener('click', async () => {
+            // Feedback immédiat pour dire "J'ai bien reçu le clic"
+            btn.innerHTML = 'Connexion en cours...';
+            btn.style.opacity = '0.7';
+
+            try {
+                // Construction de l'URL
+                const redirectUrl = window.location.origin + CONFIG.URLS.dashboard;
+                console.log("Tentative de redirection vers :", redirectUrl);
+
+                // Appel Supabase
+                const { error } = await sb.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: redirectUrl,
+                        queryParams: {
+                            prompt: 'select_account' // Force le choix du compte pour éviter les boucles
+                        }
+                    }
+                });
+
+                if (error) throw error;
+                
+                // Si tout va bien, Supabase gère la redirection automatiquement.
+                
+            } catch (err) {
+                console.error("Erreur Login:", err);
+                alert("Erreur lors de la connexion : " + err.message);
+                
+                // Reset du bouton
+                btn.innerHTML = 'Continuer avec Google';
+                btn.style.opacity = '1';
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
     });
   </script>
 </body>
