@@ -291,7 +291,7 @@
         // on va utiliser une logique simple :
         // Si session.provider_token existe (ce qui arrive juste après le callback OAuth), on suppose que c'est bon.
         
-        const isConnected = session.provider_token || localStorage.getItem('runcall_cal_connected');
+        const isConnected = localStorage.getItem('runcall_cal_connected') === 'true';
         
         if (isConnected) {
              showState('calendar');
