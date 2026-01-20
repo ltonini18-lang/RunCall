@@ -2,19 +2,19 @@
 
 const CONFIG = {
     // Détection automatique de l'environnement
-    ENV: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ENV: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
         ? 'local' 
         : 'production',
 
     // URLs de base
-    API_BASE_URL: '/api', // Sur Vercel, l'API est toujours relative
+    API_BASE_URL: '/api', 
     
     // Définition des URLs du Frontend
     URLS: {
         dashboard: '/dashboard.html',
         login: '/login.html',
-        onboarding: '/onboarding.html', // Ex devenir-intervenant-v2
-        profile: '/profile.html',       // Ex intervenant.html
+        onboarding: '/onboarding.html', 
+        profile: '/profile.html',       
         support: '/support.html',
         success: '/success.html'
     }
@@ -26,4 +26,5 @@ function getQueryParam(param) {
     return urlParams.get(param);
 }
 
-console.log(`RunCall Environment: ${CONFIG.ENV}`);
+// Petit log pour vérifier dans la console que le fichier est bien chargé
+console.log("✅ Config chargée. Environnement:", CONFIG.ENV);
