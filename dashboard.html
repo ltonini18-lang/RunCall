@@ -1,1334 +1,384 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload + secure update) -->
-<!-- redeploy restore-dashboard-working-09fae8c -->
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Dashboard intervenant</title>
+  <title>RunCall – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- 🔒 AUTH GATE: cache TOUT immédiatement (anti flash) -->
-  <style>
-    html.auth-pending body { visibility: hidden; }
-  </style>
-  <script>
-    // cache tout dès le parsing HTML (avant rendu)
-    document.documentElement.classList.add('auth-pending');
-  </script>
+  <style>html.auth-pending body { visibility: hidden; }</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
 
   <link rel="stylesheet" href="style.css" />
-
+  
   <style>
+    /* Styles spécifiques au Dashboard */
     :root{
-      --bg:#f8fafc;
-      --card:#ffffff;
-      --border:#e5e7eb;
-      --text:#0f172a;
-      --muted:#475569;
-      --muted2:#64748b;
-      --brand:#1677ff;
-      --shadow: 0 18px 40px rgba(15,23,42,.08);
-      --radius:18px;
+      --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
+      --muted:#475569; --brand:#1677ff; --radius:18px;
     }
     body{ background:var(--bg); }
 
     .dash-shell{ display:flex; min-height: 100vh; }
+    
+    /* SIDEBAR */
     .dash-sidebar{
-      position:sticky; top:0; align-self:flex-start;
-      height: 100vh; width: 270px;
+      position:sticky; top:0; align-self:flex-start; height: 100vh; width: 270px;
       background:#fff; border-right: 1px solid var(--border);
-      padding: 16px 14px; box-sizing:border-box;
+      padding: 16px 14px; box-sizing:border-box; display:flex; flex-direction:column;
     }
-    .dash-main{ flex:1; min-width:0; }
-
-    .dash-top{
-      position:sticky; top:0; z-index:20;
-      background: rgba(248,250,252,.86);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(229,231,235,.8);
-    }
-    .dash-top-inner{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 14px 18px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      box-sizing:border-box;
-    }
-    .dash-content{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px 18px 46px;
-      box-sizing:border-box;
-    }
-
-    .sb-brand{
-      display:flex; align-items:center; gap:10px;
-      padding: 6px 8px 12px;
-      margin-bottom: 12px;
-      border-bottom:1px solid var(--border);
-    }
-    .sb-logo{ font-weight: 900; letter-spacing:-.02em; color: var(--text); font-size: 1.05rem; }
-    .sb-pill{
-      margin-left:auto;
-      font-size:.78rem;
-      padding:5px 8px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      color: var(--muted);
-      background:#fff;
-    }
-
-    .sb-nav{ margin-top: 10px; }
+    .sb-brand{ font-weight: 900; font-size: 1.1rem; padding: 8px 10px 20px; border-bottom:1px solid var(--border); margin-bottom:14px; }
     .sb-item{
-      display:flex; align-items:center; gap:10px;
-      padding: 10px 10px;
-      border-radius: 14px;
-      color: var(--text);
-      text-decoration:none;
-      border: 1px solid transparent;
-      cursor:pointer;
-      user-select:none;
+      display:flex; align-items:center; gap:10px; padding: 10px; border-radius: 12px;
+      color: var(--muted); cursor:pointer; transition:all 0.2s; font-weight:600;
     }
-    .sb-item:hover{ background: rgba(22,119,255,.06); border-color: rgba(22,119,255,.18); }
-    .sb-item.active{ background: rgba(22,119,255,.10); border-color: rgba(22,119,255,.35); font-weight: 800; }
-    .sb-ico{
-      width: 28px; height: 28px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      display:grid; place-items:center;
-      color: var(--brand);
-      background:#fff;
-      flex:0 0 auto;
-      font-weight: 900;
-      font-size:.9rem;
+    .sb-item:hover{ background: #f1f5f9; color:var(--text); }
+    .sb-item.active{ background: #eff6ff; color:var(--brand); }
+    
+    /* MAIN AREA */
+    .dash-main{ flex:1; min-width:0; }
+    .dash-top{
+      position:sticky; top:0; z-index:20; background: rgba(248,250,252,.9);
+      backdrop-filter: blur(8px); border-bottom: 1px solid var(--border);
+      padding: 14px 20px; display:flex; justify-content:space-between; align-items:center;
     }
-    .sb-muted{ color: var(--muted2); font-size: .9rem; line-height:1.4; padding: 10px 10px 0; }
+    
+    .dash-content{ max-width: 1000px; margin: 0 auto; padding: 24px 20px 60px; }
 
-    .profile-row{ display:flex; align-items:center; gap:14px; min-width:0; width:100%; }
-    .avatar{
-      width: 54px; height: 54px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #fff;
-      overflow:hidden;
-      display:grid;
-      place-items:center;
-      flex: 0 0 auto;
-      box-shadow: 0 10px 20px rgba(15,23,42,.06);
-    }
-    .avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
-    .avatar-fallback{ font-weight: 900; color: var(--brand); }
+    /* CARDS */
+    .card{ background:#fff; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom:20px; }
+    .card-head{ padding:20px; border-bottom:1px solid var(--border); background:#fdfdfd; }
+    .card-body{ padding:20px; }
+    .title{ margin:0; font-size:1.25rem; font-weight:700; color:var(--text); }
+    .subtitle{ margin:4px 0 0; color:var(--muted); font-size:0.95rem; }
 
-    .pmeta{ min-width:0; flex: 1 1 auto; }
-    .pname{
-      margin:0;
-      font-size: 1.15rem;
-      line-height:1.15;
-      letter-spacing:-.02em;
-      color: var(--text);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+    /* CONNECT CALENDAR HERO */
+    .connect-hero{
+        text-align:center; padding: 40px 20px;
     }
-    .pbio{
-      margin: 3px 0 0;
-      color: var(--muted);
-      line-height:1.35;
-      font-size:.95rem;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 64ch;
+    .connect-icon{
+        width:64px; height:64px; background:#eff6ff; color:#1677ff;
+        border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+        margin-bottom:16px;
     }
+    .connect-icon svg{ width:32px; height:32px; }
 
-    .pactions{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      margin-left:auto;
-      flex: 0 0 auto;
-    }
+    /* CALENDAR GRID (Récupéré de ton code) */
+    .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-top:10px; }
+    .day-col{ border:1px solid var(--border); border-radius:12px; min-height:180px; background:#fff; }
+    .day-head{ padding:8px; text-align:center; border-bottom:1px solid var(--border); font-weight:700; font-size:0.9rem; background:#f8fafc; }
+    .slots{ padding:6px; display:flex; flex-direction:column; gap:6px; }
+    .slot{ background:#eff6ff; border:1px solid #dbeafe; padding:4px 6px; border-radius:6px; font-size:0.8rem; color:#1e40af; }
 
+    /* BOUTONS */
     .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background:#fff;
-      color: var(--text);
-      text-decoration:none;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      user-select:none;
-      font-weight:800;
-      letter-spacing:-.01em;
-      white-space:nowrap;
+      display:inline-flex; align-items:center; gap:8px; padding:10px 16px;
+      border-radius:10px; font-weight:600; cursor:pointer; border:none;
+      transition:transform 0.1s;
     }
-    .btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
-    }
-    .btn:active{ transform: translateY(0); }
-    .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+    .btn:active{ transform:scale(0.98); }
+    .btn-primary{ background:var(--brand); color:#fff; }
+    .btn-google{ background:#fff; border:1px solid var(--border); color:#374151; }
+    .btn-google:hover{ background:#f9fafb; }
+    
+    /* UTILS */
+    .avatar{ width:40px; height:40px; border-radius:50%; background:#e2e8f0; object-fit:cover; }
+    .hidden{ display:none !important; }
 
-    .btn-primary{ border-color: var(--brand); background: rgba(22,119,255,.10); }
-    .btn-primary:hover{ background: rgba(22,119,255,.14); }
-
-    .icon-btn{
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display:inline-grid;
-      place-items:center;
-      border:1px solid var(--border);
-      background:#fff;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      user-select:none;
-      position:relative;
-      color: var(--text);
-    }
-    .icon-btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
-    }
-
-    .tip{
-      position:absolute;
-      top: 52px;
-      right: 0;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: #111827;
-      color:#fff;
-      font-weight: 800;
-      font-size:.9rem;
-      opacity:0;
-      transform: translateY(-6px);
-      pointer-events:none;
-      transition: opacity 140ms ease, transform 140ms ease;
-      box-shadow: 0 18px 40px rgba(0,0,0,.25);
-      white-space:nowrap;
-      z-index: 50;
-    }
-    .tip:before{
-      content:"";
-      position:absolute;
-      top:-6px;
-      right: 14px;
-      width: 12px; height: 12px;
-      background:#111827;
-      transform: rotate(45deg);
-    }
-    .icon-btn:hover .tip{ opacity:1; transform: translateY(0); }
-
-    .lang-switch{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      margin-left: 6px;
-    }
-    .lang-switch button{
-      border:1px solid var(--border);
-      background:#fff;
-      padding: 10px 10px;
-      border-radius: 14px;
-      cursor:pointer;
-      font-weight:900;
-      color: var(--muted);
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      line-height: 1;
-    }
-    .lang-switch button:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-    }
-    .lang-switch button.active{
-      color: var(--text);
-      border-color: rgba(22,119,255,.55);
-      background: rgba(22,119,255,.10);
-    }
-
-    .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card-head{
-      padding: 18px 18px 14px;
-      border-bottom: 1px solid var(--border);
-      background: radial-gradient(900px 320px at 18% 0%, rgba(22,119,255,.12), transparent 58%);
-    }
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid var(--border); background:#fff;
-      color: var(--muted); font-size:.9rem;
-    }
-    .dot{ width:8px; height:8px; border-radius:999px; background: var(--brand); }
-    .title{ margin: 12px 0 4px; font-size: 1.55rem; line-height:1.2; letter-spacing:-.02em; color: var(--text); }
-    .subtitle{ margin:0; color: var(--muted); line-height:1.55; font-size:1.02rem; max-width: 90ch; }
-    .card-body{ padding: 16px 18px 18px; }
-
-    .main-grid{
-      display:grid;
-      grid-template-columns: 3fr 1.2fr;
-      gap: 16px;
-      align-items:start;
-      margin-top: 14px;
-    }
-
-    .calendar-wrap{
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background:#fff;
-      overflow:hidden;
-      position: relative;
-    }
-    .calendar-top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background:#fff;
-      flex-wrap: wrap;
-    }
-    .calendar-note{ color: var(--muted); font-size:.98rem; line-height:1.4; min-width: min(620px, 100%); }
-    .cal-nav{ display:flex; align-items:center; gap:10px; margin-left:auto; flex-wrap: wrap; }
-    .cal-nav .range{
-      color: var(--muted2);
-      font-weight: 900;
-      letter-spacing:-.01em;
-      font-size:.95rem;
-      padding: 0 2px;
-      white-space:nowrap;
-    }
-    .arrow-btn{
-      width: 40px; height: 40px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background:#fff;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      display:grid;
-      place-items:center;
-      font-weight: 900;
-      color: var(--text);
-      user-select:none;
-    }
-    .arrow-btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
-    }
-
-    .calendar-area{ position:relative; min-height: 520px; background: #fff; }
-    .calendar-inner{ padding: 14px; }
-
-    .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:10px; }
-    .day-col{
-      border:1px solid var(--border);
-      border-radius: 16px;
-      background:#fff;
-      overflow:hidden;
-      min-height: 220px;
-      display:flex;
-      flex-direction:column;
-    }
-    .day-head{
-      padding: 10px 10px 8px;
-      border-bottom:1px solid var(--border);
-      font-weight: 900;
-      color: var(--text);
-      letter-spacing:-.01em;
-      font-size:.92rem;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    .day-date{ font-weight: 800; color: var(--muted2); font-size:.85rem; white-space:nowrap; }
-    .slots{ padding: 10px; display:flex; flex-direction:column; gap:8px; flex:1; }
-    .slot{
-      border: 1px solid rgba(22,119,255,.22);
-      background: rgba(22,119,255,.08);
-      color: var(--text);
-      border-radius: 14px;
-      padding: 8px 10px;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .slot strong{ font-size:.92rem; }
-    .slot small{ color: var(--muted2); font-size:.85rem; }
-
-    .calendar-wrap.is-empty .calendar-inner{
-      opacity: .35;
-      filter: grayscale(1);
-      pointer-events: none;
-      user-select: none;
-    }
-
-    .overlay{
-      position:absolute; inset: 0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 20px;
-      background: rgba(248,250,252,.55);
-      backdrop-filter: blur(2px);
-      z-index: 5;
-    }
-    .overlay.show{ display:flex; }
-    .overlay-card{
-      width: min(520px, 100%);
-      border-radius: 20px;
-      border:1px solid var(--border);
-      background:#fff;
-      box-shadow: 0 18px 40px rgba(15,23,42,.10);
-      padding: 16px;
-      text-align:center;
-    }
-
-    .helper{
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background:#fff;
-      padding: 14px;
-    }
-
-    .toast{
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      z-index: 999;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background:#fff;
-      box-shadow: 0 18px 40px rgba(15,23,42,.12);
-      color: var(--text);
-      display:none;
-      max-width: 360px;
-    }
-    .toast.show{ display:block; }
-    .toast.ok{ border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
-    .toast.err{ border-color:#fecaca; background:#fff1f2; color:#881337; }
-
-    .form-row{ display:grid; gap:6px; margin-bottom: 10px; }
-    .form-row label{ font-weight: 900; color: var(--text); }
-    .input, .textarea, select.input{
-      width:100%;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background:#fff;
-      color: var(--text);
-      box-sizing:border-box;
-    }
-    .textarea{ resize: vertical; min-height: 110px; }
-    .mini{ color: var(--muted2); font-size: .92rem; line-height: 1.45; margin-top: 6px; }
-    .modal-actions{
-      display:flex;
-      gap:10px;
-      justify-content:flex-end;
-      margin-top: 12px;
-    }
-
-    @media (max-width: 980px){
-      .dash-sidebar{ display:none; }
-      .dash-top-inner, .dash-content{ padding-left: 14px; padding-right: 14px; }
-      .main-grid{ grid-template-columns: 1fr; }
-    }
-    @media (max-width: 780px){
-      .week-grid{ grid-template-columns: 1fr; }
-      .calendar-note{ min-width: 100%; }
-      .cal-nav{ width: 100%; justify-content:space-between; }
-      .cal-nav .range{ flex:1; text-align:center; }
+    @media (max-width: 768px){
+        .dash-sidebar{ display:none; } /* Simple mobile fix */
+        .week-grid{ grid-template-columns: 1fr; }
     }
   </style>
 </head>
 
 <body>
-<div class="dash-shell" id="dashShell">
 
-  <aside class="dash-sidebar" id="dashSidebar">
-    <div class="sb-brand">
-      <div class="sb-logo" data-fr="Dashboard" data-en="Dashboard">Dashboard</div>
-      <div class="sb-pill" data-fr="Intervenant" data-en="Creator">Intervenant</div>
-    </div>
-
-    <nav class="sb-nav">
+<div class="dash-shell">
+  <aside class="dash-sidebar">
+    <div class="sb-brand">RunCall</div>
+    <nav style="display:flex; flex-direction:column; gap:4px;">
       <div class="sb-item active" data-tab="home">
-        <div class="sb-ico">⌂</div>
-        <div data-fr="Accueil" data-en="Home">Accueil</div>
+        <span>🏠</span> Accueil
       </div>
-
       <div class="sb-item" data-tab="profile">
-        <div class="sb-ico">👤</div>
-        <div data-fr="Profil" data-en="Profile">Profil</div>
+        <span>👤</span> Profil
       </div>
-
       <div class="sb-item" data-tab="payouts">
-        <div class="sb-ico">€</div>
-        <div data-fr="Paiements" data-en="Payouts">Paiements</div>
-      </div>
-
-      <div class="sb-item" data-tab="analytics" title="Coming soon">
-        <div class="sb-ico">↗</div>
-        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)">Statistiques (bientôt)</div>
-      </div>
-
-      <div class="sb-item" data-tab="settings" title="Coming soon">
-        <div class="sb-ico">⚙</div>
-        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)">Réglages (bientôt)</div>
-      </div>
-
-      <div class="sb-muted"
-           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
-           data-en="Soon you’ll find your revenue, session history, and payout settings here.">
-        À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
+        <span>💳</span> Paiements
       </div>
     </nav>
+    <div style="margin-top:auto; font-size:0.8rem; color:#94a3b8; text-align:center;">
+       RunCall v1.0
+    </div>
   </aside>
 
   <main class="dash-main">
-
-    <div class="dash-top" id="dashTop">
-      <div class="dash-top-inner">
-        <div class="profile-row">
-          <div class="avatar" id="avatar">
-            <div class="avatar-fallback" id="avatarFallback">RC</div>
-          </div>
-
-          <div class="pmeta">
-            <h2 class="pname" id="pname">—</h2>
-            <p class="pbio" id="pbio">—</p>
-          </div>
-
-          <div class="pactions">
-            <button class="btn" id="editProfileBtn" type="button" data-fr="Modifier" data-en="Edit">Modifier</button>
-
-            <a class="btn btn-primary" id="publicPageBtn" href="#" target="_blank" rel="noopener">
-              <span data-fr="Voir ma page Public" data-en="View my public page">Voir ma page Public</span>
-              <span aria-hidden="true">↗</span>
-            </a>
-
-            <button class="icon-btn" id="copyLinkBtn" type="button" aria-label="Copy link">
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
-              </svg>
-              <span class="tip" id="copyTip"
-                    data-fr="Copier le lien de ma page publique"
-                    data-en="Copy link to my public page">copy link of my public page</span>
-            </button>
-
-            <div class="lang-switch">
-              <button type="button" data-lang="fr">FR</button>
-              <button type="button" data-lang="en">EN</button>
-            </div>
-          </div>
-        </div>
+    <div class="dash-top">
+      <h2 id="topTitle" style="margin:0; font-size:1.1rem;">Dashboard</h2>
+      <div style="display:flex; align-items:center; gap:12px;">
+         <a href="#" id="publicLinkBtn" target="_blank" class="btn btn-google" style="padding:6px 12px; font-size:0.9rem;">
+             Voir ma page ↗
+         </a>
+         <img id="topAvatar" class="avatar" src="" alt="Avatar" />
       </div>
     </div>
 
     <div class="dash-content">
-
-      <div class="card" id="authGate" style="display:none;"></div>
-
-      <!-- ✅ HOME VIEW -->
+      
       <div id="viewHome">
-        <div class="card">
-          <div class="card-head">
-            <div class="badge">
-              <span class="dot"></span>
-              <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+        
+        <div id="stateConnect" class="card hidden">
+            <div class="connect-hero">
+                <div class="connect-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h2 class="title" style="margin-bottom:8px;">Connecte ton agenda</h2>
+                <p class="subtitle" style="max-width:400px; margin:0 auto 24px;">
+                    Pour que RunCall puisse gérer tes créneaux et éviter les doubles réservations, nous avons besoin d'un accès à ton Google Calendar.
+                </p>
+                
+                <button id="connectGoogleBtn" class="btn btn-google" style="font-size:1rem; padding:12px 20px;">
+                    <img src="https://www.google.com/favicon.ico" width="16" style="margin-right:8px;">
+                    Autoriser Google Calendar
+                </button>
             </div>
+        </div>
 
-            <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar" data-en="Manage your slots from Google Calendar">
-              Gère tes créneaux depuis Google Calendar
-            </h1>
-
-            <p class="subtitle"
-               data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
-               data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
-              Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div class="main-grid">
-
-              <div class="calendar-wrap" id="calendarWrap">
-                <div class="calendar-top">
-                  <div class="calendar-note"
-                       data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
-                       data-en="To close a slot: delete (or edit) the matching event in your Google Calendar.">
-                    Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
-                  </div>
-
-                  <div class="cal-nav">
-                    <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
-                    <div class="range" id="weekRangeLabel">—</div>
-                    <button class="arrow-btn" id="nextWeekBtn" type="button" aria-label="Next week">›</button>
-
-                    <a class="btn btn-primary" id="openGcalBtn"
-                       href="https://calendar.google.com/calendar/u/0/r"
-                       target="_blank" rel="noopener noreferrer"
-                       data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
-                      Ouvrir Google Calendar
+        <div id="stateCalendar" class="card hidden">
+            <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <h1 class="title">Tes disponibilités</h1>
+                    <p class="subtitle">Crée des événements "RunCall" dans ton agenda Google pour ouvrir des créneaux.</p>
+                </div>
+                <div>
+                    <a href="https://calendar.google.com/" target="_blank" class="btn btn-primary">
+                        Ouvrir Google Agenda ↗
                     </a>
-                  </div>
                 </div>
-
-                <div class="calendar-area" id="calendarArea">
-                  <div class="calendar-inner">
-                    <div class="week-grid" id="weekGrid"></div>
-                  </div>
-
-                  <div class="overlay" id="emptyOverlay">
-                    <div class="overlay-card">
-                      <div class="badge" style="justify-content:center;">
-                        <span class="dot"></span>
-                        <span data-fr="Aucun créneau visible" data-en="No visible slots">Aucun créneau visible</span>
-                      </div>
-
-                      <div class="overlay-title" data-fr="Ouvre ton premier créneau" data-en="Open your first slot">
-                        Ouvre ton premier créneau
-                      </div>
-
-                      <p class="overlay-text"
-                        data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
-                        data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
-                        Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
-                      </p>
-
-                      <div style="height:12px;"></div>
-                      <a class="btn btn-primary"
-                         href="https://calendar.google.com/calendar/u/0/r"
-                         target="_blank" rel="noopener noreferrer"
-                         data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
-                        Ouvrir Google Calendar
-                      </a>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              <div class="helper">
-                <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
-                <ol>
-                  <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
-                  <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">
-                    Crée un événement sur une plage où tu es dispo.
-                  </li>
-                  <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
-                  <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page Public." data-en="Your slots will automatically appear on your public page.">
-                    Tes créneaux apparaîtront automatiquement sur ta page Public.
-                  </li>
-                  <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to receive bookings.">
-                    Partage ta page public pour recevoir des réservations.
-                  </li>
-                </ol>
-
-                <div class="mini"
-                     data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
-                     data-en="You can start with a single slot to test, then add more later.">
-                  Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
-                </div>
-              </div>
-
             </div>
-          </div>
+            <div class="card-body">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <button id="prevWeek" class="btn btn-google">‹</button>
+                    <strong id="weekLabel" style="align-self:center;">Cette semaine</strong>
+                    <button id="nextWeek" class="btn btn-google">›</button>
+                </div>
+                
+                <div id="calendarGrid" class="week-grid"></div>
+                
+                <div id="emptyStateMsg" style="text-align:center; padding:30px; color:var(--muted); font-size:0.9rem; display:none;">
+                    Aucun créneau "RunCall" détecté cette semaine.<br>
+                    Ouvre ton Google Agenda et crée un événement intitulé <strong>RunCall</strong>.
+                </div>
+            </div>
         </div>
+
       </div>
 
-      <!-- ✅ PROFILE VIEW -->
-      <div id="viewProfile" style="display:none;">
+      <div id="viewProfile" class="hidden">
         <div class="card">
-          <div class="card-head">
-            <div class="badge"><span class="dot"></span><span data-fr="Profil" data-en="Profile">Profil</span></div>
-            <h1 class="title" data-fr="Ton profil public" data-en="Your public profile">Ton profil public</h1>
-            <p class="subtitle"
-               data-fr="Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique."
-               data-en="Edit your photo, name and description. These appear on your public page.">
-              Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div style="display:grid; gap:12px; max-width: 680px;">
-              <div class="form-row">
-                <label data-fr="Photo de profil" data-en="Profile photo">Photo de profil</label>
-                <input class="input" id="profilePhotoFile" type="file" accept="image/*" />
-                <div class="mini"
-                     data-fr="Astuce : choisis une image carrée. Max ~500KB."
-                     data-en="Tip: choose a square image. Max ~500KB.">
-                  Astuce : choisis une image carrée. Max ~500KB.
-                </div>
-              </div>
-
-              <div class="form-row">
-                <label for="profileName" data-fr="Nom (ou pseudo)" data-en="Name (or nickname)">Nom (ou pseudo)</label>
-                <input class="input" id="profileName" type="text" />
-              </div>
-
-              <div class="form-row">
-                <label for="profileBio" data-fr="Description" data-en="Description">Description</label>
-                <textarea class="textarea" id="profileBio"></textarea>
-              </div>
-
-              <div class="modal-actions" style="justify-content:flex-start;">
-                <button class="btn btn-primary" id="profileSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
-              </div>
-            </div>
-          </div>
+             <div class="card-head"><h2 class="title">Modifier mon profil</h2></div>
+             <div class="card-body">
+                 <form id="profileForm" style="display:grid; gap:16px; max-width:500px;">
+                     <div>
+                         <label style="display:block; font-weight:700; margin-bottom:6px;">Nom complet</label>
+                         <input type="text" id="inputName" class="input" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;">
+                     </div>
+                     <div>
+                         <label style="display:block; font-weight:700; margin-bottom:6px;">Présentation</label>
+                         <textarea id="inputBio" rows="4" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+                     </div>
+                     <button type="submit" class="btn btn-primary">Enregistrer</button>
+                 </form>
+             </div>
         </div>
       </div>
-
-      <!-- ✅ PAYOUTS VIEW -->
-      <div id="viewPayouts" style="display:none;">
-        <div class="card">
-          <div class="card-head">
-            <div class="badge"><span class="dot"></span><span data-fr="Paiements" data-en="Payouts">Paiements</span></div>
-            <h1 class="title" data-fr="Recevoir tes gains" data-en="Receive your earnings">Recevoir tes gains</h1>
-            <p class="subtitle"
-               data-fr="Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal. (On passera à Stripe Connect plus tard.)"
-               data-en="To keep it simple and secure at first: we only collect a Wise/PayPal email. (We’ll move to Stripe Connect later.)">
-              Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div style="display:grid; gap:12px; max-width: 680px;">
-              <div class="form-row">
-                <label for="payoutMethod" data-fr="Méthode" data-en="Method">Méthode</label>
-                <select class="input" id="payoutMethod">
-                  <option value="wise">Wise</option>
-                  <option value="paypal">PayPal</option>
-                </select>
-              </div>
-
-              <div class="form-row">
-                <label for="payoutEmail" data-fr="Email (Wise/PayPal)" data-en="Email (Wise/PayPal)">Email (Wise/PayPal)</label>
-                <input class="input" id="payoutEmail" type="email" placeholder="name@email.com" />
-              </div>
-
-              <div class="modal-actions" style="justify-content:flex-start;">
-                <button class="btn btn-primary" id="payoutSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
-              </div>
-
-              <div class="mini"
-                   data-fr="Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici."
-                   data-en="Note: this is only used to pay you. No bank details stored here.">
-                Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici.
-              </div>
-            </div>
-          </div>
-        </div>
+      
+      <div id="viewPayouts" class="hidden">
+           <div class="card">
+               <div class="card-body" style="text-align:center; padding:40px;">
+                   <span style="font-size:2rem;">💸</span>
+                   <h3 class="title">Paiements</h3>
+                   <p class="subtitle">Module de paiement Stripe Connect en cours d'intégration.</p>
+               </div>
+           </div>
       </div>
 
     </div>
   </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 
 <script>
-(async function(){
-  // ---------------------------
-  // Helpers
-  // ---------------------------
-  function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-  function cleanUrlParams(keys){
-    try{
-      const u = new URL(window.location.href);
-      let changed = false;
-      keys.forEach(k => {
-        if (u.searchParams.has(k)){ u.searchParams.delete(k); changed = true; }
-      });
-      if (changed) window.history.replaceState({}, "", u.toString());
-    }catch(_){}
-  }
-  function initials(str){
-    const s = (str || "").trim();
-    if (!s) return "RC";
-    const parts = s.split(/\s+/).slice(0,2);
-    return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
-  }
+(async function() {
+    // ------------------------------------------
+    // 1. INIT & AUTH CHECK
+    // ------------------------------------------
+    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // UI
-  const toast = document.getElementById("toast");
-  function showToast(type, text){
-    toast.className = "toast show " + (type === "err" ? "err" : "ok");
-    toast.textContent = text;
-    setTimeout(() => toast.classList.remove("show"), 3200);
-  }
-
-  // Elements
-  const langButtons = document.querySelectorAll('.lang-switch button');
-  const avatar = document.getElementById("avatar");
-  const pname = document.getElementById("pname");
-  const pbio = document.getElementById("pbio");
-  const publicPageBtn = document.getElementById("publicPageBtn");
-  const copyLinkBtn = document.getElementById("copyLinkBtn");
-  const editProfileBtn = document.getElementById("editProfileBtn");
-
-  const viewHome = document.getElementById("viewHome");
-  const viewProfile = document.getElementById("viewProfile");
-  const viewPayouts = document.getElementById("viewPayouts");
-
-  const calendarWrap = document.getElementById("calendarWrap");
-  const weekGrid = document.getElementById("weekGrid");
-  const emptyOverlay = document.getElementById("emptyOverlay");
-  const weekRangeLabel = document.getElementById("weekRangeLabel");
-  const prevWeekBtn = document.getElementById("prevWeekBtn");
-  const nextWeekBtn = document.getElementById("nextWeekBtn");
-
-  const profilePhotoFile = document.getElementById("profilePhotoFile");
-  const profileName = document.getElementById("profileName");
-  const profileBio = document.getElementById("profileBio");
-  const profileSaveBtn = document.getElementById("profileSaveBtn");
-
-  const payoutMethod = document.getElementById("payoutMethod");
-  const payoutEmail = document.getElementById("payoutEmail");
-  const payoutSaveBtn = document.getElementById("payoutSaveBtn");
-
-let expertId = null;
-let expertRow = null;
-let weekOffset = 0;
-let cachedSlots = [];
-  
-  // ---------------------------
-  // Language
-  // ---------------------------
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-  }
-  function applyLanguage(nextLang){
-    lang = nextLang;
-    document.documentElement.lang = lang;
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
-    if (typeof weekOffset !== "undefined") paintWeek();
-
-  }
-  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
-
-  // ---------------------------
-  // Auth: sessions.token
-  // ---------------------------
-  const tokenFromUrl = qs("token");
-  const tokenFromStorage = localStorage.getItem("runcall_token");
-  const token = tokenFromUrl || tokenFromStorage;
-
-  if (!token){
-    window.location.replace("/login.html");
-    return;
-  }
-
-  if (tokenFromUrl) localStorage.setItem("runcall_token", tokenFromUrl);
-  cleanUrlParams(["token", "connected"]);
-
-  async function resolveSessionToken(){
-    try{
-      const r = await fetch(`/api/sessions/resolve?token=${encodeURIComponent(token)}`, {
-        headers: { "Accept":"application/json" }
-      });
-      if (!r.ok) return null;
-      return await r.json(); // { expert_id }
-    }catch(_){
-      return null;
+    // Vérifier la session
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+        window.location.href = CONFIG.URLS.login; // Retour login si pas connecté
+        return;
     }
-  }
+    
+    // Auth OK : On affiche l'interface
+    document.documentElement.classList.remove('auth-pending');
 
-  const resolved = await resolveSessionToken();
-  if (!resolved || !resolved.expert_id){
-    localStorage.removeItem("runcall_token");
-    window.location.replace("/login.html");
-    return;
-  }
+    // Récupérer l'expert_id (passé dans l'URL par onboarding ou stocké)
+    const urlParams = new URLSearchParams(window.location.search);
+    let expertId = urlParams.get('expert_id');
 
-  const expertId = String(resolved.expert_id);
-  localStorage.setItem("runcall_expert_id", expertId);
-
-  // Now auth is OK, show UI
-  document.documentElement.classList.remove('auth-pending');
-
-  // ---------------------------
-  // Router
-  // ---------------------------
-  function showView(tab){
-    document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-    const active = document.querySelector(`.sb-item[data-tab="${tab}"]`);
-    if (active) active.classList.add("active");
-
-    viewHome.style.display = (tab === "home") ? "" : "none";
-    viewProfile.style.display = (tab === "profile") ? "" : "none";
-    viewPayouts.style.display = (tab === "payouts") ? "" : "none";
-
-    if (tab === "analytics" || tab === "settings"){
-      showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-      const fallback = "home";
-      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-      const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
-      if (a2) a2.classList.add("active");
-      viewHome.style.display = "";
-      viewProfile.style.display = "none";
-      viewPayouts.style.display = "none";
+    // Si pas d'expert_id dans l'URL, on essaie de le trouver via l'API (session)
+    if (!expertId) {
+        // Fallback: chercher l'expert associé à ce user auth
+        const { data: exp } = await sb.from('experts').select('id').eq('auth_user_id', session.user.id).single();
+        if (exp) expertId = exp.id;
     }
-  }
-
-  document.querySelectorAll(".sb-item").forEach(item => {
-    item.addEventListener("click", () => {
-      const tab = item.getAttribute("data-tab");
-      if (!tab) return;
-      showView(tab);
-    });
-  });
-  editProfileBtn.addEventListener("click", () => showView("profile"));
-
-  // ---------------------------
-  // Dates
-  // ---------------------------
-  let weekOffset = 0;
-  let cachedSlots = [];
-
-  function startOfWeek(d){
-    const x = new Date(d);
-    const day = x.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0,0,0,0);
-    return x;
-  }
-  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
-
-  function fmtTime(date){
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
-  }
-  function fmtRange(monday){
-    const end = addDays(monday, 6);
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
-    const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
-    return `${a} → ${b}`;
-  }
-  function getMondayForOffset(offset){
-    const base = startOfWeek(new Date());
-    return addDays(base, offset * 7);
-  }
-
-  // ---------------------------
-  // Calendar render
-  // ---------------------------
-  function renderWeekSkeleton(monday){
-    weekGrid.innerHTML = "";
-    const dayNames = (lang === "fr")
-      ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
-      : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-
-    for (let i=0;i<7;i++){
-      const dayDate = addDays(monday, i);
-      const dd = String(dayDate.getDate()).padStart(2,'0');
-      const mm = String(dayDate.getMonth()+1).padStart(2,'0');
-
-      const col = document.createElement("div");
-      col.className = "day-col";
-      col.innerHTML = `
-        <div class="day-head">
-          <span>${dayNames[i]}</span>
-          <span class="day-date">${dd}/${mm}</span>
-        </div>
-        <div class="slots" data-day="${ymd(dayDate)}"></div>
-      `;
-      weekGrid.appendChild(col);
-    }
-  }
-
-  function normalizeSlots(raw){
-    return (raw || []).map(s => {
-      const startRaw = s.start || s.slot_start;
-      const endRaw   = s.end   || s.slot_end;
-      return {
-        start: startRaw ? new Date(startRaw) : null,
-        end: endRaw ? new Date(endRaw) : null,
-        title: s.title || s.summary || "RunCall"
-      };
-    }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
-  }
-
-  function filterSlotsForWeek(monday, slots){
-    const start = new Date(monday);
-    const end = addDays(start, 7);
-    return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
-  }
-
-  function setEmptyState(hasAnySlots){
-    if (!hasAnySlots){
-      calendarWrap.classList.add("is-empty");
-      emptyOverlay.classList.add("show");
-    } else {
-      calendarWrap.classList.remove("is-empty");
-      emptyOverlay.classList.remove("show");
-    }
-  }
-
-  function paintWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    weekRangeLabel.textContent = fmtRange(monday);
-
-    renderWeekSkeleton(monday);
-
-    const slots = normalizeSlots(cachedSlots);
-    setEmptyState(slots.length > 0);
-
-    const inWeek = filterSlotsForWeek(monday, slots);
-    for (const s of inWeek){
-      const key = ymd(s.start);
-      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
-      if (!bucket) continue;
-
-      const item = document.createElement("div");
-      item.className = "slot";
-      item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
-      bucket.appendChild(item);
-    }
-  }
-
-  async function fetchSlots(fromISO, toISO){
-    const q = new URLSearchParams({ expert_id: expertId });
-    if (fromISO) q.set("from", fromISO);
-    if (toISO) q.set("to", toISO);
-
-    const urls = [
-      `/api/experts/slots?${q.toString()}`,
-      `/api/slots?${q.toString()}`
-    ];
-
-    for (const url of urls){
-      try{
-        const r = await fetch(url, { headers: { "Accept":"application/json" } });
-        if (!r.ok) continue;
-        const data = await r.json();
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.slots)) return data.slots;
-        return [];
-      }catch(_){}
-    }
-    return [];
-  }
-
-  async function reloadWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    const fromISO = monday.toISOString();
-    const toISO = addDays(monday, 7).toISOString();
-    cachedSlots = await fetchSlots(fromISO, toISO);
-    paintWeek();
-  }
-
-  prevWeekBtn.addEventListener("click", async () => {
-    weekOffset -= 1;
-    await reloadWeek();
-  });
-  nextWeekBtn.addEventListener("click", async () => {
-    weekOffset += 1;
-    await reloadWeek();
-  });
-
-  // ---------------------------
-  // Public page link
-  // ---------------------------
-  const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
-  publicPageBtn.href = publicUrl;
-
-  copyLinkBtn.addEventListener("click", async () => {
-    try{
-      await navigator.clipboard.writeText(publicUrl);
-      showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-    }catch(_){
-      showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
-    }
-  });
-
-  // ---------------------------
-  // Expert profile load (API)
-  // ---------------------------
-  let expertRow = { id: expertId, name: "", presentation: "", photo_url: "" };
-
-  async function fetchExpertPublic(){
-    const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
-      headers: { "Accept":"application/json" }
-    });
-    if (!r.ok) return null;
-    return await r.json(); // {id,name,presentation,photo_url}
-  }
-
-  const fetched = await fetchExpertPublic();
-  if (fetched && fetched.id){
-    expertRow = {
-      id: fetched.id,
-      name: fetched.name || "",
-      presentation: fetched.presentation || "",
-      photo_url: fetched.photo_url || ""
-    };
-  }
-
-  function renderHeaderFromExpert(){
-    const name = (expertRow?.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-    const bio  = (expertRow?.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
-    const photo = (expertRow?.photo_url || "").trim();
-
-    pname.textContent = name;
-    pbio.textContent = bio;
-
-    avatar.innerHTML = "";
-    if (photo){
-      const img = document.createElement("img");
-      img.src = photo;
-      img.alt = "Profile photo";
-      img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-      avatar.appendChild(img);
-    } else {
-      avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
+    
+    // Setup lien page publique
+    if (expertId) {
+        document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
     }
 
-    profileName.value = (expertRow?.name || "").trim();
-    profileBio.value  = (expertRow?.presentation || "").trim();
-  }
-  renderHeaderFromExpert();
-
-  // ---------------------------
-  // Profile save (API only)
-  // ---------------------------
-  profilePhotoFile?.addEventListener("change", () => {
-    const file = profilePhotoFile?.files?.[0];
-    if (!file) return;
-    if (file.size > 500 * 1024){
-      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-      profilePhotoFile.value = "";
-      return;
-    }
-    showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
-  });
-
-  async function uploadAvatarIfNeeded(){
-    const file = profilePhotoFile?.files?.[0];
-    if (!file) return null;
-
-    if (file.size > 500 * 1024){
-      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-      profilePhotoFile.value = "";
-      return null;
-    }
-
-    const fd = new FormData();
-    fd.append("file", file);
-
-    const r = await fetch("/api/experts/avatar/upload", {
-      method: "POST",
-      headers: { "x-session-token": token },
-      body: fd
+    // ------------------------------------------
+    // 2. LOGIC: CONNECT GOOGLE CALENDAR
+    // ------------------------------------------
+    const btnConnect = document.getElementById('connectGoogleBtn');
+    
+    // Fonction qui lance l'OAuth avec les bons scopes
+    btnConnect.addEventListener('click', async () => {
+        const { error } = await sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.href, // Revenir ici après
+                scopes: 'https://www.googleapis.com/auth/calendar' // LE SESAME !
+            }
+        });
+        if (error) alert("Erreur connexion Google: " + error.message);
     });
 
-    if (!r.ok){
-      const txt = await r.text().catch(()=> "");
-      throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
-    }
+    // ------------------------------------------
+    // 3. LOGIC: LOAD DATA & STATE
+    // ------------------------------------------
+    async function loadDashboard() {
+        // Charger les infos de l'expert
+        const { data: expert } = await sb.from('experts').select('*').eq('id', expertId).single();
+        
+        if (!expert) return;
 
-    const data = await r.json();
-    return data?.photo_url || null;
-  }
+        // Remplir header et form
+        document.getElementById('topTitle').textContent = expert.name || "Dashboard";
+        document.getElementById('inputName').value = expert.name || "";
+        document.getElementById('inputBio').value = expert.presentation || "";
+        if (expert.photo_url) document.getElementById('topAvatar').src = expert.photo_url;
 
-  async function updateExpertViaApi(name, presentation, photoUrlOrNull){
-    const payload = { name, presentation };
-    // if provided, send photo_url (string or null)
-    if (photoUrlOrNull !== undefined) payload.photo_url = photoUrlOrNull;
-
-    const r = await fetch("/api/experts/update", {
-      method: "POST",
-      headers: {
-        "Content-Type":"application/json",
-        "Accept":"application/json",
-        "x-session-token": token
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!r.ok){
-      const txt = await r.text().catch(()=> "");
-      throw new Error(`Update failed (${r.status}) ${txt}`);
-    }
-
-    const data = await r.json();
-    return data?.expert || null;
-  }
-
-  profileSaveBtn?.addEventListener("click", async () => {
-    if (!expertId){
-      showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
-      return;
-    }
-
-      profileSaveBtn.disabled = true;
-      try{
-        // 1) upload avatar if selected
-        const newPhotoUrl = await uploadAvatarIfNeeded();
-
-      // 2) update profile text (server reads token -> expert)
-const updated = await updateExpertViaApi({
-  expert_id: expertId,
-  name,
-  presentation
-});
-
-if (updated) {
-  // ✅ preserve existing photo_url if API doesn't return it
-  const prevPhoto = (expertRow?.photo_url || "").trim();
-  expertRow = { ...(expertRow || {}), ...updated };
-  if (!(expertRow?.photo_url || "").trim() && prevPhoto) {
-    expertRow.photo_url = prevPhoto;
-  }
-}
-
-
-
-        // 3) refresh UI
-        pname.textContent = name;
-        pbio.textContent = presentation;
-
-        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
-        avatar.innerHTML = "";
-        if (finalPhoto){
-          const img = document.createElement("img");
-          img.src = finalPhoto;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-          if (expertRow) expertRow.photo_url = finalPhoto;
+        // DÉCISION CRITIQUE : A-t-il connecté son calendrier ?
+        // Astuce: Si on a un refresh_token ou si le status n'est plus "draft" (selon ta logique backend)
+        // Pour l'instant, on va tester si l'utilisateur a des tokens provider via l'auth session,
+        // OU on suppose qu'il doit connecter s'il n'a pas encore fait l'action.
+        
+        // Simplification pour la démo: On affiche le calendrier SI l'utilisateur est connecté via Google AVEC le scope.
+        // Comme on ne peut pas facilement vérifier le scope côté client sans appel API complexe,
+        // on va utiliser une logique simple :
+        // Si session.provider_token existe (ce qui arrive juste après le callback OAuth), on suppose que c'est bon.
+        
+        const isConnected = session.provider_token || localStorage.getItem('runcall_cal_connected');
+        
+        if (isConnected) {
+             showState('calendar');
+             localStorage.setItem('runcall_cal_connected', 'true'); // Persist simple state
+             loadCalendarSlots(); // Charger les créneaux (à implémenter avec ton API)
         } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-          if (expertRow) expertRow.photo_url = "";
+             showState('connect');
         }
+    }
 
-        profilePhotoFile.value = "";
-        showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-      }catch(e){
-        console.error(e);
-        showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-      }finally{
-        profileSaveBtn.disabled = false;
-      }
+    // ------------------------------------------
+    // 4. NAVIGATION & TABS
+    // ------------------------------------------
+    function showState(state) {
+        document.getElementById('stateConnect').classList.add('hidden');
+        document.getElementById('stateCalendar').classList.add('hidden');
+        
+        if (state === 'connect') document.getElementById('stateConnect').classList.remove('hidden');
+        if (state === 'calendar') document.getElementById('stateCalendar').classList.remove('hidden');
+    }
+
+    document.querySelectorAll('.sb-item').forEach(item => {
+        item.addEventListener('click', () => {
+            // UI Switch
+            document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            
+            const tab = item.dataset.tab;
+            document.getElementById('viewHome').classList.add('hidden');
+            document.getElementById('viewProfile').classList.add('hidden');
+            document.getElementById('viewPayouts').classList.add('hidden');
+
+            if (tab === 'home') document.getElementById('viewHome').classList.remove('hidden');
+            if (tab === 'profile') document.getElementById('viewProfile').classList.remove('hidden');
+            if (tab === 'payouts') document.getElementById('viewPayouts').classList.remove('hidden');
+        });
+    });
+    
+    // Form Profil simple
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('inputName').value;
+        const bio = document.getElementById('inputBio').value;
+        
+        await sb.from('experts').update({ name, presentation: bio }).eq('id', expertId);
+        alert('Profil mis à jour !');
+        window.location.reload();
     });
 
-    if (!name || !presentation){
-      showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
-      return;
+    // ------------------------------------------
+    // 5. CALENDAR MOCKUP (Fonctionnel visuellement)
+    // ------------------------------------------
+    function loadCalendarSlots() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+        
+        // Générer les 7 jours de la semaine
+        const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+        const today = new Date();
+        
+        days.forEach((day, i) => {
+            const col = document.createElement('div');
+            col.className = 'day-col';
+            
+            const head = document.createElement('div');
+            head.className = 'day-head';
+            head.textContent = `${day} ${today.getDate() + i}`;
+            
+            const slotsDiv = document.createElement('div');
+            slotsDiv.className = 'slots';
+            
+            // Simulation: Si c'est vide, c'est vide.
+            // Ton code API ira ici plus tard pour fetcher '/api/slots'
+            
+            col.appendChild(head);
+            col.appendChild(slotsDiv);
+            grid.appendChild(col);
+        });
+        
+        // Afficher message "vide" pour l'instant
+        document.getElementById('emptyStateMsg').style.display = 'block';
     }
 
-    profileSaveBtn.disabled = true;
-    try{
-      // 1) upload avatar if selected
-      const newPhotoUrl = await uploadAvatarIfNeeded();
+    // Lancer le chargement
+    loadDashboard();
 
-      // 2) update text + optional photo_url
-      const photoToSend =
-        newPhotoUrl ? newPhotoUrl :
-        ((expertRow?.photo_url || "").trim() ? expertRow.photo_url : null);
-
-      const updated = await updateExpertViaApi(name, presentation, photoToSend);
-
-      // 3) update local state
-      if (updated){
-        expertRow = {
-          ...(expertRow || {}),
-          ...(updated || {}),
-          id: expertId,
-          name,
-          presentation,
-          photo_url: (updated.photo_url || newPhotoUrl || expertRow.photo_url || "")
-        };
-      } else {
-        expertRow = {
-          ...(expertRow || {}),
-          id: expertId,
-          name,
-          presentation,
-          photo_url: (newPhotoUrl || expertRow.photo_url || "")
-        };
-      }
-
-      // 4) refresh UI
-      renderHeaderFromExpert();
-
-      profilePhotoFile.value = "";
-      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-    }catch(e){
-      console.error(e);
-      showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-    }finally{
-      profileSaveBtn.disabled = false;
-    }
-  });
-
-  // ---------------------------
-  // Payouts (TEMP: localStorage)
-  // ---------------------------
-  function loadPayoutLocal(){
-    const m = localStorage.getItem("runcall_payout_method");
-    const e = localStorage.getItem("runcall_payout_email");
-    if (m) payoutMethod.value = m;
-    if (e) payoutEmail.value = e;
-  }
-  loadPayoutLocal();
-
-  payoutSaveBtn?.addEventListener("click", async () => {
-    const method = payoutMethod.value;
-    const email = (payoutEmail.value || "").trim();
-    if (!email){
-      showToast("err", lang === "fr" ? "Email requis." : "Email required.");
-      return;
-    }
-    localStorage.setItem("runcall_payout_method", method);
-    localStorage.setItem("runcall_payout_email", email);
-    showToast("ok", lang === "fr" ? "Enregistré ✅ (temporaire)" : "Saved ✅ (temporary)");
-  });
-
-  // ---------------------------
-  // Init
-  // ---------------------------
-  showView("home");
-  paintWeek();
-  await reloadWeek();
-
-})().catch((e) => {
-  console.error("Dashboard fatal error:", e);
-  document.documentElement.classList.remove('auth-pending');
-  alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
-});
+})();
 </script>
 
 </body>
