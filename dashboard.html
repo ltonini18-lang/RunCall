@@ -221,32 +221,33 @@
     // ------------------------------------------
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+    
+    if (typeof window.supabase === 'undefined') {
+        console.error("Supabase non chargé");
+        return;
+    }
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // Vérifier la session
     const { data: { session } } = await sb.auth.getSession();
     if (!session) {
-        window.location.href = CONFIG.URLS.login; // Retour login si pas connecté
+        window.location.href = CONFIG.URLS.login; 
         return;
     }
     
-    // Auth OK : On affiche l'interface
     document.documentElement.classList.remove('auth-pending');
 
-    // Récupérer l'expert_id (passé dans l'URL par onboarding ou stocké)
+    // Récupérer expert_id
     const urlParams = new URLSearchParams(window.location.search);
     let expertId = urlParams.get('expert_id');
-
-    // Si pas d'expert_id dans l'URL, on essaie de le trouver via l'API (session)
     if (!expertId) {
-        // Fallback: chercher l'expert associé à ce user auth
         const { data: exp } = await sb.from('experts').select('id').eq('auth_user_id', session.user.id).single();
         if (exp) expertId = exp.id;
     }
     
-    // Setup lien page publique
     if (expertId) {
-        document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+        const linkBtn = document.getElementById('publicLinkBtn');
+        if(linkBtn) linkBtn.href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
     }
 
     // ------------------------------------------
@@ -254,130 +255,145 @@
     // ------------------------------------------
     const btnConnect = document.getElementById('connectGoogleBtn');
     
-    // Fonction qui lance l'OAuth avec les bons scopes
-    btnConnect.addEventListener('click', async () => {
-        const { error } = await sb.auth.signInWithOAuth({
-            provider: 'google',
-            options: {
-                redirectTo: window.location.href, // Revenir ici après
-                scopes: 'https://www.googleapis.com/auth/calendar' // LE SESAME !
+    if (btnConnect) {
+        btnConnect.addEventListener('click', async () => {
+            // 🟢 ON POSE LE CAILLOU AVANT DE PARTIR
+            localStorage.setItem('runcall_auth_pending', 'true');
+
+            const { error } = await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.href,
+                    scopes: 'https://www.googleapis.com/auth/calendar',
+                    queryParams: {
+                        access_type: 'offline', // Pour avoir le refresh token
+                        prompt: 'consent'       // FORCE Google à redemander (évite le bug du clic vide)
+                    }
+                }
+            });
+            if (error) {
+                alert("Erreur : " + error.message);
+                localStorage.removeItem('runcall_auth_pending'); // On nettoie si échec
             }
         });
-        if (error) alert("Erreur connexion Google: " + error.message);
-    });
+    }
 
     // ------------------------------------------
     // 3. LOGIC: LOAD DATA & STATE
     // ------------------------------------------
     async function loadDashboard() {
-        // Charger les infos de l'expert
+        // Charger infos expert
         const { data: expert } = await sb.from('experts').select('*').eq('id', expertId).single();
-        
-        if (!expert) return;
+        if (expert) {
+            const titleEl = document.getElementById('topTitle');
+            if(titleEl) titleEl.textContent = expert.name || "Dashboard";
+            
+            const nameEl = document.getElementById('inputName');
+            if(nameEl) nameEl.value = expert.name || "";
+            
+            const bioEl = document.getElementById('inputBio');
+            if(bioEl) bioEl.value = expert.presentation || "";
+            
+            const avEl = document.getElementById('topAvatar');
+            if(avEl && expert.photo_url) avEl.src = expert.photo_url;
+        }
 
-        // Remplir header et form
-        document.getElementById('topTitle').textContent = expert.name || "Dashboard";
-        document.getElementById('inputName').value = expert.name || "";
-        document.getElementById('inputBio').value = expert.presentation || "";
-        if (expert.photo_url) document.getElementById('topAvatar').src = expert.photo_url;
+        // --- DÉTECTION DU RETOUR (LE CAILLOU) ---
+        const pendingAuth = localStorage.getItem('runcall_auth_pending');
+        let isConnected = localStorage.getItem('runcall_cal_connected') === 'true';
 
-        // DÉCISION CRITIQUE : A-t-il connecté son calendrier ?
-        // Astuce: Si on a un refresh_token ou si le status n'est plus "draft" (selon ta logique backend)
-        // Pour l'instant, on va tester si l'utilisateur a des tokens provider via l'auth session,
-        // OU on suppose qu'il doit connecter s'il n'a pas encore fait l'action.
-        
-        // Simplification pour la démo: On affiche le calendrier SI l'utilisateur est connecté via Google AVEC le scope.
-        // Comme on ne peut pas facilement vérifier le scope côté client sans appel API complexe,
-        // on va utiliser une logique simple :
-        // Si session.provider_token existe (ce qui arrive juste après le callback OAuth), on suppose que c'est bon.
-        
-        const isConnected = localStorage.getItem('runcall_cal_connected') === 'true';
+        // Si on a le caillou ET une session valide => C'EST GAGNÉ
+        if (pendingAuth === 'true' && session) {
+            isConnected = true;
+            localStorage.setItem('runcall_cal_connected', 'true'); // On valide définitivement
+            localStorage.removeItem('runcall_auth_pending');       // On jette le caillou
+            
+            // Petit effet visuel pour confirmer
+            alert("Calendrier connecté avec succès ! 📅");
+        }
         
         if (isConnected) {
              showState('calendar');
-             localStorage.setItem('runcall_cal_connected', 'true'); // Persist simple state
-             loadCalendarSlots(); // Charger les créneaux (à implémenter avec ton API)
+             loadCalendarSlots();
         } else {
              showState('connect');
         }
     }
 
     // ------------------------------------------
-    // 4. NAVIGATION & TABS
+    // 4. NAVIGATION
     // ------------------------------------------
     function showState(state) {
-        document.getElementById('stateConnect').classList.add('hidden');
-        document.getElementById('stateCalendar').classList.add('hidden');
+        const sConnect = document.getElementById('stateConnect');
+        const sCalendar = document.getElementById('stateCalendar');
         
-        if (state === 'connect') document.getElementById('stateConnect').classList.remove('hidden');
-        if (state === 'calendar') document.getElementById('stateCalendar').classList.remove('hidden');
+        if(sConnect) sConnect.classList.add('hidden');
+        if(sCalendar) sCalendar.classList.add('hidden');
+        
+        if (state === 'connect' && sConnect) sConnect.classList.remove('hidden');
+        if (state === 'calendar' && sCalendar) sCalendar.classList.remove('hidden');
     }
 
     document.querySelectorAll('.sb-item').forEach(item => {
         item.addEventListener('click', () => {
-            // UI Switch
             document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
             item.classList.add('active');
             
             const tab = item.dataset.tab;
-            document.getElementById('viewHome').classList.add('hidden');
-            document.getElementById('viewProfile').classList.add('hidden');
-            document.getElementById('viewPayouts').classList.add('hidden');
+            const vHome = document.getElementById('viewHome');
+            const vProfile = document.getElementById('viewProfile');
+            const vPayouts = document.getElementById('viewPayouts');
 
-            if (tab === 'home') document.getElementById('viewHome').classList.remove('hidden');
-            if (tab === 'profile') document.getElementById('viewProfile').classList.remove('hidden');
-            if (tab === 'payouts') document.getElementById('viewPayouts').classList.remove('hidden');
+            if(vHome) vHome.classList.add('hidden');
+            if(vProfile) vProfile.classList.add('hidden');
+            if(vPayouts) vPayouts.classList.add('hidden');
+
+            if (tab === 'home' && vHome) vHome.classList.remove('hidden');
+            if (tab === 'profile' && vProfile) vProfile.classList.remove('hidden');
+            if (tab === 'payouts' && vPayouts) vPayouts.classList.remove('hidden');
         });
     });
     
-    // Form Profil simple
-    document.getElementById('profileForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('inputName').value;
-        const bio = document.getElementById('inputBio').value;
-        
-        await sb.from('experts').update({ name, presentation: bio }).eq('id', expertId);
-        alert('Profil mis à jour !');
-        window.location.reload();
-    });
+    const pForm = document.getElementById('profileForm');
+    if(pForm){
+        pForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('inputName').value;
+            const bio = document.getElementById('inputBio').value;
+            await sb.from('experts').update({ name, presentation: bio }).eq('id', expertId);
+            alert('Profil mis à jour !');
+        });
+    }
 
     // ------------------------------------------
-    // 5. CALENDAR MOCKUP (Fonctionnel visuellement)
+    // 5. CALENDAR MOCKUP
     // ------------------------------------------
     function loadCalendarSlots() {
         const grid = document.getElementById('calendarGrid');
+        if(!grid) return;
         grid.innerHTML = '';
         
-        // Générer les 7 jours de la semaine
         const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
         const today = new Date();
         
         days.forEach((day, i) => {
             const col = document.createElement('div');
             col.className = 'day-col';
-            
             const head = document.createElement('div');
             head.className = 'day-head';
             head.textContent = `${day} ${today.getDate() + i}`;
-            
             const slotsDiv = document.createElement('div');
             slotsDiv.className = 'slots';
-            
-            // Simulation: Si c'est vide, c'est vide.
-            // Ton code API ira ici plus tard pour fetcher '/api/slots'
-            
             col.appendChild(head);
             col.appendChild(slotsDiv);
             grid.appendChild(col);
         });
         
-        // Afficher message "vide" pour l'instant
-        document.getElementById('emptyStateMsg').style.display = 'block';
+        const emptyMsg = document.getElementById('emptyStateMsg');
+        if(emptyMsg) emptyMsg.style.display = 'block';
     }
 
-    // Lancer le chargement
     loadDashboard();
-
 })();
 </script>
 
