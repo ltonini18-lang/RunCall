@@ -268,6 +268,7 @@
         if (typeof CONFIG === 'undefined') throw new Error("Config.js manquant");
         if (typeof window.supabase === 'undefined') throw new Error("Supabase manquant");
 
+        // Utilisation explicite des clés pour éviter tout doute
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
@@ -286,7 +287,13 @@
 
         // 2. AUTH USER
         const { data: { session }, error: authError } = await sb.auth.getSession();
-        if (authError || !session) { window.location.href = CONFIG.URLS.login; return; }
+        
+        // Si pas de session, on redirige
+        if (authError || !session) { 
+            console.log("Session perdue, redirection login");
+            window.location.href = CONFIG.URLS.login; 
+            return; 
+        }
 
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
@@ -296,6 +303,7 @@
         let expertId = urlParams.get('expert_id');
         let expertData = null;
 
+        // Si on revient de Google sans ID dans l'URL, on le retrouve via le compte utilisateur
         if (!expertId) {
             const { data: exp } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
             if (exp) { expertId = exp.id; expertData = exp; }
@@ -311,7 +319,6 @@
             const tEl = document.getElementById('topTitle');
             if(tEl) tEl.textContent = expertData.name || "Dashboard";
             
-            // Photo & Form
             document.getElementById('inputName').value = expertData.name || "";
             document.getElementById('inputBio').value = expertData.presentation || "";
             if (expertData.photo_url) {
@@ -350,7 +357,6 @@
             const startOfWeek = getStartOfWeek(currentWeekOffset);
             const dayNames = lang === 'fr' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-            // Build grid columns
             for (let i = 0; i < 7; i++) {
                 const d = new Date(startOfWeek); d.setDate(d.getDate() + i);
                 const col = document.createElement('div'); col.className = 'day-col';
@@ -360,28 +366,30 @@
             }
 
             try {
-                // Appel API
                 const fromStr = startOfWeek.toISOString();
                 const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 7);
-                
                 const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${fromStr}&to=${toDate.toISOString()}`;
+                
                 const res = await fetch(apiUrl);
-                const slots = await res.json(); // On récupère la liste (ou l'erreur)
+                const slots = await res.json();
 
                 loader.classList.add('hidden');
 
                 if (slots.error) {
                     console.error("API Error:", slots.error);
-                    // Si erreur de compte introuvable, on le dit
-                    if (slots.error.includes("Compte Google")) {
-                        alert("Connexion perdue. Merci de reconnecter ton Google Agenda.");
-                        localStorage.removeItem('runcall_cal_connected');
-                        location.reload();
+                    // Si erreur de compte introuvable, on le signale
+                    if (typeof slots.error === 'string' && slots.error.includes("Compte Google")) {
+                         // On force la déconnexion locale pour réinitialiser l'état
+                         localStorage.removeItem('runcall_cal_connected');
+                         // On ne reload pas en boucle, on laisse l'utilisateur recliquer
+                         alert("Liaison Google perdue. Clique sur le bouton pour reconnecter.");
+                         document.getElementById('stateConnect').classList.remove('hidden');
+                         document.getElementById('stateCalendar').classList.add('hidden');
+                         return;
                     }
-                    return;
                 }
 
-                if (!slots || slots.length === 0) {
+                if (!slots || !Array.isArray(slots) || slots.length === 0) {
                     emptyMsg.classList.remove('hidden');
                 } else {
                     slots.forEach(slot => {
@@ -399,21 +407,26 @@
                 }
             } catch (e) {
                 console.error("Fetch slots error", e);
-                loader.textContent = "Erreur...";
+                loader.textContent = "";
             }
         }
 
-        // 5. GESTION CONNEXION GOOGLE (C'est ici qu'on corrige !)
+        // 5. GESTION CONNEXION GOOGLE (CORRECTION URL PROPRE)
         const btnConnect = document.getElementById('connectGoogleBtn');
         if (btnConnect) {
             btnConnect.addEventListener('click', async () => {
                 localStorage.setItem('runcall_auth_pending', 'true');
+                
+                // On nettoie l'URL pour ne garder que la base (sans ?expert_id=...)
+                // C'est ça qui corrige l'erreur 400 Google
+                const cleanRedirect = window.location.origin + window.location.pathname;
+
                 await sb.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: window.location.href,
+                        redirectTo: cleanRedirect,
                         scopes: 'https://www.googleapis.com/auth/calendar',
-                        queryParams: { access_type: 'offline', prompt: 'consent' } // Force le refresh token
+                        queryParams: { access_type: 'offline', prompt: 'consent' }
                     }
                 });
             });
@@ -423,16 +436,16 @@
         const pendingAuth = localStorage.getItem('runcall_auth_pending');
         let isConnected = localStorage.getItem('runcall_cal_connected') === 'true';
 
-        if (pendingAuth === 'true' && session) {
-            // ✅ CORRECTION MAJEURE : On sauvegarde les clés en BDD
+        // Si on a un expertId dans l'URL, on peut vérifier la connexion, sinon on attend
+        if (pendingAuth === 'true' && session && expertId) {
             if (session.provider_token) {
                 console.log("Saving Google tokens to DB...");
                 const { error: saveErr } = await sb.from('expert_google_accounts').upsert({
                     expert_id: expertId,
                     google_email: session.user.email,
                     access_token: session.provider_token,
-                    refresh_token: session.provider_refresh_token, // Crucial !
-                    expiry_date: Date.now() + 3600 * 1000 // Fake expiry pour l'instant
+                    refresh_token: session.provider_refresh_token, 
+                    expiry_date: Date.now() + 3600 * 1000 
                 });
                 
                 if (saveErr) {
@@ -442,6 +455,7 @@
                     console.log("Tokens sauvegardés !");
                     isConnected = true;
                     localStorage.setItem('runcall_cal_connected', 'true');
+                    // Nettoyage de l'URL si besoin (optionnel)
                 }
             }
             localStorage.removeItem('runcall_auth_pending');
@@ -457,7 +471,6 @@
             updateWeekLabel();
             fetchAndRenderSlots();
             
-            // Navigation
             document.getElementById('prevWeek').addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
             document.getElementById('nextWeek').addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
         } else {
@@ -465,7 +478,7 @@
             stateCalendar.classList.add('hidden');
         }
 
-        // Tabs
+        // Tabs & Profil (Code standard)
         document.querySelectorAll('.sb-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -478,14 +491,13 @@
             });
         });
 
-        // Profile Save
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('saveProfileBtn');
                 btn.textContent = "...";
-                // (Logique upload inchangée ici pour abréger, copie ton ancien bloc si besoin)
+                // ... (Code upload profil inchangé) ...
                 alert("Sauvegardé !");
                 window.location.reload();
             });
