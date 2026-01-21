@@ -1,40 +1,34 @@
 // /api/experts/slots.js
 
-// --- 1. FONCTIONS UTILITAIRES ---
+// ------------------------------------------------------------------
+// 1. HELPERS
+// ------------------------------------------------------------------
 
-// Vérifie si deux intervalles se chevauchent
 function overlaps(aStart, aEnd, bStart, bEnd) {
   return aStart < bEnd && bStart < aEnd;
 }
 
-// Convertit la date Google (ignore les événements journée entière)
 function parseGoogleEventTime(t) {
   if (!t) return null;
+  // On ignore les événements "toute la journée"
   if (t.dateTime) return new Date(t.dateTime);
   return null;
 }
 
-// ✅ RÈGLE 1 : Détection souple du titre (Regex)
-// Matche : "RunCall", "run-call", "runcall", "Run Call", "Dispo RunCall", etc.
+// Regex souple pour détecter "RunCall"
 function isRunCallAvailability(text) {
   if (!text) return false;
-  // Regex : "run" + séparateur optionnel + "call" (flag i = insensible à la casse)
   return /run[\s-]?call/i.test(text);
 }
 
-// Détecte si c'est une réservation RunCall (pour ne pas la compter comme dispo)
 function isRunCallBookingEvent(ev) {
   const t = ev?.extendedProperties?.private?.runcall_type;
   return String(t || "").toLowerCase() === "booking";
 }
 
-// Normalise le texte (enlève accents et caractères spéciaux) pour comparaison basique si besoin
-function normalizeText(s) {
-  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-}
-
-
-// --- 2. GESTION GOOGLE & SUPABASE ---
+// ------------------------------------------------------------------
+// 2. GESTION GOOGLE & SUPABASE
+// ------------------------------------------------------------------
 
 async function refreshAccessToken(refreshToken) {
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -80,7 +74,9 @@ async function supabaseUpdateGoogleAccount(expertId, patch) {
   });
 }
 
-// --- 3. APPELS GOOGLE CALENDAR ---
+// ------------------------------------------------------------------
+// 3. APPELS GOOGLE CALENDAR
+// ------------------------------------------------------------------
 
 async function googleListCalendars(accessToken) {
   const r = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=20", {
@@ -98,24 +94,23 @@ async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
   url.searchParams.set("singleEvents", "true");
   url.searchParams.set("orderBy", "startTime");
   url.searchParams.set("showDeleted", "false");
-  // Optimisation : on demande juste les champs utiles
   url.searchParams.set("fields", "items(id,status,summary,description,transparency,start,end,extendedProperties)");
 
   const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!r.ok) return []; // On ignore les erreurs de calendrier (ex: non partagé)
+  if (!r.ok) return [];
   const data = await r.json();
   return data.items || [];
 }
 
+// ------------------------------------------------------------------
+// 4. LE HANDLER PRINCIPAL (Standard Vercel)
+// ------------------------------------------------------------------
 
-// --- 4. LE MOTEUR (Handler) ---
-
-// ⚠️ SYNTAXE UNIVERSELLE (module.exports) POUR ÉVITER LE 404 SUR VERCEL
-module.exports = async (req, res) => {
-  // CORS (Pour que ton frontend puisse appeler l'API)
-  res.setHeader('Access-Control-Allow-Credentials', true);
+export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -123,10 +118,8 @@ module.exports = async (req, res) => {
     const expertId = req.query.expert_id;
     if (!expertId) return res.status(400).json({ error: "Missing expert_id" });
 
-    // Dates
     const now = new Date();
     const from = req.query.from || now.toISOString();
-    // Par défaut 2 semaines si pas précisé
     const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
     // 1. Récupérer Tokens
@@ -135,36 +128,22 @@ module.exports = async (req, res) => {
 
     let { access_token, refresh_token, expiry_date } = account;
 
-    // 2. Refresh Token si besoin
+    // 2. Refresh Token
     if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
         if (!refresh_token) return res.status(401).json({ error: "Refresh token missing" });
-        
-        try {
-            const refreshed = await refreshAccessToken(refresh_token);
-            access_token = refreshed.access_token;
-            const newExpiry = Date.now() + (refreshed.expires_in * 1000);
-            
-            await supabaseUpdateGoogleAccount(expertId, { 
-                access_token, 
-                expiry_date: newExpiry 
-            });
-        } catch (e) {
-            console.error("Refresh failed", e);
-            return res.status(401).json({ error: "Google auth failed" });
-        }
+        const refreshed = await refreshAccessToken(refresh_token);
+        access_token = refreshed.access_token;
+        const newExpiry = Date.now() + (refreshed.expires_in * 1000);
+        await supabaseUpdateGoogleAccount(expertId, { access_token, expiry_date: newExpiry });
     }
 
     // 3. Scanner les calendriers
     const calendars = await googleListCalendars(access_token);
-    // On garde Owner et Writer (ceux où l'expert a le contrôle)
-    const targets = calendars
-        .filter(c => c.accessRole === 'owner' || c.accessRole === 'writer')
-        .map(c => c.id);
+    const targets = calendars.filter(c => c.accessRole === 'owner' || c.accessRole === 'writer').map(c => c.id);
 
-    const availabilityRanges = []; // Plages "RunCall"
-    const busyRanges = [];         // Plages "Occupé"
+    const availabilityRanges = [];
+    const busyRanges = [];
 
-    // Scan des événements
     for (const calId of targets) {
         const events = await googleListEvents({ accessToken: access_token, calendarId: calId, timeMin: from, timeMax: to });
         
@@ -175,41 +154,35 @@ module.exports = async (req, res) => {
             const end = parseGoogleEventTime(ev.end);
             if (!start || !end) continue;
 
-            // Logique de tri
-            const title = ev.summary || "";
-            const desc = ev.description || "";
-            const text = title + " " + desc;
+            const haystack = `${ev.summary || ""} ${ev.description || ""}`;
 
             if (isRunCallBookingEvent(ev)) {
-                // C'est une réservation RunCall -> C'est occupé
                 busyRanges.push({ start, end });
-            } else if (isRunCallAvailability(text)) {
-                // ✅ C'est un créneau d'ouverture !
+            } else if (isRunCallAvailability(haystack)) {
                 availabilityRanges.push({ start, end });
             } else if (ev.transparency !== 'transparent') {
-                // C'est un événement standard Google (ex: Dentiste) -> C'est occupé
                 busyRanges.push({ start, end });
             }
         }
     }
 
-    // ✅ RÈGLE 2 : LA DÉCOUPE EN 30 MIN (Slicing)
+    // 4. Découpe en 30 min
     const SLOT_MIN = 30;
     const finalSlots = [];
 
     for (const range of availabilityRanges) {
         const rangeEndMs = range.end.getTime();
         let cursor = new Date(range.start.getTime());
-
-        // On cale le curseur sur une minute "propre" si besoin (optionnel)
-        // Ici on respecte l'heure de début exacte de l'événement
         
-        // Boucle tant qu'une tranche de 30min rentre
+        // Alignement optionnel sur 00/30 (ici désactivé pour suivre exactement l'agenda)
+        // const m = cursor.getMinutes();
+        // const mod = m % SLOT_MIN;
+        // if (mod !== 0) cursor.setMinutes(m + (SLOT_MIN - mod), 0, 0);
+
         while (cursor.getTime() + SLOT_MIN * 60000 <= rangeEndMs) {
             const slotStart = new Date(cursor);
             const slotEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
 
-            // Vérif conflit
             let isConflict = false;
             for (const busy of busyRanges) {
                 if (overlaps(slotStart, slotEnd, busy.start, busy.end)) {
@@ -219,25 +192,19 @@ module.exports = async (req, res) => {
             }
 
             if (!isConflict) {
-                finalSlots.push({
-                    start: slotStart.toISOString(),
-                    end: slotEnd.toISOString()
-                });
+                finalSlots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
             }
-
-            // On avance de 30 min
             cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
         }
     }
 
-    // Tri final
     finalSlots.sort((a, b) => new Date(a.start) - new Date(b.start));
-
-    // Dédoublonnage (si l'expert a mis 2 events RunCall identiques)
+    
+    // Dédoublonnage
     const uniqueSlots = [];
     const seen = new Set();
     for (const s of finalSlots) {
-        const k = s.start + s.end;
+        const k = s.start + "|" + s.end;
         if (!seen.has(k)) {
             seen.add(k);
             uniqueSlots.push(s);
@@ -250,4 +217,4 @@ module.exports = async (req, res) => {
     console.error("API Error:", error);
     return res.status(500).json({ error: error.message });
   }
-};
+}
