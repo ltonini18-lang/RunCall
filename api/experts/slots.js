@@ -1,86 +1,104 @@
-// /api/experts/slots.js - VERSION NATIVE (Zéro Dépendance Externe)
-
-const https = require('https');
-
-// --- 1. OUTILS NATIFS (Pour remplacer fetch/googleapis) ---
-function simpleRequest(url, options = {}) {
-    return new Promise((resolve, reject) => {
-        const urlObj = new URL(url);
-        const reqOpts = {
-            method: options.method || 'GET',
-            headers: options.headers || {}
-        };
-
-        const req = https.request(urlObj, reqOpts, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                const result = {
-                    ok: res.statusCode >= 200 && res.statusCode < 300,
-                    status: res.statusCode,
-                    json: () => {
-                        try { return JSON.parse(data); } 
-                        catch (e) { return null; }
-                    },
-                    text: () => data
-                };
-                resolve(result);
-            });
-        });
-
-        req.on('error', (err) => reject(err));
-        if (options.body) req.write(options.body);
-        req.end();
-    });
-}
-
-// --- 2. LOGIQUE MÉTIER ---
-
-function parseTime(t) {
-    if (!t) return null;
-    if (t.dateTime) return new Date(t.dateTime);
-    return null; // On ignore les événements journée entière
-}
-
-function isRunCallAvailability(text) {
-    if (!text) return false;
-    // Regex flexible : runcall, run-call, run call, etc.
-    return /run[\s-]?call/i.test(text);
-}
-
-function isBooking(ev) {
-    const t = ev?.extendedProperties?.private?.runcall_type;
-    return String(t || "").toLowerCase() === "booking";
-}
-
-function overlaps(aStart, aEnd, bStart, bEnd) {
-    return aStart < bEnd && bStart < aEnd;
-}
-
-// --- 3. LE MOTEUR (Handler) ---
+// /api/experts/slots.js
+// VERSION SAFE MODE : Tout est chargé à la demande pour éviter le crash au démarrage (404)
 
 module.exports = async (req, res) => {
-    // CORS
+    // 1. Headers CORS (Pour autoriser le Dashboard à lire la réponse)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
-    
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+
+    // Répondre OK tout de suite aux requêtes de pré-vérification (OPTIONS)
     if (req.method === 'OPTIONS') {
-        res.statusCode = 200;
-        res.end();
+        res.status(200).end();
         return;
     }
 
+    // 2. Bloc de sécurité global
     try {
+        // CHARGEMENT DYNAMIQUE (Pour éviter que le fichier plante si une lib manque)
+        const https = require('https');
+        const urlModule = require('url'); // Souvent utile pour parser proprement
+
+        // --- DÉBUT DES FONCTIONS INTERNES ---
+        
+        // Fonction simpleRequest (remplace fetch pour être 100% natif Node.js)
+        const simpleRequest = (url, options = {}) => {
+            return new Promise((resolve, reject) => {
+                const reqOpts = {
+                    method: options.method || 'GET',
+                    headers: options.headers || {}
+                };
+                
+                // Gestion des body pour POST/PATCH
+                let bodyData = options.body;
+                if (bodyData && typeof bodyData !== 'string') {
+                    // Si c'est pas une string, on le stringify (sauf si c'est déjà fait)
+                    // Ici on assume que l'appelant gère le stringify si Content-Type est json
+                }
+
+                const req = https.request(url, reqOpts, (response) => {
+                    let data = '';
+                    response.on('data', chunk => data += chunk);
+                    response.on('end', () => {
+                        resolve({
+                            ok: response.statusCode >= 200 && response.statusCode < 300,
+                            status: response.statusCode,
+                            json: () => {
+                                try { return JSON.parse(data); } catch (e) { return null; }
+                            },
+                            text: () => data
+                        });
+                    });
+                });
+
+                req.on('error', (err) => reject(err));
+                if (bodyData) req.write(bodyData);
+                req.end();
+            });
+        };
+
+        const parseTime = (t) => {
+            if (!t) return null;
+            if (t.dateTime) return new Date(t.dateTime);
+            return null; 
+        };
+
+        const isRunCallAvailability = (text) => {
+            if (!text) return false;
+            return /run[\s-]?call/i.test(text);
+        };
+
+        const isBooking = (ev) => {
+            const t = ev?.extendedProperties?.private?.runcall_type;
+            return String(t || "").toLowerCase() === "booking";
+        };
+
+        const overlaps = (aStart, aEnd, bStart, bEnd) => {
+            return aStart < bEnd && bStart < aEnd;
+        };
+
+        // --- FIN DES FONCTIONS INTERNES ---
+
+
+        // 3. VÉRIFICATIONS PRÉLIMINAIRES
         const expertId = req.query.expert_id;
-        if (!expertId) throw new Error("Missing expert_id");
+        if (!expertId) {
+            // On renvoie un tableau vide plutôt qu'une erreur pour éviter de casser le front
+            console.error("Missing expert_id");
+            return res.status(200).json([]); 
+        }
 
         const now = new Date();
         const from = req.query.from || now.toISOString();
         const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        // A. Récupérer le compte Google via Supabase
+        // 4. RÉCUPÉRATION DU TOKEN GOOGLE (Via Supabase)
         const SUPA_URL = process.env.SUPABASE_URL;
         const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!SUPA_URL || !SUPA_KEY) {
+            throw new Error("Variables d'environnement SUPABASE manquantes sur Vercel.");
+        }
         
         const accRes = await simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}&limit=1`, {
             headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
@@ -89,16 +107,17 @@ module.exports = async (req, res) => {
         const accRows = accRes.json();
         const account = accRows ? accRows[0] : null;
 
-        if (!account) {
-            res.statusCode = 404;
-            return res.json({ error: "Expert not connected" });
-        }
+        // Si pas de compte connecté, on renvoie une liste vide (pas d'erreur)
+        if (!account) return res.status(200).json([]);
 
         let { access_token, refresh_token, expiry_date } = account;
 
-        // B. Refresh Token si nécessaire
+        // 5. REFRESH TOKEN (Si expiré)
         if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
-            if (!refresh_token) throw new Error("No refresh token");
+            if (!refresh_token) {
+                console.error("Refresh token missing");
+                return res.status(200).json([]); // Pas de crash
+            }
 
             const postData = new URLSearchParams({
                 client_id: process.env.GOOGLE_CLIENT_ID,
@@ -114,20 +133,25 @@ module.exports = async (req, res) => {
             });
             
             const refData = refRes.json();
-            if (!refData || !refData.access_token) throw new Error("Google Refresh Failed");
+            if (!refData || !refData.access_token) {
+                console.error("Google Refresh Failed:", refData);
+                return res.status(200).json([]);
+            }
             
             access_token = refData.access_token;
             const newExpiry = Date.now() + (refData.expires_in * 1000);
             
-            // Mise à jour DB (sans attendre la réponse pour aller vite)
-            simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
-                body: JSON.stringify({ access_token, expiry_date: newExpiry })
-            });
+            // Mise à jour DB (Fire & Forget via un simpleRequest sans await strict ou avec catch)
+            try {
+                simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ access_token, expiry_date: newExpiry })
+                });
+            } catch(e) { /* On ignore l'erreur de save, tant qu'on a le token */ }
         }
 
-        // C. Lister les calendriers
+        // 6. LISTER LES CALENDRIERS
         const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=20", {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
@@ -137,7 +161,7 @@ module.exports = async (req, res) => {
         const availRanges = [];
         const busyRanges = [];
 
-        // D. Scanner les événements
+        // 7. SCANNER LES ÉVÉNEMENTS
         for (const cal of calendars) {
             const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + 
                 `timeMin=${encodeURIComponent(from)}&timeMax=${encodeURIComponent(to)}` +
@@ -166,15 +190,15 @@ module.exports = async (req, res) => {
             }
         }
 
-        // E. Découpage en tranches de 30 min (Slicing)
+        // 8. DÉCOUPE EN TRANCHES DE 30 MIN
         const SLOT_MIN = 30;
-        const slots = [];
+        const finalSlots = [];
 
         for (const range of availRanges) {
-            const endMs = range.end.getTime();
+            const rangeEndMs = range.end.getTime();
             let cursor = new Date(range.start.getTime());
 
-            while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
+            while (cursor.getTime() + SLOT_MIN * 60000 <= rangeEndMs) {
                 const sStart = new Date(cursor);
                 const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
 
@@ -186,29 +210,32 @@ module.exports = async (req, res) => {
                 }
 
                 if (!conflict) {
-                    slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
+                    finalSlots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
                 }
                 cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
             }
         }
 
-        // F. Tri et Dédoublonnage
-        slots.sort((a, b) => new Date(a.start) - new Date(b.start));
+        // 9. TRI ET DÉDOUBLONNAGE
+        finalSlots.sort((a, b) => new Date(a.start) - new Date(b.start));
         const unique = [];
         const seen = new Set();
-        for (const s of slots) {
+        for (const s of finalSlots) {
             const k = s.start + s.end;
             if (!seen.has(k)) { seen.add(k); unique.push(s); }
         }
 
-        // Réponse finale (Tableau JSON)
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify(unique));
+        // 10. RÉPONSE FINALE
+        res.status(200).json(unique);
 
     } catch (e) {
-        console.error("API Error", e);
-        res.statusCode = 500;
-        res.end(JSON.stringify({ error: e.message }));
+        // EN CAS D'ERREUR CRITIQUE
+        console.error("API CRASH:", e);
+        // On renvoie 500 avec le détail pour comprendre ce qui se passe
+        res.status(500).json({ 
+            error: "Server Error", 
+            message: e.message, 
+            stack: e.stack 
+        });
     }
 };
