@@ -34,6 +34,7 @@ async function refreshAccessToken(refreshToken) {
   const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
   const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
   
+  // Utilisation de fetch natif (compatible Node 18+)
   const r = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -103,11 +104,11 @@ async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
 }
 
 // ------------------------------------------------------------------
-// 4. LE HANDLER PRINCIPAL (Standard Vercel)
+// 4. LE HANDLER PRINCIPAL (Syntaxe Universelle)
 // ------------------------------------------------------------------
 
-export default async function handler(req, res) {
-  // CORS
+module.exports = async (req, res) => {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
@@ -173,11 +174,6 @@ export default async function handler(req, res) {
     for (const range of availabilityRanges) {
         const rangeEndMs = range.end.getTime();
         let cursor = new Date(range.start.getTime());
-        
-        // Alignement optionnel sur 00/30 (ici désactivé pour suivre exactement l'agenda)
-        // const m = cursor.getMinutes();
-        // const mod = m % SLOT_MIN;
-        // if (mod !== 0) cursor.setMinutes(m + (SLOT_MIN - mod), 0, 0);
 
         while (cursor.getTime() + SLOT_MIN * 60000 <= rangeEndMs) {
             const slotStart = new Date(cursor);
@@ -217,4 +213,4 @@ export default async function handler(req, res) {
     console.error("API Error:", error);
     return res.status(500).json({ error: error.message });
   }
-}
+};
