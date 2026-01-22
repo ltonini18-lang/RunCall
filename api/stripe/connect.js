@@ -2,7 +2,6 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
-    // 1. Init & Sécurité (CORS)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -11,73 +10,72 @@ module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { expertId } = req.body;
-        if (!expertId) throw new Error("Expert ID manquant");
+        const { expertId, country } = req.body; // On récupère le pays choisi
+        if (!expertId) throw new Error("ID manquant");
 
-        // 2. Connexion Supabase (Admin)
-        const supabase = createClient(
-            process.env.SUPABASE_URL,
-            process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-        // 3. Récupérer l'expert
-        const { data: expert, error: dbError } = await supabase
+        // 1. Récupérer le RunCaller
+        const { data: expert } = await supabase
             .from('experts')
             .select('stripe_account_id, email')
             .eq('id', expertId)
             .single();
 
-        if (dbError || !expert) throw new Error("Expert introuvable");
+        let accountId = expert?.stripe_account_id;
+        let accountLinkUrl = null;
+        let isComplete = false;
 
-        let accountId = expert.stripe_account_id;
-
-        // --- SCÉNARIO 1 : CRÉATION DU COMPTE (Si pas encore fait) ---
+        // 2. Création du compte (Si inexistant)
         if (!accountId) {
+            // Si l'utilisateur n'a pas choisi de pays, on bloque ou on met US par défaut
+            const selectedCountry = country || 'US'; 
+            
             const account = await stripe.accounts.create({
                 type: 'express',
                 email: expert.email,
-                // country: 'US', // <--- SUPPRIMÉ : On laisse l'utilisateur choisir son pays (US, FR, UK...)
+                country: selectedCountry, // <--- On force le pays choisi !
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
                 },
             });
-
             accountId = account.id;
 
-            // Sauvegarde immédiate dans Supabase
-            await supabase
-                .from('experts')
-                .update({ stripe_account_id: accountId })
-                .eq('id', expertId);
+            // Sauvegarde DB
+            await supabase.from('experts').update({ stripe_account_id: accountId }).eq('id', expertId);
         }
 
-        // --- SCÉNARIO 2 : GÉNÉRATION DU LIEN ---
-        
-        // A. On essaie d'abord de générer un lien de CONNEXION (Dashboard Financier)
-        // Cela ne marche que si l'expert a FINI son inscription.
-        try {
-            const loginLink = await stripe.accounts.createLoginLink(accountId);
-            // Si ça marche, on renvoie direct vers le dashboard Stripe
-            return res.status(200).json({ url: loginLink.url });
-        } catch (err) {
-            // Si erreur (ex: inscription pas finie), on ignore et on passe à l'étape B
-            console.log("Compte incomplet, génération du lien d'inscription...");
-        }
+        // 3. Vérification du Statut (Est-ce qu'il a fini ?)
+        const accountInfo = await stripe.accounts.retrieve(accountId);
+        isComplete = accountInfo.details_submitted; // Vrai si l'onboarding est fini
 
-        // B. Fallback : On génère le lien d'ONBOARDING (Inscription)
+        // 4. Génération du lien (Login ou Onboarding)
         const origin = req.headers.origin || 'https://run-call.vercel.app';
-        const accountLink = await stripe.accountLinks.create({
-            account: accountId,
-            refresh_url: `${origin}/dashboard.html?expert_id=${expertId}`, // S'il annule ou bug
-            return_url: `${origin}/dashboard.html?expert_id=${expertId}`,  // Quand il a fini
-            type: 'account_onboarding',
+        
+        if (isComplete) {
+            // Si fini -> Lien Dashboard
+            const loginLink = await stripe.accounts.createLoginLink(accountId);
+            accountLinkUrl = loginLink.url;
+        } else {
+            // Si pas fini -> Lien Inscription
+            const accountLink = await stripe.accountLinks.create({
+                account: accountId,
+                refresh_url: `${origin}/dashboard.html?expert_id=${expertId}`,
+                return_url: `${origin}/dashboard.html?expert_id=${expertId}`,
+                type: 'account_onboarding',
+            });
+            accountLinkUrl = accountLink.url;
+        }
+
+        // On renvoie l'URL ET le statut
+        res.status(200).json({ 
+            url: accountLinkUrl,
+            isComplete: isComplete 
         });
 
-        res.status(200).json({ url: accountLink.url });
-
     } catch (e) {
-        console.error("Stripe Connect Error:", e);
+        console.error("Erreur Stripe:", e);
         res.status(500).json({ error: e.message });
     }
 };
