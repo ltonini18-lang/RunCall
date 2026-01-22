@@ -332,6 +332,25 @@
                 document.getElementById('topAvatar').style.display = 'block';
                 document.getElementById('previewAvatar').src = expertData.photo_url;
             }
+        // ... (Fin du bloc 3. CHARGEMENT EXPERT) ...
+
+        // --- NOUVEAU : VÉRIFICATION DE LA BDD (Mémoire d'éléphant) ---
+        // On demande à la base : "Est-ce que cet expert a déjà connecté son Google Calendar ?"
+        if (expertId) {
+            const { data: existingAccount } = await sb
+                .from('expert_google_accounts')
+                .select('id')
+                .eq('expert_id', expertId)
+                .maybeSingle();
+
+            if (existingAccount) {
+                console.log("Compte Google déjà relié en base !");
+                // On remet la mémoire locale à jour pour que le reste du script suive
+                localStorage.setItem('runcall_cal_connected', 'true');
+            } else {
+                // Si rien en base, on s'assure que le bouton s'affiche
+                localStorage.removeItem('runcall_cal_connected');
+            }
         }
 
         // 4. LOGIQUE CALENDRIER
