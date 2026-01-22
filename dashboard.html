@@ -308,19 +308,52 @@
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
 
-
-        // 3. CHARGEMENT EXPERT
+// 3. CHARGEMENT EXPERT (ET AUTO-CRÉATION)
         const urlParams = new URLSearchParams(window.location.search);
         let expertId = urlParams.get('expert_id');
         let expertData = null;
 
-        // Si pas d'ID dans l'URL, on le cherche via le compte connecté
-        if (!expertId) {
-            const { data: exp } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-            if (exp) { expertId = exp.id; expertData = exp; }
-        } else {
-            const { data: exp } = await sb.from('experts').select('*').eq('id', expertId).maybeSingle();
-            expertData = exp;
+        // A. On essaie de récupérer l'expert (soit par ID URL)
+        if (expertId) {
+            const { data } = await sb.from('experts').select('*').eq('id', expertId).maybeSingle();
+            expertData = data;
+        } 
+        
+        // B. Si pas trouvé par ID (ou pas d'ID), on cherche via le compte connecté
+        if (!expertData && session) {
+            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+            if (data) {
+                expertData = data;
+                expertId = data.id;
+            }
+        }
+
+        // C. (NOUVEAU) Si TOUJOURS pas de profil, c'est un NOUVEL inscrit -> On le crée !
+        if (!expertData && session) {
+            console.log("🆕 Nouvel utilisateur (ou reset) détecté : Création du profil...");
+            
+            const { data: newExpert, error: createErr } = await sb
+                .from('experts')
+                .insert([{
+                    auth_user_id: session.user.id,
+                    email: session.user.email,
+                    name: "Nouveau RunCaller", 
+                    presentation: "Je suis un expert RunCall."
+                }])
+                .select()
+                .single();
+
+            if (createErr) {
+                console.error("Erreur création profil:", createErr);
+                // On ne bloque pas tout, mais l'UI sera vide
+            } else {
+                expertData = newExpert;
+                expertId = newExpert.id;
+                // On met à jour l'URL proprement pour afficher l'ID
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('expert_id', expertId);
+                window.history.pushState({}, '', newUrl);
+            }
         }
 
         // --- UI UPDATE (Remplissage du Profil) ---
@@ -366,7 +399,6 @@
                 localStorage.removeItem('runcall_cal_connected');
             }
         }
-
 
         // 4. LOGIQUE CALENDRIER
         let currentWeekOffset = 0;
