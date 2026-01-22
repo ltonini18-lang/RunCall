@@ -1,4 +1,4 @@
-// /api/experts/slots.js - MODE DIAGNOSTIC (Ne pas laisser en prod)
+// /api/experts/slots.js - VERSION FINALE (PROD)
 
 const https = require('https');
 
@@ -12,8 +12,7 @@ function simpleRequest(url, options = {}) {
             res.on('data', c => data += c);
             res.on('end', () => resolve({
                 json: () => { try { return JSON.parse(data) } catch(e) { return null } },
-                status: res.statusCode,
-                raw: data
+                status: res.statusCode
             }));
         });
         req.on('error', reject);
@@ -23,14 +22,26 @@ function simpleRequest(url, options = {}) {
 }
 
 module.exports = async (req, res) => {
+    // Headers CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader('Content-Type', 'application/json');
+
+    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
 
     try {
         const expertId = req.query.expert_id;
-        if (!expertId) return res.json({ error: "No Expert ID" });
+        if (!expertId) return res.status(200).json([]);
 
-        // 1. SUPABASE
+        // 1. CONFIGURATION TEMPORELLE
+        const now = new Date();
+        const safeNow = new Date(now.getTime() + 5 * 60000); // Marge 5 min
+
+        const fromParam = req.query.from || now.toISOString();
+        const from = new Date(fromParam);
+        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+        // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
         const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
         
@@ -39,53 +50,126 @@ module.exports = async (req, res) => {
         });
         const rows = accRes.json();
         
-        if (!rows || !rows.length) return res.json({ error: "Compte non trouvé en base (reconnecte-toi !)" });
+        if (!rows || !rows.length) return res.status(200).json([]); // Pas connecté
         
         const account = rows[0];
         let { access_token, refresh_token, expiry_date } = account;
 
-        // 2. DIAGNOSTIC REFRESH
-        const isExpired = !access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000);
-        
-        if (isExpired) {
-            if (!refresh_token) return res.json({ error: "Refresh Token absent de la base. Reconnexion nécessaire." });
+        // 3. REFRESH TOKEN AUTOMATIQUE
+        if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
+            if (refresh_token) {
+                const clientId = process.env.GOOGLE_CLIENT_ID;
+                const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-            const clientId = process.env.GOOGLE_CLIENT_ID;
-            const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+                // Si les variables sont bonnes (suite à ta correction), ça marchera ici
+                if (clientId && clientSecret) {
+                    const postData = new URLSearchParams({
+                        client_id: clientId,
+                        client_secret: clientSecret,
+                        refresh_token: refresh_token,
+                        grant_type: "refresh_token"
+                    }).toString();
 
-            if (!clientId || !clientSecret) return res.json({ error: "Variables Vercel manquantes (ID/Secret)" });
-
-            // On tente le refresh et ON MONTRE L'ERREUR
-            const postData = new URLSearchParams({
-                client_id: clientId,
-                client_secret: clientSecret,
-                refresh_token: refresh_token,
-                grant_type: "refresh_token"
-            }).toString();
-
-            const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: postData
-            });
-            const refData = refRes.json();
-            
-            if (!refData || !refData.access_token) {
-                // VOICI L'ERREUR QUE L'ON CHERCHE :
-                return res.status(500).json({ 
-                    error: "ECHEC REFRESH GOOGLE", 
-                    details: refData,
-                    sent_client_id: clientId ? "Present (Starts with " + clientId.substring(0,5) + ")" : "Missing"
-                });
+                    const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: postData
+                    });
+                    const refData = refRes.json();
+                    
+                    if (refData && refData.access_token) {
+                        access_token = refData.access_token;
+                        const newExpiry = Date.now() + (refData.expires_in * 1000);
+                        // Mise à jour silencieuse
+                        simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
+                            body: JSON.stringify({ access_token, expiry_date: newExpiry })
+                        });
+                    }
+                }
             }
-            
-            // Si ça marche, on le dit
-            return res.json({ success: "Refresh réussi ! Le token est valide.", new_token: "OK" });
         }
 
-        return res.json({ message: "Token encore valide, pas de refresh nécessaire." });
+        // 4. SCAN GOOGLE CALENDAR
+        const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
+            headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        const calData = calRes.json();
+        const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
+
+        const availRanges = [];
+        const busyRanges = [];
+
+        for (const cal of calendars) {
+            const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + 
+                `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
+                `&singleEvents=true&orderBy=startTime&showDeleted=false`;
+
+            const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
+            const evData = evRes.json();
+            const events = evData.items || [];
+
+            for (const ev of events) {
+                if (ev.status === 'cancelled') continue;
+                if (!ev.start.dateTime || !ev.end.dateTime) continue;
+
+                const start = new Date(ev.start.dateTime);
+                const end = new Date(ev.end.dateTime);
+                const text = (ev.summary || "") + " " + (ev.description || "");
+
+                const isRunCall = /run[\s-]?call/i.test(text);
+                const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
+                
+                if (isBooking) busyRanges.push({ start, end });
+                else if (isRunCall) availRanges.push({ start, end });
+                else if (ev.transparency !== 'transparent') busyRanges.push({ start, end });
+            }
+        }
+
+        // 5. SLICING & FILTRE "ANTI-PASSÉ"
+        const SLOT_MIN = 30;
+        const slots = [];
+
+        for (const range of availRanges) {
+            let cursor = new Date(range.start.getTime());
+            const endMs = range.end.getTime();
+
+            while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
+                const sStart = new Date(cursor);
+                const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
+                
+                // --- FILTRE ICI ---
+                if (sStart < safeNow) {
+                    cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
+                    continue;
+                }
+
+                let conflict = false;
+                for (const busy of busyRanges) {
+                    if (sStart < busy.end && busy.start < sEnd) {
+                        conflict = true; break;
+                    }
+                }
+
+                if (!conflict) slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
+                cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
+            }
+        }
+
+        slots.sort((a, b) => new Date(a.start) - new Date(b.start));
+        
+        const unique = [];
+        const seen = new Set();
+        for (const s of slots) {
+            const k = s.start + "|" + s.end;
+            if (!seen.has(k)) { seen.add(k); unique.push(s); }
+        }
+
+        return res.status(200).json(unique);
 
     } catch (e) {
-        return res.status(500).json({ error: "Crash API", stack: e.message });
+        console.error("API Error", e);
+        return res.status(200).json([]); 
     }
 };
