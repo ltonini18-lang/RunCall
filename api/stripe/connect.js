@@ -26,15 +26,20 @@ module.exports = async (req, res) => {
         let accountLinkUrl = null;
         let isComplete = false;
 
-        // 2. Création du compte (Si inexistant)
+// 2. Création du compte (Seulement si inexistant ET que le pays est fourni)
         if (!accountId) {
-            // Si l'utilisateur n'a pas choisi de pays, on bloque ou on met US par défaut
-            const selectedCountry = country || 'US'; 
             
+            // SÉCURITÉ : Si on n'a pas reçu de pays (ex: appel automatique de checkStripeStatus), 
+            // on NE CRÉE PAS de compte par défaut. On renvoie juste que c'est pas fini.
+            if (!country) {
+                return res.status(200).json({ isComplete: false, url: null });
+            }
+
+            // Si on est ici, c'est que l'utilisateur a cliqué sur le bouton et envoyé un pays
             const account = await stripe.accounts.create({
                 type: 'express',
                 email: expert.email,
-                country: selectedCountry, // <--- On force le pays choisi !
+                country: country, // On utilise strictement le pays envoyé
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
