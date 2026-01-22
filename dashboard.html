@@ -244,35 +244,51 @@
         <div class="card-body">
             <div class="flex items-center gap-2 mb-6">
                 <span style="font-size:1.5rem;">💸</span>
-                <h2 class="title" style="margin:0;">Mes Revenus</h2>
+                <h2 class="title" style="margin:0;" 
+                    data-fr="Mes Revenus" 
+                    data-en="My Earnings">
+                    Mes Revenus
+                </h2>
             </div>
             
-            <div id="payoutStatus" class="mb-6">
-                </div>
+            <div id="payoutStatus" class="mb-6"></div>
 
             <div id="setupZone" style="display:none;">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Pays de votre banque</label>
+                <label class="block text-sm font-bold text-gray-700 mb-2" 
+                       data-fr="Pays de votre banque" 
+                       data-en="Bank country">
+                       Pays de votre banque
+                </label>
+                
                 <select id="countrySelector" class="w-full p-3 border rounded mb-4 bg-white">
-                    <option value="US">🇺🇸 États-Unis (United States)</option>
+                    <option value="US">🇺🇸 United States</option>
                     <option value="FR">🇫🇷 France</option>
-                    <option value="GB">🇬🇧 Royaume-Uni (UK)</option>
-                    <option value="CH">🇨🇭 Suisse</option>
+                    <option value="GB">🇬🇧 United Kingdom</option>
+                    <option value="CH">🇨🇭 Switzerland</option>
                     <option value="CA">🇨🇦 Canada</option>
-                    </select>
+                </select>
 
                 <button id="setupStripeBtn" class="btn-primary w-full" style="padding: 15px; font-size: 1.1rem;">
-                    🏦 Configurer mes virements
+                    <span data-fr="🏦 Configurer mes virements" data-en="🏦 Setup Payouts">
+                        🏦 Configurer mes virements
+                    </span>
                 </button>
             </div>
 
             <div id="dashboardZone" style="display:none;">
                 <a href="#" id="accessStripeBtn" class="block w-full text-center bg-gray-100 text-gray-800 py-3 rounded font-bold hover:bg-gray-200">
-                    Accéder à mon portail financier Stripe ↗
+                    <span data-fr="Accéder à mon portail financier Stripe ↗" data-en="Access my Stripe Financial Portal ↗">
+                        Accéder à mon portail financier Stripe ↗
+                    </span>
                 </a>
             </div>
             
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                <p class="text-gray-400 text-sm">L'argent est viré automatiquement sur votre compte.</p>
+                <p class="text-gray-400 text-sm" 
+                   data-fr="L'argent est viré automatiquement sur votre compte." 
+                   data-en="Money is automatically transferred to your account.">
+                   L'argent est viré automatiquement sur votre compte.
+                </p>
             </div>
         </div>
     </div>
@@ -659,7 +675,7 @@
                 }
             });
         }
-// 8. GESTION PAIEMENTS (CORRIGÉE & PAYS)
+// 8. GESTION PAIEMENTS (CORRIGÉE, PAYS & MULTILINGUE)
         const setupZone = document.getElementById('setupZone');
         const dashboardZone = document.getElementById('dashboardZone');
         const payoutStatus = document.getElementById('payoutStatus');
@@ -671,15 +687,19 @@
         async function checkStripeStatus() {
             if (!expertId) return;
 
-            // On affiche un petit chargement
-            if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Vérification du statut bancaire...</p>`;
+            // Récupération de la langue
+            const l = localStorage.getItem('runcall_lang') || 'fr';
+
+            // Message de chargement traduit
+            if(payoutStatus) {
+                payoutStatus.innerHTML = `<p class="text-gray-500">${l === 'fr' ? 'Vérification du statut bancaire...' : 'Checking payout status...'}</p>`;
+            }
 
             try {
-                // On appelle l'API pour avoir le VRAI statut (isComplete)
                 const res = await fetch('/api/stripe/connect', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ expertId: expertId }) // Pas besoin du pays pour vérifier
+                    body: JSON.stringify({ expertId: expertId }) 
                 });
                 const data = await res.json();
 
@@ -687,35 +707,39 @@
                     // CAS 1 : C'est VRAIMENT fini (Onboarding terminé)
                     if(payoutStatus) payoutStatus.innerHTML = `
                         <div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;">
-                            <strong>✅ Compte bancaire actif</strong><br>
-                            Vous pouvez recevoir des paiements.
+                            <strong>${l === 'fr' ? '✅ Compte bancaire actif' : '✅ Bank account active'}</strong><br>
+                            ${l === 'fr' ? 'Vous pouvez recevoir des paiements.' : 'You can now receive payments.'}
                         </div>`;
                     
                     if(setupZone) setupZone.style.display = 'none';
                     if(dashboardZone) dashboardZone.style.display = 'block';
                     
-                    // Le bouton Dashboard ouvre l'URL renvoyée par l'API
                     if(accessBtn) {
                         accessBtn.onclick = (e) => {
                             e.preventDefault();
                             window.location.href = data.url;
                         };
                     }
+                    // Relance la traduction globale au cas où
+                    if(typeof updateTranslations === 'function') updateTranslations();
 
                 } else {
-                    // CAS 2 : Pas commencé ou Pas fini (Onboarding incomplet)
+                    // CAS 2 : Pas commencé ou Pas fini
                     if(payoutStatus) payoutStatus.innerHTML = `
                         <p style="color:#666; margin-bottom:10px;">
-                            Pour recevoir vos gains, vous devez relier un compte bancaire.
+                            ${l === 'fr' ? 'Pour recevoir vos gains, vous devez relier un compte bancaire.' : 'To receive your earnings, you must link a bank account.'}
                         </p>`;
                     
                     if(setupZone) setupZone.style.display = 'block';
                     if(dashboardZone) dashboardZone.style.display = 'none';
+                    
+                    // Relance la traduction globale
+                    if(typeof updateTranslations === 'function') updateTranslations();
                 }
 
             } catch (err) {
                 console.error("Erreur check status", err);
-                if(payoutStatus) payoutStatus.innerText = "Erreur de chargement du statut.";
+                if(payoutStatus) payoutStatus.innerText = l === 'fr' ? "Erreur de chargement." : "Loading error.";
             }
         }
 
@@ -725,9 +749,13 @@
         // Clic sur "Configurer mes virements"
         if (setupBtn) {
             setupBtn.addEventListener('click', async () => {
-                const country = countrySel ? countrySel.value : 'US'; // On récupère le pays choisi !
-                const originalText = setupBtn.textContent;
-                setupBtn.textContent = "Chargement...";
+                const country = countrySel ? countrySel.value : 'US';
+                const l = localStorage.getItem('runcall_lang') || 'fr';
+                
+                // Sauvegarde du texte original pour le remettre en cas d'erreur
+                const originalHTML = setupBtn.innerHTML;
+                
+                setupBtn.textContent = l === 'fr' ? "Chargement..." : "Loading...";
                 setupBtn.disabled = true;
 
                 try {
@@ -745,10 +773,11 @@
                     }
                 } catch (e) {
                     alert("Erreur : " + e.message);
-                    setupBtn.textContent = originalText;
+                    setupBtn.innerHTML = originalHTML; // Remet le texte original
                     setupBtn.disabled = false;
                 }
             });
+        }
         }
     } catch (err) {
         console.error("CRITICAL DASHBOARD ERROR:", err);
