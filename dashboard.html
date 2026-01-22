@@ -752,7 +752,7 @@
                 const country = countrySel ? countrySel.value : 'US';
                 const l = localStorage.getItem('runcall_lang') || 'fr';
                 
-                // Sauvegarde du texte original pour le remettre en cas d'erreur
+                // Sauvegarde du texte original
                 const originalHTML = setupBtn.innerHTML;
                 
                 setupBtn.textContent = l === 'fr' ? "Chargement..." : "Loading...";
@@ -778,11 +778,11 @@
                 }
             });
         }
-        }
+
     } catch (err) {
         console.error("CRITICAL DASHBOARD ERROR:", err);
     }
-})();
+});
 </script>
 </body>
 </html>
