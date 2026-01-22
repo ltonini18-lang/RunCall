@@ -659,103 +659,97 @@
                 }
             });
         }
-// 8. GESTION PAIEMENTS (STRIPE CONNECT)
-        const stripeBtn = document.getElementById('setupStripeBtn');
+// 8. GESTION PAIEMENTS (CORRIGÉE & PAYS)
+        const setupZone = document.getElementById('setupZone');
+        const dashboardZone = document.getElementById('dashboardZone');
         const payoutStatus = document.getElementById('payoutStatus');
-        const payoutView = document.getElementById('viewPayouts');
+        const countrySel = document.getElementById('countrySelector');
+        const setupBtn = document.getElementById('setupStripeBtn');
+        const accessBtn = document.getElementById('accessStripeBtn');
 
-        // Fonction mise à jour (Version Multilingue)
-        function updatePayoutUI() {
-            if (!expertData) return;
-            
-            // On récupère la langue actuelle pour l'affichage immédiat
-            const l = localStorage.getItem('runcall_lang') || 'fr';
-            
-            // Si l'expert a déjà un ID Stripe en base
-            if (expertData.stripe_account_id) {
-                if(payoutStatus) {
-                    // On injecte du HTML avec les attributs de traduction
-                    payoutStatus.innerHTML = `
-                        <div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #34d399;">
-                            <strong data-fr="✅ Compte bancaire relié" data-en="✅ Bank account connected">
-                                ${l === 'fr' ? '✅ Compte bancaire relié' : '✅ Bank account connected'}
-                            </strong><br>
-                            <span data-fr="Ton compte est prêt à recevoir des virements." data-en="Your account is ready to receive payouts.">
-                                ${l === 'fr' ? 'Ton compte est prêt à recevoir des virements.' : 'Your account is ready to receive payouts.'}
-                            </span>
-                        </div>
-                        <a href="#" id="accessStripeDashboard" style="color:#2563eb; text-decoration:underline;">
-                            <span data-fr="Accéder à mon tableau de bord Stripe" data-en="Access my Stripe Dashboard">
-                                ${l === 'fr' ? 'Accéder à mon tableau de bord Stripe' : 'Access my Stripe Dashboard'}
-                            </span>
-                        </a>
-                    `;
-                }
-                if(stripeBtn) stripeBtn.style.display = 'none'; 
-            } else {
-                // Pas encore connecté
-                if(payoutStatus) {
-                    payoutStatus.innerHTML = `
-                        <p style="color:#666; margin-bottom:20px;" 
-                           data-fr="Aucun compte bancaire relié. Tu ne peux pas encore recevoir d'argent." 
-                           data-en="No bank account connected. You cannot receive money yet.">
-                           ${l === 'fr' ? 'Aucun compte bancaire relié. Tu ne peux pas encore recevoir d\'argent.' : 'No bank account connected. You cannot receive money yet.'}
+        // Fonction pour vérifier le statut réel via l'API
+        async function checkStripeStatus() {
+            if (!expertId) return;
+
+            // On affiche un petit chargement
+            if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Vérification du statut bancaire...</p>`;
+
+            try {
+                // On appelle l'API pour avoir le VRAI statut (isComplete)
+                const res = await fetch('/api/stripe/connect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ expertId: expertId }) // Pas besoin du pays pour vérifier
+                });
+                const data = await res.json();
+
+                if (data.isComplete) {
+                    // CAS 1 : C'est VRAIMENT fini (Onboarding terminé)
+                    if(payoutStatus) payoutStatus.innerHTML = `
+                        <div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;">
+                            <strong>✅ Compte bancaire actif</strong><br>
+                            Vous pouvez recevoir des paiements.
+                        </div>`;
+                    
+                    if(setupZone) setupZone.style.display = 'none';
+                    if(dashboardZone) dashboardZone.style.display = 'block';
+                    
+                    // Le bouton Dashboard ouvre l'URL renvoyée par l'API
+                    if(accessBtn) {
+                        accessBtn.onclick = (e) => {
+                            e.preventDefault();
+                            window.location.href = data.url;
+                        };
+                    }
+
+                } else {
+                    // CAS 2 : Pas commencé ou Pas fini (Onboarding incomplet)
+                    if(payoutStatus) payoutStatus.innerHTML = `
+                        <p style="color:#666; margin-bottom:10px;">
+                            Pour recevoir vos gains, vous devez relier un compte bancaire.
                         </p>`;
+                    
+                    if(setupZone) setupZone.style.display = 'block';
+                    if(dashboardZone) dashboardZone.style.display = 'none';
                 }
-                if(stripeBtn) stripeBtn.style.display = 'block';
+
+            } catch (err) {
+                console.error("Erreur check status", err);
+                if(payoutStatus) payoutStatus.innerText = "Erreur de chargement du statut.";
             }
         }
 
-        // On lance la mise à jour UI au démarrage
-        updatePayoutUI();
+        // On lance la vérif au chargement
+        checkStripeStatus();
 
-        // Clic sur le bouton "Configurer mes virements"
-        if (stripeBtn) {
-            stripeBtn.addEventListener('click', async () => {
-                const originalText = stripeBtn.textContent;
-                stripeBtn.textContent = "Chargement Stripe...";
-                stripeBtn.disabled = true;
+        // Clic sur "Configurer mes virements"
+        if (setupBtn) {
+            setupBtn.addEventListener('click', async () => {
+                const country = countrySel ? countrySel.value : 'US'; // On récupère le pays choisi !
+                const originalText = setupBtn.textContent;
+                setupBtn.textContent = "Chargement...";
+                setupBtn.disabled = true;
 
                 try {
                     const res = await fetch('/api/stripe/connect', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ expertId: expertId })
+                        body: JSON.stringify({ expertId: expertId, country: country })
                     });
                     const data = await res.json();
 
-                    if (data.error) throw new Error(data.error);
                     if (data.url) {
-                        // Redirection vers Stripe
                         window.location.href = data.url;
+                    } else {
+                        throw new Error(data.error || "Pas d'URL reçue");
                     }
                 } catch (e) {
-                    console.error(e);
-                    alert("Erreur Stripe : " + e.message);
-                    stripeBtn.textContent = originalText;
-                    stripeBtn.disabled = false;
+                    alert("Erreur : " + e.message);
+                    setupBtn.textContent = originalText;
+                    setupBtn.disabled = false;
                 }
             });
         }
-        
-        // (Optionnel) Clic pour accéder au Dashboard Stripe une fois connecté
-        // Pour l'instant on réutilise le même endpoint qui génère un lien de connexion s'il est déjà onboardé
-        document.addEventListener('click', async (e) => {
-            if(e.target && e.target.id === 'accessStripeDashboard') {
-                e.preventDefault();
-                e.target.textContent = "Ouverture...";
-                try {
-                    // On rappelle l'API, Stripe est intelligent : si le compte existe, il renvoie un lien de connexion (Login Link) ou d'update
-                    const res = await fetch('/api/stripe/connect', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ expertId: expertId })
-                    });
-                    const data = await res.json();
-                    if(data.url) window.location.href = data.url;
-                } catch(err) { alert("Erreur accès Stripe"); }
-            }
-        });
     } catch (err) {
         console.error("CRITICAL DASHBOARD ERROR:", err);
     }
