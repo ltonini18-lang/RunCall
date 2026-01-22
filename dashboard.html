@@ -616,25 +616,44 @@
         const payoutStatus = document.getElementById('payoutStatus');
         const payoutView = document.getElementById('viewPayouts');
 
-        // Fonction pour mettre à jour l'interface selon le statut
+        // Fonction mise à jour (Version Multilingue)
         function updatePayoutUI() {
             if (!expertData) return;
+            
+            // On récupère la langue actuelle pour l'affichage immédiat
+            const l = localStorage.getItem('runcall_lang') || 'fr';
             
             // Si l'expert a déjà un ID Stripe en base
             if (expertData.stripe_account_id) {
                 if(payoutStatus) {
+                    // On injecte du HTML avec les attributs de traduction
                     payoutStatus.innerHTML = `
                         <div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #34d399;">
-                            <strong>✅ Compte bancaire relié</strong><br>
-                            Ton compte est prêt à recevoir des virements.
+                            <strong data-fr="✅ Compte bancaire relié" data-en="✅ Bank account connected">
+                                ${l === 'fr' ? '✅ Compte bancaire relié' : '✅ Bank account connected'}
+                            </strong><br>
+                            <span data-fr="Ton compte est prêt à recevoir des virements." data-en="Your account is ready to receive payouts.">
+                                ${l === 'fr' ? 'Ton compte est prêt à recevoir des virements.' : 'Your account is ready to receive payouts.'}
+                            </span>
                         </div>
-                        <a href="#" id="accessStripeDashboard" style="color:#2563eb; text-decoration:underline;">Accéder à mon tableau de bord Stripe</a>
+                        <a href="#" id="accessStripeDashboard" style="color:#2563eb; text-decoration:underline;">
+                            <span data-fr="Accéder à mon tableau de bord Stripe" data-en="Access my Stripe Dashboard">
+                                ${l === 'fr' ? 'Accéder à mon tableau de bord Stripe' : 'Access my Stripe Dashboard'}
+                            </span>
+                        </a>
                     `;
                 }
-                if(stripeBtn) stripeBtn.style.display = 'none'; // On cache le bouton de config
+                if(stripeBtn) stripeBtn.style.display = 'none'; 
             } else {
                 // Pas encore connecté
-                if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:20px;">Aucun compte bancaire relié. Tu ne peux pas encore recevoir d'argent.</p>`;
+                if(payoutStatus) {
+                    payoutStatus.innerHTML = `
+                        <p style="color:#666; margin-bottom:20px;" 
+                           data-fr="Aucun compte bancaire relié. Tu ne peux pas encore recevoir d'argent." 
+                           data-en="No bank account connected. You cannot receive money yet.">
+                           ${l === 'fr' ? 'Aucun compte bancaire relié. Tu ne peux pas encore recevoir d\'argent.' : 'No bank account connected. You cannot receive money yet.'}
+                        </p>`;
+                }
                 if(stripeBtn) stripeBtn.style.display = 'block';
             }
         }
