@@ -240,19 +240,27 @@
       </div>
       
       <div id="viewPayouts" class="hidden">
-           <div class="card">
-               <div class="card-body" style="text-align:center; padding:60px;">
-                   <div style="font-size:3rem; margin-bottom:10px;">💸</div>
-                   <h3 class="title" data-fr="Paiements" data-en="Payouts"></h3>
-                   <p class="subtitle" data-fr="Bientôt disponible." data-en="Coming soon."></p>
-               </div>
-           </div>
-      </div>
+    <div class="card">
+        <div class="card-body">
+            <div class="flex items-center gap-2 mb-6">
+                <span style="font-size:1.5rem;">💸</span>
+                <h2 class="title" style="margin:0;" data-fr="Mes Revenus" data-en="My Earnings">Mes Revenus</h2>
+            </div>
+            
+            <div id="payoutStatus" class="mb-6">
+                </div>
 
+            <button id="setupStripeBtn" class="btn-primary w-full" style="padding: 15px; font-size: 1.1rem; display:none;">
+                🏦 <span data-fr="Configurer mes virements" data-en="Setup Payouts">Configurer mes virements</span>
+            </button>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                <h3 class="subtitle" style="margin-bottom:10px;" data-fr="Historique" data-en="History">Historique</h3>
+                <p class="text-gray-400 text-sm" data-fr="Aucun virement pour le moment." data-en="No payouts yet.">Aucun virement pour le moment.</p>
+            </div>
+        </div>
     </div>
-  </main>
 </div>
-
 <script>
 (async function() {
     console.log("🚀 Dashboard init started...");
@@ -603,7 +611,84 @@
                 }
             });
         }
+// 8. GESTION PAIEMENTS (STRIPE CONNECT)
+        const stripeBtn = document.getElementById('setupStripeBtn');
+        const payoutStatus = document.getElementById('payoutStatus');
+        const payoutView = document.getElementById('viewPayouts');
 
+        // Fonction pour mettre à jour l'interface selon le statut
+        function updatePayoutUI() {
+            if (!expertData) return;
+            
+            // Si l'expert a déjà un ID Stripe en base
+            if (expertData.stripe_account_id) {
+                if(payoutStatus) {
+                    payoutStatus.innerHTML = `
+                        <div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #34d399;">
+                            <strong>✅ Compte bancaire relié</strong><br>
+                            Ton compte est prêt à recevoir des virements.
+                        </div>
+                        <a href="#" id="accessStripeDashboard" style="color:#2563eb; text-decoration:underline;">Accéder à mon tableau de bord Stripe</a>
+                    `;
+                }
+                if(stripeBtn) stripeBtn.style.display = 'none'; // On cache le bouton de config
+            } else {
+                // Pas encore connecté
+                if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:20px;">Aucun compte bancaire relié. Tu ne peux pas encore recevoir d'argent.</p>`;
+                if(stripeBtn) stripeBtn.style.display = 'block';
+            }
+        }
+
+        // On lance la mise à jour UI au démarrage
+        updatePayoutUI();
+
+        // Clic sur le bouton "Configurer mes virements"
+        if (stripeBtn) {
+            stripeBtn.addEventListener('click', async () => {
+                const originalText = stripeBtn.textContent;
+                stripeBtn.textContent = "Chargement Stripe...";
+                stripeBtn.disabled = true;
+
+                try {
+                    const res = await fetch('/api/stripe/connect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ expertId: expertId })
+                    });
+                    const data = await res.json();
+
+                    if (data.error) throw new Error(data.error);
+                    if (data.url) {
+                        // Redirection vers Stripe
+                        window.location.href = data.url;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Erreur Stripe : " + e.message);
+                    stripeBtn.textContent = originalText;
+                    stripeBtn.disabled = false;
+                }
+            });
+        }
+        
+        // (Optionnel) Clic pour accéder au Dashboard Stripe une fois connecté
+        // Pour l'instant on réutilise le même endpoint qui génère un lien de connexion s'il est déjà onboardé
+        document.addEventListener('click', async (e) => {
+            if(e.target && e.target.id === 'accessStripeDashboard') {
+                e.preventDefault();
+                e.target.textContent = "Ouverture...";
+                try {
+                    // On rappelle l'API, Stripe est intelligent : si le compte existe, il renvoie un lien de connexion (Login Link) ou d'update
+                    const res = await fetch('/api/stripe/connect', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ expertId: expertId })
+                    });
+                    const data = await res.json();
+                    if(data.url) window.location.href = data.url;
+                } catch(err) { alert("Erreur accès Stripe"); }
+            }
+        });
     } catch (err) {
         console.error("CRITICAL DASHBOARD ERROR:", err);
     }
