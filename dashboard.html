@@ -318,7 +318,7 @@
             expertData = exp;
         }
 
-        // UI Update
+       // UI Update
         if (expertId && expertData) {
             const pubBtn = document.getElementById('publicLinkBtn');
             if(pubBtn) pubBtn.href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
@@ -332,7 +332,7 @@
                 document.getElementById('topAvatar').style.display = 'block';
                 document.getElementById('previewAvatar').src = expertData.photo_url;
             }
-        // ... (Fin du bloc 3. CHARGEMENT EXPERT) ...
+        } // <--- C'EST CETTE ACCOLADE QUI MANQUAIT ! (Fin du UI Update)
 
         // --- NOUVEAU : VÉRIFICATION DE LA BDD (Mémoire d'éléphant) ---
         // On demande à la base : "Est-ce que cet expert a déjà connecté son Google Calendar ?"
@@ -345,14 +345,12 @@
 
             if (existingAccount) {
                 console.log("Compte Google déjà relié en base !");
-                // On remet la mémoire locale à jour pour que le reste du script suive
                 localStorage.setItem('runcall_cal_connected', 'true');
             } else {
-                // Si rien en base, on s'assure que le bouton s'affiche
                 localStorage.removeItem('runcall_cal_connected');
             }
         }
-
+        // -------------------------------------------------------------
         // 4. LOGIQUE CALENDRIER
         let currentWeekOffset = 0;
         function getStartOfWeek(offset) {
