@@ -8,7 +8,7 @@
 
   <style>
     /* =========================
-       Unicorn Calendly-style Page (scoped)
+       Unicorn Calendly-style Page
        ========================= */
 
     :root{
@@ -30,7 +30,7 @@
 
     .p-page{ background: var(--rc-bg); min-height: 100vh; }
 
-    /* LOADING OVERLAY (Calendly Style) */
+    /* --- LOADING OVERLAY (Calendly Style) --- */
     .rc-loader-overlay {
         position: fixed; inset: 0; background: #ffffff; z-index: 9999;
         display: flex; justify-content: center; align-items: center;
@@ -65,10 +65,8 @@
       overflow:hidden;
     }
 
-    /* Header tagline next to logo */
-    .site-header .header-inner{
-      display:flex; align-items:baseline; gap:6px;
-    }
+    /* Header tagline */
+    .site-header .header-inner{ display:flex; align-items:baseline; gap:6px; }
     .site-header .logo-link{ display:inline-flex; align-items:baseline; }
     .site-header .logo{ line-height: 1; }
 
@@ -123,6 +121,17 @@
     }
     .p-title{ margin: 10px 0 6px; font-size: 1.65rem; line-height:1.2; letter-spacing:-.03em; color:var(--rc-text); }
     .p-subtitle{ margin:0; color:#475569; line-height:1.6; font-size:1.0rem; max-width: 80ch; }
+    
+    /* BIO TOGGLE FIX (Caché sur PC par défaut) */
+    .p-bio-wrap{ position: relative; margin-top: 2px; }
+    .p-bio-toggle{
+        display: none; /* <--- FIX: Caché par défaut sur Desktop ! */
+        position:absolute; right: 2px; bottom: -10px; width: 34px; height: 34px; 
+        border-radius: 999px; border: 1px solid rgba(22,119,255,.20); 
+        background: var(--rc-blue-grad); place-items:center; cursor:pointer; 
+        user-select:none; box-shadow: 0 10px 20px rgba(22,119,255,.10); transition: all 140ms ease;
+    }
+    .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
 
     .p-body{ padding: 14px 24px 24px; }
 
@@ -139,9 +148,7 @@
       border:1px solid var(--rc-border); border-radius:18px; padding:16px;
       background:#fff; min-width:0;
     }
-
     .p-panel.calendar{ flex: 0 0 50%; max-width: 460px; min-width: 320px; }
-
     .p-panel.slots{
       flex: 0 0 50%; max-width: 460px; min-width: 320px;
       opacity: 0; transform: translateX(10px); pointer-events: none;
@@ -156,7 +163,6 @@
 
     .p-month-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom: 10px; }
     .p-month-title{ font-weight:900; color: var(--rc-text); letter-spacing:-.02em; font-size: 1.05rem; white-space:nowrap; text-align:center; flex: 1 1 auto; }
-
     .p-btn{
       display:inline-flex; align-items:center; justify-content:center; padding: 10px 12px;
       border-radius: 14px; border:1px solid var(--rc-border); background:#fff; color:var(--rc-text);
@@ -168,7 +174,6 @@
     .p-dow div{ text-align:center; font-size:.78rem; font-weight:900; color:#94a3b8; letter-spacing:.02em; text-transform: uppercase; }
 
     .p-month{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; user-select:none; }
-
     .p-mday{
       border-radius: 18px; padding: 12px 8px; min-height: 52px;
       display:flex; align-items:center; justify-content:center;
@@ -176,56 +181,34 @@
       transition: all 160ms ease;
     }
     .p-mday:hover{ transform: translateY(-1px); }
-
     .p-mday.is-out{ background: transparent; cursor: default; }
-    .p-mday.is-out:hover{ transform:none; background: transparent; box-shadow:none; }
-
     .p-mday.no-any{ border: none; color: #9aa6b2; background: transparent; }
-    .p-mday.no-any:hover{ transform:none; background: transparent; box-shadow:none; }
-
     .p-mday.has-any{ border: none; border-radius: 999px; background: rgba(22,119,255,.18); color: var(--rc-blue); }
     .p-mday.has-any:hover{ background: rgba(22,119,255,.24); }
-
     .p-mday.is-selected{ border: none; border-radius: 999px; background: rgba(22,119,255,.30); }
-
-    .p-mday.is-past{
-      opacity: .35; cursor: not-allowed !important; transform:none !important;
-      background: transparent !important; color: #94a3b8 !important;
-    }
+    .p-mday.is-past{ opacity: .35; cursor: not-allowed !important; transform:none !important; background: transparent !important; color: #94a3b8 !important; }
 
     .p-slots-date{ text-align:center; font-weight: 950; letter-spacing:-.02em; color: var(--rc-text); font-size: 1.05rem; margin: 4px 0 12px; }
     .p-slot-list{ display:flex; flex-direction:column; gap:10px; margin-top: 6px; }
-
     .p-slot{
       display:flex; justify-content:center; align-items:center; padding:10px 12px;
       border-radius: 14px; border:1px solid rgba(22,119,255,.35); background:#fff;
       cursor:pointer; transition: all 160ms ease; font-weight:950; color: var(--rc-blue); text-decoration:none;
       user-select:none; letter-spacing:-.01em;
     }
-    .p-slot:hover{
-      transform: translateY(-1px); border-color: rgba(22,119,255,.65);
-      background: rgba(22,119,255,.06); box-shadow: 0 12px 24px rgba(22,119,255,.12);
-    }
+    .p-slot:hover{ transform: translateY(-1px); border-color: rgba(22,119,255,.65); background: rgba(22,119,255,.06); box-shadow: 0 12px 24px rgba(22,119,255,.12); }
 
-    .p-error{
-      display:none; margin-top: 10px; border-radius: 14px; border:1px solid #fecaca;
-      background:#fff1f2; padding: 12px; color:#881337; font-size:.95rem; line-height:1.55;
-    }
+    .p-error{ display:none; margin-top: 10px; border-radius: 14px; border:1px solid #fecaca; background:#fff1f2; padding: 12px; color:#881337; font-size:.95rem; line-height:1.55; }
 
     /* Modal */
-    .p-modal-backdrop{
-      position: fixed; inset:0; background: rgba(15,23,42,.45);
-      display:none; align-items:center; justify-content:center; padding: 16px; z-index: 50;
-    }
+    .p-modal-backdrop{ position: fixed; inset:0; background: rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; padding: 16px; z-index: 50; }
     .p-modal{ width: 100%; max-width: 520px; background:#fff; border:1px solid var(--rc-border); border-radius: 18px; box-shadow:0 18px 50px rgba(15,23,42,.20); overflow:hidden; }
     .p-modal-head{ padding:16px; border-bottom:1px solid var(--rc-border); display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .p-modal-title{ font-weight:900; color:var(--rc-text); letter-spacing:-.02em; }
     .p-modal-body{ padding:16px; }
     .p-form-row{ margin: 0 0 12px; }
     .p-form-row label{ display:block; font-weight:900; color:var(--rc-text); margin-bottom:6px; }
-    .p-form-row input, .p-form-row textarea{
-      width:100%; padding: 12px 12px; border-radius: 14px; border:1px solid var(--rc-border); outline:none; transition: border-color 160ms ease, box-shadow 160ms ease;
-    }
+    .p-form-row input, .p-form-row textarea{ width:100%; padding: 12px 12px; border-radius: 14px; border:1px solid var(--rc-border); outline:none; transition: border-color 160ms ease, box-shadow 160ms ease; }
     .p-form-row input:focus, .p-form-row textarea:focus{ border-color:var(--rc-blue); box-shadow: 0 0 0 4px rgba(22,119,255,.10); }
     .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
 
@@ -238,24 +221,16 @@
 
     /* MOBILE-ONLY MODS */
     @media (max-width: 640px){
-      .p-hero{
-        position: sticky; top: 0; z-index: 40; align-items:flex-start; padding: 12px 14px 10px; gap: 12px;
-        backdrop-filter: blur(10px); background: radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%), radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%), rgba(248,250,252,.88);
-      }
+      .p-hero{ position: sticky; top: 0; z-index: 40; align-items:flex-start; padding: 12px 14px 10px; gap: 12px; backdrop-filter: blur(10px); background: rgba(248,250,252,.88); }
       .p-avatar{ width:56px; height:56px; border-radius:18px; margin-top: 0; }
       .p-title{ margin: 8px 0 6px; font-size: 1.25rem; }
       .p-badge{ font-size:.85rem; padding:5px 9px; }
-      .p-dot{ box-shadow: 0 0 0 3px rgba(22,119,255,.10); }
       .p-body{ padding: 12px 14px 18px; }
-      .p-bio-wrap{ position: relative; margin-top: 2px; }
       .p-bio-wrap:not(.is-open) #expertBio{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
       .p-bio-fade{ pointer-events: none; position:absolute; left:0; right:0; bottom:0; height: 2.2em; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); opacity: 0; transition: opacity 160ms ease; }
       .p-bio-wrap:not(.is-open) .p-bio-fade{ opacity: 1; }
-      .p-bio-toggle{
-        position:absolute; right: 2px; bottom: -10px; width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(22,119,255,.20); background: var(--rc-blue-grad); display:grid; place-items:center; cursor:pointer; user-select:none; box-shadow: 0 10px 20px rgba(22,119,255,.10); transition: all 140ms ease;
-      }
+      .p-bio-toggle{ display: grid; /* <--- On l'affiche que sur mobile */ }
       .p-bio-toggle:hover{ transform: translateY(-1px); box-shadow: 0 14px 24px rgba(22,119,255,.14); }
-      .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
       .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
       .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
       .p-grid{ gap: 12px; }
@@ -480,10 +455,9 @@
       fallback.textContent = initial;
 
       if (d?.photo_url) {
-        // Fix: Ensure onload is defined before setting src
+        // Fix photo: cache busting to force refresh
         img.onload = () => { img.style.display = "block"; fallback.style.display = "none"; };
         img.onerror = () => { img.style.display = "none"; fallback.style.display = "grid"; };
-        // Add timestamp to prevent caching issues if photo changed
         img.src = `${d.photo_url}?t=${Date.now()}`;
       } else {
         img.style.display = "none";
@@ -525,7 +499,7 @@
 
   // ---------- Calendar Render ----------
   let viewMonth = new Date();
-  viewMonth.setDate(1); // 1st of current month
+  viewMonth.setDate(1); 
   let latestGrouped = new Map();
   let selectedDayKey = null;
   let selectedSlot = null;
@@ -543,13 +517,12 @@
       return;
     }
 
-    // Calc grid range
+    // Grid range
     const year = viewMonth.getFullYear();
     const month = viewMonth.getMonth();
     const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
     
-    // Start grid on the Monday before first day
     const gridStart = new Date(firstDayOfMonth);
     const day = gridStart.getDay(); 
     const diff = (day === 0 ? -6 : 1) - day; 
@@ -584,13 +557,10 @@
         const cell = document.createElement("div");
         cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
         
-        // Month mismatch
         if (d.getMonth() !== month) {
             cell.classList.add("is-out");
         } else {
             cell.textContent = String(d.getDate());
-            
-            // Past day?
             if (d.getTime() < today0) {
                  cell.classList.add("is-past");
             } else if (hasAny) {
@@ -600,7 +570,6 @@
                     highlightSelectedDay();
                  });
             } else {
-                // Empty future day
                 cell.addEventListener("click", () => {
                     setSlotsPanel(null);
                     selectedDayKey = null;
@@ -609,7 +578,6 @@
             }
         }
         
-        // Selection state
         if (selectedDayKey === key) cell.classList.add("is-selected");
 
         cal.appendChild(cell);
@@ -618,14 +586,12 @@
   }
 
   function highlightSelectedDay(){
-      // Re-render handled by logic above usually, but simple class toggle:
-      const days = document.getElementById("calendar").children;
-      // Re-rendering entire calendar is safer to keep state clean, but simple class toggle works if we track keys
-      // For simplicity, we just clear previous selected class
-      document.querySelectorAll('.p-mday.is-selected').forEach(el => el.classList.remove('is-selected'));
-      // Find new one (need to track index or use date attrib). 
-      // Let's re-run renderCalendar() is expensive. Let's just use DOM logic:
-      // We didn't add data-key to cells in the simplified loop above. Let's rely on setSlotsPanel visual feedback.
+      const days = document.querySelectorAll('#calendar .p-mday');
+      days.forEach(el => el.classList.remove('is-selected'));
+      // Simple re-select based on key logic if we stored keys on elements, 
+      // but re-rendering is heavy. We just clear here for simplicity as re-render handles default state well.
+      // To strictly highlight without re-render, we'd loop and check dates.
+      // But user interaction flows naturally with setSlotsPanel feedback.
   }
 
   function setSlotsPanel(dayKey){
@@ -658,7 +624,7 @@
 
     gridRoot.classList.add("has-day");
     
-    // Auto-scroll on mobile
+    // Auto-scroll mobile
     if (window.innerWidth <= 640 && daySlots.length > 0) {
         setTimeout(() => {
             const panel = document.getElementById("slotsPanel");
@@ -669,7 +635,7 @@
 
   // ---------- Init Sequence (Fast!) ----------
   try {
-      // 1. Parallel Fetch (Expert Info + Calendar Slots)
+      // Parallel Fetch
       await Promise.all([
           loadExpert(),
           renderCalendar()
@@ -677,14 +643,12 @@
   } catch (e) {
       console.error("Init failed", e);
   } finally {
-      // 2. Hide Loader & Reveal Content
+      // Hide Loader
       loader.classList.add("hidden");
       mainContent.classList.add("loaded");
   }
 
-  // ---------- Event Listeners (Modal, Nav, etc) ----------
-  
-  // Month Nav
+  // ---------- Event Listeners ----------
   document.getElementById("prevMonth").addEventListener("click", () => {
     viewMonth.setMonth(viewMonth.getMonth() - 1);
     renderCalendar();
@@ -711,7 +675,7 @@
   document.getElementById("cancelModal").addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
-  // Booking Action
+  // Booking
   document.getElementById("goSupport").addEventListener("click", async function() {
     const btn = this;
     const errEl = document.getElementById("modalError");
