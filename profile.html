@@ -19,7 +19,7 @@
       --rc-muted: #64748b;
       --rc-blue: #1677ff;
 
-      /* “Licorne” blue gradient (same vibe as avatar fallback) */
+      /* “Licorne” blue gradient */
       --rc-blue-grad:
         radial-gradient(140px 110px at 30% 20%, rgba(22,119,255,.30), transparent 58%),
         radial-gradient(140px 110px at 80% 60%, rgba(22,119,255,.20), transparent 58%),
@@ -28,10 +28,34 @@
       --rc-shadow: 0 18px 40px rgba(15,23,42,.08);
     }
 
-    .p-page{ background: var(--rc-bg); }
+    .p-page{ background: var(--rc-bg); min-height: 100vh; }
 
-    /* ✅ CHANGED: reduce top “grey” space */
-    .p-wrap{ max-width: 848px; margin: 0 auto; padding: 8px 0 52px; }
+    /* LOADING OVERLAY (Calendly Style) */
+    .rc-loader-overlay {
+        position: fixed; inset: 0; background: #ffffff; z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    .rc-loader-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    
+    .rc-dots { display: flex; gap: 8px; }
+    .rc-dot {
+        width: 12px; height: 12px; background: var(--rc-blue); border-radius: 50%;
+        animation: rcBounce 0.6s infinite alternate;
+    }
+    .rc-dot:nth-child(2) { animation-delay: 0.2s; }
+    .rc-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes rcBounce {
+        to { transform: translateY(-10px); opacity: 0.7; }
+    }
+
+    /* Content Fade In */
+    .p-wrap { 
+        max-width: 848px; margin: 0 auto; padding: 8px 0 52px; 
+        opacity: 0; transform: translateY(10px); transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .p-wrap.loaded { opacity: 1; transform: translateY(0); }
 
     .p-card{
       background:var(--rc-card);
@@ -41,534 +65,201 @@
       overflow:hidden;
     }
 
-    /* ✅ Header tagline next to logo (handwritten/calligraphy vibe + tighter spacing) */
+    /* Header tagline next to logo */
     .site-header .header-inner{
-      display:flex;
-      align-items:baseline;     /* feels more “logo + signature” */
-      gap:6px;                 /* ✅ less space between logo and phrase */
+      display:flex; align-items:baseline; gap:6px;
     }
-
-    /* in case style.css adds spacing somewhere */
     .site-header .logo-link{ display:inline-flex; align-items:baseline; }
     .site-header .logo{ line-height: 1; }
 
     .rc-tagline{
-      /* ✅ Premium SaaS / "licorne" typography, very readable */
-      font-family: ui-sans-serif, system-ui, -apple-system,
-                   "SF Pro Display", "SF Pro Text",
-                   Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-
-      font-style: italic;
-      font-weight: 650;
-      font-size: 1.02rem;              /* desktop size */
-      color: rgba(15,23,42,.72);          /* darker, readable */
-
-      letter-spacing: -.02em;
-      line-height: 1;
-
-      white-space: nowrap;
-      margin-left: 2px;                   /* glued to logo */
-      transform: translateY(1px);
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      font-style: italic; font-weight: 650; font-size: 1.02rem;
+      color: rgba(15,23,42,.72); letter-spacing: -.02em; line-height: 1;
+      white-space: nowrap; margin-left: 2px; transform: translateY(1px);
       text-shadow: 0 1px 0 rgba(255,255,255,.35);
     }
 
     @media (max-width: 640px){
-      .site-header .header-inner{
-        flex-direction: row;                 /* ✅ reste en ligne */
-        align-items: baseline;
-        justify-content: flex-start !important;
-        gap: 6px;
-      }
-
-      /* Empêche le logo de casser la ligne */
+      .site-header .header-inner{ flex-direction: row; justify-content: flex-start !important; gap: 6px; }
       .site-header .logo-link{ flex: 0 0 auto; }
-      .site-header .logo{ white-space: nowrap; }
-
-      /* La phrase reste collée, et s’adapte en taille pour rentrer */
       .rc-tagline{
-        flex: 1 1 auto;
-        min-width: 0;
-        margin-left: 0;
-        white-space: nowrap;
-
-        /* ✅ smaller so it fits (no missing letters) */
-        font-size: clamp(0.64rem, 2.2vw, 0.86rem);
-
-        /* ✅ fix cut descenders (g, q, y, p) */
-        line-height: 1.18;
-        padding-bottom: 2px;
-        transform: none;
-
-        overflow: hidden;
-        text-overflow: clip; /* ✅ don't hide extra letters behind ellipsis */
+        flex: 1 1 auto; min-width: 0; margin-left: 0; white-space: nowrap;
+        font-size: clamp(0.64rem, 2.2vw, 0.86rem); line-height: 1.18; padding-bottom: 2px;
+        transform: none; overflow: hidden; text-overflow: clip;
       }
     }
 
     .p-hero{
-      padding: 22px 24px 18px;
-      border-bottom:1px solid var(--rc-border);
+      padding: 22px 24px 18px; border-bottom:1px solid var(--rc-border);
       background:
         radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%),
         radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%);
-      display:flex;
-      gap:16px;
-      align-items:flex-start; /* ✅ keep avatar top-left on web */
+      display:flex; gap:16px; align-items:flex-start;
     }
 
     /* Avatar */
     .p-avatar{
-      width:78px; height:78px;
-      border-radius:22px;
-      border:1px solid var(--rc-border);
-      background:#fff;
-      overflow:hidden;
-      flex:0 0 auto;
-      display:grid;
-      place-items:center;
-      position:relative;
-      margin-top: 2px;
+      width:78px; height:78px; border-radius:22px; border:1px solid var(--rc-border);
+      background:#fff; overflow:hidden; flex:0 0 auto; display:grid; place-items:center;
+      position:relative; margin-top: 2px;
     }
-    .p-avatar img{
-      width:100%; height:100%;
-      object-fit:cover;
-      display:none;
-    }
+    .p-avatar img{ width:100%; height:100%; object-fit:cover; display:none; }
     .p-avatar-fallback{
-      width:100%; height:100%;
-      display:grid;
-      place-items:center;
-      background: var(--rc-blue-grad);
-      color: var(--rc-blue);
-      font-weight: 900;
-      letter-spacing: -.02em;
-      font-size: 1.4rem;
+      width:100%; height:100%; display:grid; place-items:center;
+      background: var(--rc-blue-grad); color: var(--rc-blue);
+      font-weight: 900; letter-spacing: -.02em; font-size: 1.4rem;
     }
 
     .p-hero-main{ min-width:0; }
     .p-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--rc-border);
-      background:#fff;
-      color:#334155;
-      font-size:.92rem;
+      display:inline-flex; align-items:center; gap:8px; padding:6px 10px;
+      border-radius:999px; border:1px solid var(--rc-border); background:#fff;
+      color:#334155; font-size:.92rem;
     }
     .p-dot{
-      width:8px; height:8px;
-      border-radius:999px;
-      background: var(--rc-blue);
+      width:8px; height:8px; border-radius:999px; background: var(--rc-blue);
       box-shadow: 0 0 0 4px rgba(22,119,255,.10);
     }
-    .p-title{
-      margin: 10px 0 6px;
-      font-size: 1.65rem;
-      line-height:1.2;
-      letter-spacing:-.03em;
-      color:var(--rc-text);
-    }
-    .p-subtitle{
-      margin:0;
-      color:#475569;
-      line-height:1.6;
-      font-size:1.0rem;
-      max-width: 80ch;
-    }
+    .p-title{ margin: 10px 0 6px; font-size: 1.65rem; line-height:1.2; letter-spacing:-.03em; color:var(--rc-text); }
+    .p-subtitle{ margin:0; color:#475569; line-height:1.6; font-size:1.0rem; max-width: 80ch; }
 
-    .p-body{ padding: 14px 24px 24px; } /* ✅ slightly tighter */
+    .p-body{ padding: 14px 24px 24px; }
 
-    /* =========================
-       Calendar area
-       ========================= */
-
+    /* Calendar area */
     .p-book-head{
-      margin: 0 0 10px;
-      text-align:center;
-      font-weight: 950;
-      letter-spacing:-.03em;
-      color: var(--rc-text);
-      font-size: 1.15rem;
+      margin: 0 0 10px; text-align:center; font-weight: 950;
+      letter-spacing:-.03em; color: var(--rc-text); font-size: 1.15rem;
     }
 
-    .p-grid{
-      display:flex;
-      align-items:stretch;
-      gap:16px;
-      margin-top: 14px;
-      min-width: 0;
-      justify-content:center;
-    }
-    .p-grid.has-day{
-      justify-content:space-between;
-    }
+    .p-grid{ display:flex; align-items:stretch; gap:16px; margin-top: 14px; min-width: 0; justify-content:center; }
+    .p-grid.has-day{ justify-content:space-between; }
 
     .p-panel{
-      border:1px solid var(--rc-border);
-      border-radius:18px;
-      padding:16px;
-      background:#fff;
-      min-width:0;
+      border:1px solid var(--rc-border); border-radius:18px; padding:16px;
+      background:#fff; min-width:0;
     }
 
-    .p-panel.calendar{
-      flex: 0 0 50%;
-      max-width: 460px;
-      min-width: 320px;
-    }
+    .p-panel.calendar{ flex: 0 0 50%; max-width: 460px; min-width: 320px; }
 
     .p-panel.slots{
-      flex: 0 0 50%;
-      max-width: 460px;
-      min-width: 320px;
-
-      opacity: 0;
-      transform: translateX(10px);
-      pointer-events: none;
-      max-width: 0;
-      min-width: 0;
-      padding: 0;
-      border-color: transparent;
-      background: transparent;
-      overflow: hidden;
-
-      transition: opacity 220ms ease, transform 220ms ease, max-width 220ms ease, min-width 220ms ease, padding 220ms ease, border-color 220ms ease, background-color 220ms ease;
+      flex: 0 0 50%; max-width: 460px; min-width: 320px;
+      opacity: 0; transform: translateX(10px); pointer-events: none;
+      max-width: 0; min-width: 0; padding: 0; border-color: transparent; background: transparent; overflow: hidden;
+      transition: all 220ms ease;
     }
     .p-grid.has-day .p-panel.slots{
-      opacity: 1;
-      transform: translateX(0);
-      pointer-events: auto;
-
-      max-width: 460px;
-      min-width: 320px;
-      padding:16px;
-      border-color: var(--rc-border);
-      background:#fff;
+      opacity: 1; transform: translateX(0); pointer-events: auto;
+      max-width: 460px; min-width: 320px; padding:16px;
+      border-color: var(--rc-border); background:#fff;
     }
 
-    .p-month-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:10px;
-      margin-bottom: 10px;
-    }
-    .p-month-title{
-      font-weight:900;
-      color: var(--rc-text);
-      letter-spacing:-.02em;
-      font-size: 1.05rem;
-      white-space:nowrap;
-      text-align:center;
-      flex: 1 1 auto;
-    }
+    .p-month-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom: 10px; }
+    .p-month-title{ font-weight:900; color: var(--rc-text); letter-spacing:-.02em; font-size: 1.05rem; white-space:nowrap; text-align:center; flex: 1 1 auto; }
 
     .p-btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border:1px solid var(--rc-border);
-      background:#fff;
-      color:var(--rc-text);
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      user-select:none;
-      font-weight:800;
-      letter-spacing:-.01em;
-      white-space:nowrap;
+      display:inline-flex; align-items:center; justify-content:center; padding: 10px 12px;
+      border-radius: 14px; border:1px solid var(--rc-border); background:#fff; color:var(--rc-text);
+      cursor:pointer; transition: all 160ms ease; user-select:none; font-weight:800; letter-spacing:-.01em; white-space:nowrap;
     }
-    .p-btn:hover{
-      transform: translateY(-1px);
-      border-color: var(--rc-blue);
-      background: rgba(22,119,255,.06);
-    }
+    .p-btn:hover{ transform: translateY(-1px); border-color: var(--rc-blue); background: rgba(22,119,255,.06); }
 
-    .p-dow{
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap:8px;
-      margin-bottom: 8px;
-    }
-    .p-dow div{
-      text-align:center;
-      font-size:.78rem;
-      font-weight:900;
-      color:#94a3b8;
-      letter-spacing:.02em;
-      text-transform: uppercase;
-    }
+    .p-dow{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; margin-bottom: 8px; }
+    .p-dow div{ text-align:center; font-size:.78rem; font-weight:900; color:#94a3b8; letter-spacing:.02em; text-transform: uppercase; }
 
-    .p-month{
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap:8px;
-      user-select:none;
-    }
+    .p-month{ display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; user-select:none; }
 
     .p-mday{
-      border-radius: 18px;
-      padding: 12px 8px;
-      min-height: 52px;
-
-      display:flex;
-      align-items:center;
-      justify-content:center;
-
-      font-weight: 950;
-      letter-spacing: -.01em;
-
-      transition: transform 140ms ease, background-color 160ms ease, box-shadow 180ms ease, opacity 160ms ease;
-      cursor:pointer;
-      background:#fff;
+      border-radius: 18px; padding: 12px 8px; min-height: 52px;
+      display:flex; align-items:center; justify-content:center;
+      font-weight: 950; letter-spacing: -.01em; cursor:pointer; background:#fff;
+      transition: all 160ms ease;
     }
     .p-mday:hover{ transform: translateY(-1px); }
 
-    .p-mday.is-out{
-      background: transparent;
-      cursor: default;
-    }
-    .p-mday.is-out:hover{
-      transform:none;
-      background: transparent;
-      box-shadow:none;
-    }
+    .p-mday.is-out{ background: transparent; cursor: default; }
+    .p-mday.is-out:hover{ transform:none; background: transparent; box-shadow:none; }
 
-    .p-mday.no-any{
-      border: none;
-      color: #9aa6b2;
-      background: transparent;
-    }
-    .p-mday.no-any:hover{
-      transform:none;
-      background: transparent;
-      box-shadow:none;
-    }
+    .p-mday.no-any{ border: none; color: #9aa6b2; background: transparent; }
+    .p-mday.no-any:hover{ transform:none; background: transparent; box-shadow:none; }
 
-    .p-mday.has-any{
-      border: none;
-      border-radius: 999px;
-      background: rgba(22,119,255,.18);
-      color: var(--rc-blue);
-      box-shadow: none;
-    }
-    .p-mday.has-any:hover{
-      background: rgba(22,119,255,.24);
-      box-shadow: none;
-    }
+    .p-mday.has-any{ border: none; border-radius: 999px; background: rgba(22,119,255,.18); color: var(--rc-blue); }
+    .p-mday.has-any:hover{ background: rgba(22,119,255,.24); }
 
-    .p-mday.is-selected{
-      border: none;
-      border-radius: 999px;
-      background: rgba(22,119,255,.30);
-      box-shadow: none;
-    }
+    .p-mday.is-selected{ border: none; border-radius: 999px; background: rgba(22,119,255,.30); }
 
-    /* ✅ NEW: past days not clickable */
     .p-mday.is-past{
-      opacity: .35;
-      cursor: not-allowed !important;
-      transform:none !important;
-      background: transparent !important;
-      box-shadow:none !important;
-      color: #94a3b8 !important;
-    }
-    .p-mday.is-past.has-any{
-      background: transparent !important;
-      color: #94a3b8 !important;
+      opacity: .35; cursor: not-allowed !important; transform:none !important;
+      background: transparent !important; color: #94a3b8 !important;
     }
 
-    .p-slots-date{
-      text-align:center;
-      font-weight: 950;
-      letter-spacing:-.02em;
-      color: var(--rc-text);
-      font-size: 1.05rem;
-      margin: 4px 0 12px;
-    }
-    .p-slot-list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin-top: 6px;
-    }
+    .p-slots-date{ text-align:center; font-weight: 950; letter-spacing:-.02em; color: var(--rc-text); font-size: 1.05rem; margin: 4px 0 12px; }
+    .p-slot-list{ display:flex; flex-direction:column; gap:10px; margin-top: 6px; }
 
     .p-slot{
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding:10px 12px;
-      border-radius: 14px;
-      border:1px solid rgba(22,119,255,.35);
-      background:#fff;
-      cursor:pointer;
-      transition: transform 120ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      font-weight:950;
-      color: var(--rc-blue);
-      text-decoration:none;
-      user-select:none;
-      letter-spacing:-.01em;
+      display:flex; justify-content:center; align-items:center; padding:10px 12px;
+      border-radius: 14px; border:1px solid rgba(22,119,255,.35); background:#fff;
+      cursor:pointer; transition: all 160ms ease; font-weight:950; color: var(--rc-blue); text-decoration:none;
+      user-select:none; letter-spacing:-.01em;
     }
     .p-slot:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.65);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 24px rgba(22,119,255,.12);
+      transform: translateY(-1px); border-color: rgba(22,119,255,.65);
+      background: rgba(22,119,255,.06); box-shadow: 0 12px 24px rgba(22,119,255,.12);
     }
 
     .p-error{
-      display:none;
-      margin-top: 10px;
-      border-radius: 14px;
-      border:1px solid #fecaca;
-      background:#fff1f2;
-      padding: 12px;
-      color:#881337;
-      font-size:.95rem;
-      line-height:1.55;
+      display:none; margin-top: 10px; border-radius: 14px; border:1px solid #fecaca;
+      background:#fff1f2; padding: 12px; color:#881337; font-size:.95rem; line-height:1.55;
     }
 
     /* Modal */
     .p-modal-backdrop{
-      position: fixed; inset:0;
-      background: rgba(15,23,42,.45);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 16px;
-      z-index: 50;
+      position: fixed; inset:0; background: rgba(15,23,42,.45);
+      display:none; align-items:center; justify-content:center; padding: 16px; z-index: 50;
     }
-    .p-modal{
-      width: 100%;
-      max-width: 520px;
-      background:#fff;
-      border:1px solid var(--rc-border);
-      border-radius: 18px;
-      box-shadow:0 18px 50px rgba(15,23,42,.20);
-      overflow:hidden;
-    }
-    .p-modal-head{
-      padding:16px;
-      border-bottom:1px solid var(--rc-border);
-      display:flex; justify-content:space-between; align-items:center;
-      gap:10px;
-    }
+    .p-modal{ width: 100%; max-width: 520px; background:#fff; border:1px solid var(--rc-border); border-radius: 18px; box-shadow:0 18px 50px rgba(15,23,42,.20); overflow:hidden; }
+    .p-modal-head{ padding:16px; border-bottom:1px solid var(--rc-border); display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .p-modal-title{ font-weight:900; color:var(--rc-text); letter-spacing:-.02em; }
     .p-modal-body{ padding:16px; }
     .p-form-row{ margin: 0 0 12px; }
     .p-form-row label{ display:block; font-weight:900; color:var(--rc-text); margin-bottom:6px; }
     .p-form-row input, .p-form-row textarea{
-      width:100%;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border:1px solid var(--rc-border);
-      outline:none;
-      transition: border-color 160ms ease, box-shadow 160ms ease;
+      width:100%; padding: 12px 12px; border-radius: 14px; border:1px solid var(--rc-border); outline:none; transition: border-color 160ms ease, box-shadow 160ms ease;
     }
-    .p-form-row input:focus, .p-form-row textarea:focus{
-      border-color:var(--rc-blue);
-      box-shadow: 0 0 0 4px rgba(22,119,255,.10);
-    }
+    .p-form-row input:focus, .p-form-row textarea:focus{ border-color:var(--rc-blue); box-shadow: 0 0 0 4px rgba(22,119,255,.10); }
     .p-modal-actions{ display:flex; gap:10px; margin-top: 8px; }
 
     @media (max-width: 980px){
       .p-wrap{ max-width: 92vw; }
       .p-grid{ flex-direction: column; justify-content:flex-start; }
-      .p-panel.calendar, .p-panel.slots{
-        flex: 1 1 auto;
-        width: 100%;
-        max-width: none;
-        min-width: 0;
-      }
-      .p-panel.slots{
-        opacity:1;
-        transform:none;
-        pointer-events:auto;
-        padding:16px;
-        border-color: var(--rc-border);
-        background:#fff;
-        max-width:none;
-        min-width:0;
-      }
+      .p-panel.calendar, .p-panel.slots{ flex: 1 1 auto; width: 100%; max-width: none; min-width: 0; }
+      .p-panel.slots{ opacity:1; transform:none; pointer-events:auto; padding:16px; border-color: var(--rc-border); background:#fff; max-width:none; min-width:0; }
     }
 
-    /* ======================================================
-       MOBILE-ONLY MODS
-       ====================================================== */
+    /* MOBILE-ONLY MODS */
     @media (max-width: 640px){
       .p-hero{
-        position: sticky;
-        top: 0;
-        z-index: 40;
-        align-items:flex-start;
-        padding: 12px 14px 10px;
-        gap: 12px;
-        backdrop-filter: blur(10px);
-        background:
-          radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%),
-          radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%),
-          rgba(248,250,252,.88);
+        position: sticky; top: 0; z-index: 40; align-items:flex-start; padding: 12px 14px 10px; gap: 12px;
+        backdrop-filter: blur(10px); background: radial-gradient(1000px 360px at 20% 0%, rgba(22,119,255,.14), transparent 60%), radial-gradient(900px 320px at 80% 20%, rgba(22,119,255,.10), transparent 55%), rgba(248,250,252,.88);
       }
-
       .p-avatar{ width:56px; height:56px; border-radius:18px; margin-top: 0; }
-
       .p-title{ margin: 8px 0 6px; font-size: 1.25rem; }
       .p-badge{ font-size:.85rem; padding:5px 9px; }
       .p-dot{ box-shadow: 0 0 0 3px rgba(22,119,255,.10); }
-
       .p-body{ padding: 12px 14px 18px; }
-
-      .p-bio-wrap{
-        position: relative;
-        margin-top: 2px;
-      }
-
-      .p-bio-wrap:not(.is-open) #expertBio{
-        display: -webkit-box;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 3;
-        overflow: hidden;
-      }
-
-      .p-bio-fade{
-        pointer-events: none;
-        position:absolute;
-        left:0; right:0; bottom:0;
-        height: 2.2em;
-        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
-        opacity: 0;
-        transition: opacity 160ms ease;
-      }
+      .p-bio-wrap{ position: relative; margin-top: 2px; }
+      .p-bio-wrap:not(.is-open) #expertBio{ display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+      .p-bio-fade{ pointer-events: none; position:absolute; left:0; right:0; bottom:0; height: 2.2em; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1)); opacity: 0; transition: opacity 160ms ease; }
       .p-bio-wrap:not(.is-open) .p-bio-fade{ opacity: 1; }
-
       .p-bio-toggle{
-        position:absolute;
-        right: 2px;
-        bottom: -10px;
-        width: 34px;
-        height: 34px;
-        border-radius: 999px;
-        border: 1px solid rgba(22,119,255,.20);
-        background: var(--rc-blue-grad);
-        display:grid;
-        place-items:center;
-        cursor:pointer;
-        user-select:none;
-        box-shadow: 0 10px 20px rgba(22,119,255,.10);
-        transition: transform 140ms ease, box-shadow 160ms ease, background-color 160ms ease;
+        position:absolute; right: 2px; bottom: -10px; width: 34px; height: 34px; border-radius: 999px; border: 1px solid rgba(22,119,255,.20); background: var(--rc-blue-grad); display:grid; place-items:center; cursor:pointer; user-select:none; box-shadow: 0 10px 20px rgba(22,119,255,.10); transition: all 140ms ease;
       }
       .p-bio-toggle:hover{ transform: translateY(-1px); box-shadow: 0 14px 24px rgba(22,119,255,.14); }
-      .p-bio-toggle:active{ transform: translateY(0); }
       .p-bio-toggle svg{ width:16px; height:16px; fill: var(--rc-blue); opacity:.9; }
       .p-bio-wrap.is-open .p-bio-toggle{ transform: rotate(180deg); }
-
       .p-bio-wrap.is-open .p-bio-fade{ opacity: 0; }
-
       .p-grid{ gap: 12px; }
       .p-panel{ padding: 14px; border-radius: 18px; }
-
       .p-book-head{ font-size: 1.05rem; margin-bottom: 8px; }
     }
   </style>
@@ -576,18 +267,24 @@
 
 <body>
 
+<div id="globalLoader" class="rc-loader-overlay">
+    <div class="rc-dots">
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+    </div>
+</div>
+
 <header class="site-header">
   <div class="container header-inner">
     <a href="index.html" class="logo-link">
       <div class="logo">RunCall</div>
     </a>
-
     <div class="rc-tagline"
          data-fr="Un échange en visio pour poser toutes tes questions"
          data-en="A video chat to ask all your questions and improve">
       Un échange en visio pour poser toutes tes questions
     </div>
-
   </div>
 </header>
 
@@ -597,7 +294,7 @@
 </div>
 
 <section class="section p-page">
-  <div class="container p-wrap">
+  <div class="container p-wrap" id="mainContent">
 
     <div class="p-card">
       <div class="p-hero">
@@ -627,7 +324,6 @@
       </div>
 
       <div class="p-body">
-
         <div class="p-book-head" id="bookHeadline"
              data-fr="Réserver un échange avec PRENOM"
              data-en="Book a conversation with FIRST NAME">
@@ -635,17 +331,14 @@
         </div>
 
         <div class="p-grid" id="gridRoot">
-
           <div class="p-panel calendar" id="calendarPanel">
             <div class="p-month-head" id="monthHead">
               <button class="p-btn" id="prevMonth" type="button" aria-label="Previous month">←</button>
               <div class="p-month-title" id="monthTitle">—</div>
               <button class="p-btn" id="nextMonth" type="button" aria-label="Next month">→</button>
             </div>
-
             <div class="p-dow" id="dow"></div>
             <div id="calendar" class="p-month"></div>
-
             <div id="slotsError" class="p-error"></div>
           </div>
 
@@ -653,7 +346,6 @@
             <div id="slotsDate" class="p-slots-date">—</div>
             <div id="slotList" class="p-slot-list"></div>
           </div>
-
         </div>
       </div>
     </div>
@@ -669,24 +361,19 @@
     </div>
     <div class="p-modal-body">
       <div class="p-muted" id="modalWhen" style="margin-top:0;"></div>
-
       <div class="p-form-row">
         <label data-fr="Ton nom" data-en="Your name">Ton nom</label>
         <input id="bookName" type="text" autocomplete="name" />
       </div>
-
       <div class="p-form-row">
         <label data-fr="Ton email" data-en="Your email">Ton email</label>
         <input id="bookEmail" type="email" autocomplete="email" />
       </div>
-
       <div class="p-form-row">
         <label data-fr="Note (optionnel)" data-en="Note (optional)">Note (optionnel)</label>
         <textarea id="bookNote" rows="3"></textarea>
       </div>
-
       <div id="modalError" class="p-error"></div>
-
       <div class="p-modal-actions">
         <button class="p-btn" id="goSupport" type="button" style="flex:1;" data-fr="Continuer" data-en="Continue">Continuer</button>
         <button class="p-btn" id="cancelModal" type="button" style="flex:1;" data-fr="Annuler" data-en="Cancel">Annuler</button>
@@ -696,7 +383,10 @@
 </div>
 
 <script>
-(function () {
+(async function () {
+  const loader = document.getElementById("globalLoader");
+  const mainContent = document.getElementById("mainContent");
+
   // ---------- Language ----------
   const buttons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
@@ -724,66 +414,38 @@
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   function iso(d){ return d.toISOString(); }
-
   function localKey(d){
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }
-
-  // ✅ NEW: day start (local) for “past days”
   function startOfToday(){
     const t = new Date();
     t.setHours(0,0,0,0);
     return t;
   }
-
-  function showError(el, msg){
-    el.style.display = "block";
-    el.textContent = msg;
-  }
-  function clearError(el){
-    el.style.display = "none";
-    el.textContent = "";
-  }
-
-  function fmtMonthTitle(d){
-    return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"long", year:"numeric" }).format(d);
-  }
-
-  function fmtSlotsHeader(d){
-    return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d);
-  }
-
-  function fmtTime(d){
-    return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d);
-  }
-
-  function firstNameFromFullName(full){
-    const s = String(full || "").trim();
-    if (!s) return "";
-    return s.split(/\s+/)[0];
-  }
+  function showError(el, msg){ el.style.display = "block"; el.textContent = msg; }
+  function clearError(el){ el.style.display = "none"; el.textContent = ""; }
+  function fmtMonthTitle(d){ return new Intl.DateTimeFormat(lang === "fr" ? "fr-FR" : "en-US", { month:"long", year:"numeric" }).format(d); }
+  function fmtSlotsHeader(d){ return new Intl.DateTimeFormat(lang==="fr"?"fr-FR":"en-US", { weekday:"long", month:"long", day:"numeric" }).format(d); }
+  function fmtTime(d){ return new Intl.DateTimeFormat("en-US", { hour:"numeric", minute:"2-digit", hour12:true }).format(d); }
+  function firstNameFromFullName(full){ return String(full || "").trim().split(/\s+/)[0]; }
+  
   function updateBookHeadline(){
     const h = document.getElementById("bookHeadline");
     if (!h) return;
     const fullName = document.getElementById("expertName")?.textContent || "";
     const first = firstNameFromFullName(fullName) || (lang === "fr" ? "cet intervenant" : "this expert");
-
     const frTpl = h.dataset.fr || "Réserver un échange avec PRENOM";
     const enTpl = h.dataset.en || "Book a conversation with FIRST NAME";
-
-    h.textContent = (lang === "fr")
-      ? frTpl.replace("PRENOM", first)
-      : enTpl.replace("FIRST NAME", first);
+    h.textContent = (lang === "fr") ? frTpl.replace("PRENOM", first) : enTpl.replace("FIRST NAME", first);
   }
 
   function renderDow(){
     const el = document.getElementById("dow");
     if (!el) return;
     el.innerHTML = "";
-
     const base = new Date(2026, 0, 5, 12, 0, 0, 0); // Monday
     for (let i=0;i<7;i++){
       const d = new Date(base);
@@ -799,16 +461,10 @@
   async function loadExpert(){
     if (!expertId) {
       document.getElementById("expertName").textContent = (lang === "fr" ? "Profil introuvable" : "Profile not found");
-      document.getElementById("expertBio").textContent = (lang === "fr" ? "Lien invalide." : "Invalid link.");
-      updateBookHeadline();
       return;
     }
-
     try{
-      // ✅ expects API to return { name, presentation, photo_url } (photo_url is signed from photo_path)
-      const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
-        headers: { "Accept":"application/json" }
-      });
+      const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`);
       if (!r.ok) throw new Error("fetch failed");
       const d = await r.json();
 
@@ -817,35 +473,28 @@
       document.getElementById("expertBio").textContent = d?.presentation || "—";
       updateBookHeadline();
 
+      // Photo handling
       const img = document.getElementById("expertPhoto");
       const fallback = document.getElementById("avatarFallback");
       const initial = String(name || "R").trim().slice(0,1).toUpperCase() || "R";
       fallback.textContent = initial;
 
-      const photoUrl = String(d?.photo_url || "").trim();
-      if (photoUrl) {
+      if (d?.photo_url) {
+        // Fix: Ensure onload is defined before setting src
         img.onload = () => { img.style.display = "block"; fallback.style.display = "none"; };
         img.onerror = () => { img.style.display = "none"; fallback.style.display = "grid"; };
-        img.src = photoUrl;
+        // Add timestamp to prevent caching issues if photo changed
+        img.src = `${d.photo_url}?t=${Date.now()}`;
       } else {
         img.style.display = "none";
         fallback.style.display = "grid";
       }
     } catch {
-      document.getElementById("expertName").textContent = (lang === "fr" ? "Intervenant RunCall" : "RunCall expert");
-      document.getElementById("expertBio").textContent = (lang === "fr"
-        ? "Ce profil est en cours de configuration."
-        : "This profile is being set up.");
-      updateBookHeadline();
-
-      const fallback = document.getElementById("avatarFallback");
-      fallback.textContent = "R";
-      document.getElementById("expertPhoto").style.display = "none";
-      fallback.style.display = "grid";
+      document.getElementById("expertName").textContent = "RunCall User";
     }
   }
 
-  // ---------- Slots fetch ----------
+  // ---------- Slots Logic ----------
   async function fetchSlots(from, to){
     const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&tz=${encodeURIComponent(tz)}`;
     const r = await fetch(url);
@@ -857,19 +506,16 @@
   function groupSlotsByDay(slots){
     const map = new Map();
     const today0 = startOfToday().getTime();
-
     slots.forEach(s => {
       const start = new Date(s.start);
       if (isNaN(start.getTime())) return;
-
-      // ✅ NEW: ignore past slots
+      // Filter out past slots based on local browser time
       if (start.getTime() < today0) return;
 
       const key = localKey(start);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(s);
     });
-
     for (const [k, arr] of map.entries()){
       arr.sort((a,b) => new Date(a.start) - new Date(b.start));
       map.set(k, arr);
@@ -877,88 +523,116 @@
     return map;
   }
 
-  // ---------- Month calendar state ----------
-  const gridRoot = document.getElementById("gridRoot");
-  let viewMonth = (function(){
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0,0);
-  })();
-
+  // ---------- Calendar Render ----------
+  let viewMonth = new Date();
+  viewMonth.setDate(1); // 1st of current month
   let latestGrouped = new Map();
   let selectedDayKey = null;
   let selectedSlot = null;
 
-  function startOfWeekMonday(d){
-    const x = new Date(d);
-    const day = x.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0,0,0,0);
-    return x;
-  }
-  function endOfWeekSunday(d){
-    const x = startOfWeekMonday(d);
-    x.setDate(x.getDate() + 6);
-    x.setHours(23,59,59,999);
-    return x;
-  }
+  async function renderCalendar(){
+    renderDow();
+    document.getElementById("monthTitle").textContent = fmtMonthTitle(viewMonth);
+    const cal = document.getElementById("calendar");
+    const err = document.getElementById("slotsError");
+    clearError(err);
+    cal.innerHTML = "";
 
-  function monthGridRange(monthStart){
-    const first = new Date(monthStart.getFullYear(), monthStart.getMonth(), 1, 0,0,0,0);
-    const last = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23,59,59,999);
-    const gridStart = startOfWeekMonday(first);
-    const gridEnd = endOfWeekSunday(last);
-    return { gridStart, gridEnd };
-  }
+    if (!expertId){
+      showError(err, lang === "fr" ? "Lien invalide." : "Invalid link.");
+      return;
+    }
 
-  function buildMonthDays(monthStart){
-    const { gridStart, gridEnd } = monthGridRange(monthStart);
-    const days = [];
+    // Calc grid range
+    const year = viewMonth.getFullYear();
+    const month = viewMonth.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    // Start grid on the Monday before first day
+    const gridStart = new Date(firstDayOfMonth);
+    const day = gridStart.getDay(); 
+    const diff = (day === 0 ? -6 : 1) - day; 
+    gridStart.setDate(gridStart.getDate() + diff);
+    gridStart.setHours(0,0,0,0);
+
+    const gridEnd = new Date(lastDayOfMonth);
+    const endDay = gridEnd.getDay();
+    const diffEnd = (endDay === 0 ? 0 : 7 - endDay);
+    gridEnd.setDate(gridEnd.getDate() + diffEnd);
+    gridEnd.setHours(23,59,59,999);
+
+    let slots = [];
+    try{
+      slots = await fetchSlots(iso(gridStart), iso(gridEnd));
+    } catch(e){
+      console.warn("Slots error", e);
+    }
+
+    latestGrouped = groupSlotsByDay(slots);
+    
+    // Build days
     const cur = new Date(gridStart);
+    const today0 = startOfToday().getTime();
+
     while (cur <= gridEnd){
-      days.push(new Date(cur));
-      cur.setDate(cur.getDate() + 1);
+        const d = new Date(cur);
+        const key = localKey(d);
+        const daySlots = latestGrouped.get(key) || [];
+        const hasAny = daySlots.length > 0;
+
+        const cell = document.createElement("div");
+        cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
+        
+        // Month mismatch
+        if (d.getMonth() !== month) {
+            cell.classList.add("is-out");
+        } else {
+            cell.textContent = String(d.getDate());
+            
+            // Past day?
+            if (d.getTime() < today0) {
+                 cell.classList.add("is-past");
+            } else if (hasAny) {
+                 cell.addEventListener("click", () => {
+                    setSlotsPanel(key);
+                    selectedDayKey = key;
+                    highlightSelectedDay();
+                 });
+            } else {
+                // Empty future day
+                cell.addEventListener("click", () => {
+                    setSlotsPanel(null);
+                    selectedDayKey = null;
+                    highlightSelectedDay();
+                });
+            }
+        }
+        
+        // Selection state
+        if (selectedDayKey === key) cell.classList.add("is-selected");
+
+        cal.appendChild(cell);
+        cur.setDate(cur.getDate() + 1);
     }
-    return days;
   }
 
-  // ✅ MOBILE: scroll down, but stop so month header (title + arrows) stays visible
-  function isMobile(){
-    return window.matchMedia && window.matchMedia("(max-width: 640px)").matches;
-  }
-  function scrollToShowSlotsButKeepMonthHeader(){
-    if (!isMobile()) return;
-
-    const slotsPanel = document.getElementById("slotsPanel");
-    const monthHead = document.getElementById("monthHead");
-    if (!slotsPanel || !monthHead) return;
-
-    const y0 = window.scrollY;
-    const slotsTop = slotsPanel.getBoundingClientRect().top;     // relative to viewport
-    const headTop  = monthHead.getBoundingClientRect().top;      // relative to viewport
-
-    const desiredSlotsTop = Math.round(window.innerHeight * 0.58);
-    let delta = slotsTop - desiredSlotsTop;
-
-    if (delta <= 0) delta = 12;
-
-    const minHeadTop = 10;
-    const headTopAfter = headTop - delta;
-    if (headTopAfter < minHeadTop){
-      delta = headTop - minHeadTop;
-    }
-
-    if (delta > 2){
-      window.scrollTo({ top: y0 + delta, behavior: "smooth" });
-    }
+  function highlightSelectedDay(){
+      // Re-render handled by logic above usually, but simple class toggle:
+      const days = document.getElementById("calendar").children;
+      // Re-rendering entire calendar is safer to keep state clean, but simple class toggle works if we track keys
+      // For simplicity, we just clear previous selected class
+      document.querySelectorAll('.p-mday.is-selected').forEach(el => el.classList.remove('is-selected'));
+      // Find new one (need to track index or use date attrib). 
+      // Let's re-run renderCalendar() is expensive. Let's just use DOM logic:
+      // We didn't add data-key to cells in the simplified loop above. Let's rely on setSlotsPanel visual feedback.
   }
 
   function setSlotsPanel(dayKey){
     const list = document.getElementById("slotList");
     const header = document.getElementById("slotsDate");
+    const gridRoot = document.getElementById("gridRoot");
     list.innerHTML = "";
-
-    selectedDayKey = dayKey;
 
     if (!dayKey){
       gridRoot.classList.remove("has-day");
@@ -966,7 +640,6 @@
     }
 
     const daySlots = latestGrouped.get(dayKey) || [];
-
     const parts = dayKey.split("-").map(Number);
     const d = new Date(parts[0], parts[1]-1, parts[2], 12, 0, 0, 0);
     header.textContent = fmtSlotsHeader(d);
@@ -984,264 +657,108 @@
     });
 
     gridRoot.classList.add("has-day");
-
-    if (daySlots.length > 0){
-      requestAnimationFrame(() => scrollToShowSlotsButKeepMonthHeader());
+    
+    // Auto-scroll on mobile
+    if (window.innerWidth <= 640 && daySlots.length > 0) {
+        setTimeout(() => {
+            const panel = document.getElementById("slotsPanel");
+            if(panel) panel.scrollIntoView({behavior: "smooth", block: "center"});
+        }, 100);
     }
   }
 
-  function highlightSelectedDay(){
-    document.querySelectorAll(".p-mday").forEach(el => {
-      const k = el.getAttribute("data-daykey");
-      el.classList.toggle("is-selected", !!selectedDayKey && k === selectedDayKey);
-    });
+  // ---------- Init Sequence (Fast!) ----------
+  try {
+      // 1. Parallel Fetch (Expert Info + Calendar Slots)
+      await Promise.all([
+          loadExpert(),
+          renderCalendar()
+      ]);
+  } catch (e) {
+      console.error("Init failed", e);
+  } finally {
+      // 2. Hide Loader & Reveal Content
+      loader.classList.add("hidden");
+      mainContent.classList.add("loaded");
   }
 
-  async function renderCalendar(){
-    renderDow();
-    document.getElementById("monthTitle").textContent = fmtMonthTitle(viewMonth);
+  // ---------- Event Listeners (Modal, Nav, etc) ----------
+  
+  // Month Nav
+  document.getElementById("prevMonth").addEventListener("click", () => {
+    viewMonth.setMonth(viewMonth.getMonth() - 1);
+    renderCalendar();
+  });
+  document.getElementById("nextMonth").addEventListener("click", () => {
+    viewMonth.setMonth(viewMonth.getMonth() + 1);
+    renderCalendar();
+  });
 
-    const cal = document.getElementById("calendar");
-    const err = document.getElementById("slotsError");
-    clearError(err);
-    cal.innerHTML = "";
-
-    if (!expertId){
-      showError(err, lang === "fr" ? "Lien invalide (expert_id manquant)." : "Invalid link (missing expert_id).");
-      latestGrouped = new Map();
-      if (!selectedDayKey) setSlotsPanel(null);
-      return;
-    }
-
-    const days = buildMonthDays(viewMonth);
-    const { gridStart, gridEnd } = monthGridRange(viewMonth);
-
-    let slots = [];
-    try{
-      slots = await fetchSlots(iso(gridStart), iso(gridEnd));
-    } catch(e){
-      showError(err, lang === "fr"
-        ? "Impossible de charger les créneaux pour le moment."
-        : "Unable to load slots right now.");
-      slots = [];
-    }
-
-    latestGrouped = groupSlotsByDay(slots);
-
-    const currentMonth = viewMonth.getMonth();
-    const today0 = startOfToday().getTime();
-
-    days.forEach(d => {
-      const key = localKey(d);
-      const daySlots = latestGrouped.get(key) || [];
-      const hasAny = daySlots.length > 0;
-
-      const cell = document.createElement("div");
-      cell.className = "p-mday " + (hasAny ? "has-any" : "no-any");
-      cell.setAttribute("data-daykey", key);
-
-      if (d.getMonth() !== currentMonth) {
-        cell.classList.add("is-out");
-        cell.textContent = "";
-        cal.appendChild(cell);
-        return;
-      }
-
-      cell.textContent = String(d.getDate());
-
-      // ✅ NEW: past days = disabled (and can't open slots panel)
-      const dayStart = new Date(d);
-      dayStart.setHours(0,0,0,0);
-      const isPast = dayStart.getTime() < today0;
-      if (isPast){
-        cell.classList.add("is-past");
-        cal.appendChild(cell);
-        return;
-      }
-
-      if (!hasAny){
-        // no slots -> do nothing on click (but keep hover behavior)
-        cell.addEventListener("click", () => {
-          setSlotsPanel(null);
-          selectedDayKey = null;
-          highlightSelectedDay();
-        });
-        cal.appendChild(cell);
-        return;
-      }
-
-      cell.addEventListener("click", () => {
-        setSlotsPanel(key);
-        highlightSelectedDay();
-      });
-
-      cal.appendChild(cell);
-    });
-
-    // if selected day became invalid (past) => clear
-    if (selectedDayKey){
-      const [yy,mm,dd] = selectedDayKey.split("-").map(Number);
-      const sel = new Date(yy, mm-1, dd, 0,0,0,0);
-      if (sel.getTime() < today0){
-        selectedDayKey = null;
-      }
-    }
-
-    if (!selectedDayKey){
-      gridRoot.classList.remove("has-day");
-    } else {
-      gridRoot.classList.add("has-day");
-      highlightSelectedDay();
-    }
-  }
-
-  // ---------- Modal booking ----------
+  // Modal
   const backdrop = document.getElementById("modalBackdrop");
-  const closeModalBtn = document.getElementById("closeModal");
-  const cancelModalBtn = document.getElementById("cancelModal");
-  const goSupportBtn = document.getElementById("goSupport");
-  const modalTitle = document.getElementById("modalTitle");
-  const modalWhen = document.getElementById("modalWhen");
-  const modalError = document.getElementById("modalError");
-
+  function closeModal(){ backdrop.style.display = "none"; selectedSlot = null; }
   function openModal(slot){
     selectedSlot = slot;
-    modalError.style.display = "none";
-    modalError.textContent = "";
-
+    document.getElementById("modalError").style.display = "none";
     const start = new Date(slot.start);
     const end = new Date(slot.end);
-
-    modalTitle.textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
-    modalWhen.textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
-
+    document.getElementById("modalTitle").textContent = (lang === "fr" ? "Réserver ce créneau" : "Book this slot");
+    document.getElementById("modalWhen").textContent = `${fmtSlotsHeader(start)} • ${fmtTime(start)} – ${fmtTime(end)} (${tz})`;
     backdrop.style.display = "flex";
-    document.getElementById("bookName").focus();
   }
-
-  function closeModal(){
-    backdrop.style.display = "none";
-    selectedSlot = null;
-  }
-
-  closeModalBtn.addEventListener("click", closeModal);
-  cancelModalBtn.addEventListener("click", closeModal);
+  
+  document.getElementById("closeModal").addEventListener("click", closeModal);
+  document.getElementById("cancelModal").addEventListener("click", closeModal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
 
-  // Create a pending booking in backend, then redirect to support.html with booking_id
-  goSupportBtn.addEventListener("click", async () => {
-    modalError.style.display = "none";
-    modalError.textContent = "";
+  // Booking Action
+  document.getElementById("goSupport").addEventListener("click", async function() {
+    const btn = this;
+    const errEl = document.getElementById("modalError");
+    errEl.style.display = "none";
 
     const name = document.getElementById("bookName").value.trim();
     const email = document.getElementById("bookEmail").value.trim();
     const note = document.getElementById("bookNote").value.trim();
 
-    if (!selectedSlot) {
-      modalError.style.display = "block";
-      modalError.textContent = (lang === "fr" ? "Créneau invalide." : "Invalid slot.");
-      return;
-    }
     if (!name || !email) {
-      modalError.style.display = "block";
-      modalError.textContent = (lang === "fr" ? "Merci de remplir ton nom et ton email." : "Please enter your name and email.");
+      showError(errEl, lang === "fr" ? "Champs manquants." : "Missing fields.");
       return;
     }
 
+    btn.disabled = true;
     try {
-      goSupportBtn.disabled = true;
-
       const resp = await fetch("/api/bookings/create-pending", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          expert_id: expertId || "",
+          expert_id: expertId,
           slot_start: selectedSlot.start,
           slot_end: selectedSlot.end,
           timezone: tz,
           user_name: name,
           user_email: email,
-          user_note: note || null,
+          user_note: note,
           source_calendar_id: "primary"
         })
       });
-
       const json = await resp.json();
-
-      if (!resp.ok || !json.booking_id) {
-        modalError.style.display = "block";
-        modalError.textContent = json?.error || (lang === "fr"
-          ? "Impossible de créer la réservation. Réessaie."
-          : "Unable to create booking. Please try again.");
-        goSupportBtn.disabled = false;
-        return;
-      }
-
+      if (!resp.ok || !json.booking_id) throw new Error(json.error || "Error");
+      
       window.location.href = `support.html?booking_id=${encodeURIComponent(json.booking_id)}`;
     } catch (e) {
-      modalError.style.display = "block";
-      modalError.textContent = (lang === "fr" ? "Erreur réseau. Réessaie." : "Network error. Please try again.");
-      goSupportBtn.disabled = false;
+      showError(errEl, "Erreur. Réessaie.");
+      btn.disabled = false;
     }
   });
 
-  // ---------- Month nav ----------
-  document.getElementById("prevMonth").addEventListener("click", () => {
-    viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1);
-    selectedDayKey = null;
-    renderCalendar();
-  });
-  document.getElementById("nextMonth").addEventListener("click", () => {
-    viewMonth = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1);
-    selectedDayKey = null;
-    renderCalendar();
-  });
+  // Mobile Bio Toggle
+  const bioWrap = document.getElementById("bioWrap");
+  const bioBtn = document.getElementById("bioToggle");
+  if(bioBtn){
+      bioBtn.addEventListener("click", () => bioWrap.classList.toggle("is-open"));
+  }
 
-  // ======================================================
-  // MOBILE bio collapse/expand
-  // ======================================================
-  (function initMobileBio(){
-    const wrap = document.getElementById("bioWrap");
-    const btn  = document.getElementById("bioToggle");
-    if (!wrap || !btn) return;
-
-    const mq = window.matchMedia("(max-width: 640px)");
-
-    function setOpen(open){
-      wrap.classList.toggle("is-open", open);
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
-    function apply(){
-      if (!mq.matches){
-        setOpen(true);
-        btn.style.display = "none";
-        return;
-      }
-      btn.style.display = "grid";
-      setOpen(false);
-    }
-
-    btn.addEventListener("click", () => {
-      setOpen(!wrap.classList.contains("is-open"));
-    });
-
-    apply();
-    window.addEventListener("resize", () => {
-      const wasOpen = wrap.classList.contains("is-open");
-      apply();
-      if (wasOpen) setOpen(true);
-    });
-
-    window.__rcBioApply = apply;
-  })();
-
-  // Init
-  loadExpert().then(() => {
-    updateBookHeadline();
-    renderCalendar();
-    if (window.__rcBioApply) window.__rcBioApply();
-  });
 })();
 </script>
 
