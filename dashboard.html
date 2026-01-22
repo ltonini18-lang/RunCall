@@ -285,16 +285,22 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // 2. AUTH USER
+        // 2. AUTH USER (SÉCURISÉ)
+        // On vérifie la session active
         const { data: { session }, error: authError } = await sb.auth.getSession();
-        
-        // Si pas de session, on redirige
-        if (authError || !session) { 
-            console.log("Session perdue, redirection login");
+
+        // Si pas de session ou erreur => DECONNEXION FORCEE
+        if (authError || !session) {
+            console.warn("Session expirée ou invalide. Redirection vers Login.");
+            // On nettoie les traces locales pour être propre
+            localStorage.removeItem('sb-access-token'); 
+            localStorage.removeItem('sb-refresh-token');
+            // Redirection immédiate
             window.location.href = CONFIG.URLS.login; 
-            return; 
+            return; // On arrête tout ici
         }
 
+        // Si on est là, c'est que la session est valide !
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
 
