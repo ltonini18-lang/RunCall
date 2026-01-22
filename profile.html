@@ -469,11 +469,18 @@
   }
 
   // ---------- Slots Logic ----------
+  // ---------- Slots Fetch (Version Adaptée) ----------
   async function fetchSlots(from, to){
     const url = `/api/experts/slots?expert_id=${encodeURIComponent(expertId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&tz=${encodeURIComponent(tz)}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error("slots fetch failed");
     const d = await r.json();
+    
+    // ICI : On vérifie si c'est directement un tableau (format actuel de slots.js)
+    if (Array.isArray(d)) {
+        return d;
+    }
+    // Sinon on regarde si c'est dans une propriété .slots (ancien format)
     return Array.isArray(d?.slots) ? d.slots : [];
   }
 
