@@ -1,9 +1,8 @@
-// /api/stripe/connect.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
-    // 1. Init & Sécurité
+    // 1. Init & Sécurité (CORS)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -24,7 +23,7 @@ module.exports = async (req, res) => {
         // 3. Récupérer l'expert
         const { data: expert, error: dbError } = await supabase
             .from('experts')
-            .select('stripe_account_id, email, name') // On récupère l'email pour pré-remplir Stripe
+            .select('stripe_account_id, email')
             .eq('id', expertId)
             .single();
 
@@ -32,34 +31,42 @@ module.exports = async (req, res) => {
 
         let accountId = expert.stripe_account_id;
 
-        // 4. Si pas de compte Stripe, on le crée
+        // --- SCÉNARIO 1 : CRÉATION DU COMPTE (Si pas encore fait) ---
         if (!accountId) {
             const account = await stripe.accounts.create({
                 type: 'express',
-                country: 'FR', // Tu peux rendre ça dynamique si besoin
                 email: expert.email,
+                // country: 'US', // <--- SUPPRIMÉ : On laisse l'utilisateur choisir son pays (US, FR, UK...)
                 capabilities: {
                     card_payments: { requested: true },
                     transfers: { requested: true },
                 },
-                settings: {
-                    payouts: {
-                        schedule: { interval: 'manual' } // Tu gères quand tu paies (optionnel)
-                    }
-                }
             });
 
             accountId = account.id;
 
-            // On sauvegarde l'ID tout de suite dans la base
+            // Sauvegarde immédiate dans Supabase
             await supabase
                 .from('experts')
                 .update({ stripe_account_id: accountId })
                 .eq('id', expertId);
         }
 
-        // 5. Générer le lien d'Onboarding (Lien magique)
-        const origin = req.headers.origin || 'https://ton-site.vercel.app'; // Fallback
+        // --- SCÉNARIO 2 : GÉNÉRATION DU LIEN ---
+        
+        // A. On essaie d'abord de générer un lien de CONNEXION (Dashboard Financier)
+        // Cela ne marche que si l'expert a FINI son inscription.
+        try {
+            const loginLink = await stripe.accounts.createLoginLink(accountId);
+            // Si ça marche, on renvoie direct vers le dashboard Stripe
+            return res.status(200).json({ url: loginLink.url });
+        } catch (err) {
+            // Si erreur (ex: inscription pas finie), on ignore et on passe à l'étape B
+            console.log("Compte incomplet, génération du lien d'inscription...");
+        }
+
+        // B. Fallback : On génère le lien d'ONBOARDING (Inscription)
+        const origin = req.headers.origin || 'https://run-call.vercel.app';
         const accountLink = await stripe.accountLinks.create({
             account: accountId,
             refresh_url: `${origin}/dashboard.html?expert_id=${expertId}`, // S'il annule ou bug
@@ -67,7 +74,6 @@ module.exports = async (req, res) => {
             type: 'account_onboarding',
         });
 
-        // 6. On renvoie l'URL au Dashboard
         res.status(200).json({ url: accountLink.url });
 
     } catch (e) {
