@@ -136,10 +136,16 @@
 
       if (info.hasFixedPrice) {
           // --- CAS 1 : PRIX FIXE ---
-          // Phrase douce et engageante
-          if(intro) intro.innerHTML = lang === 'fr' 
-              ? "Participation pour cet échange :" 
-              : "Contribution for this exchange:";
+          const textFr = "Participation pour cet échange :";
+          const textEn = "Contribution for this exchange:";
+
+          // 1. On met à jour la "mémoire" de traduction (pour que le switch langue marche après)
+          if(intro) {
+              intro.dataset.fr = textFr;
+              intro.dataset.en = textEn;
+              // 2. On applique le texte immédiatement dans la bonne langue
+              intro.innerHTML = lang === 'fr' ? textFr : textEn;
+          }
           
           if(grid) grid.style.gridTemplateColumns = "1fr";
           
