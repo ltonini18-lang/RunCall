@@ -233,20 +233,20 @@
                      </div>
 
                      <div class="form-group">
-<label class="label">
-    <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
-    <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
-          data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29$, 49$ et 79$)" 
-          data-en="(If empty, the client can choose between the three default prices: $29, $49, and $79)">
-    </span>
-</label>
+                         <label class="label">
+                             <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
+                             <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
+                                   data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
+                                   data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
+                             </span>
+                         </label>
                          <div style="display:flex; gap:10px;">
                              <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
                              <select id="inputCurrency" class="input" style="flex:1;">
                                  <option value="usd">USD ($)</option>
                                  <option value="eur">EUR (€)</option>
                                  <option value="gbp">GBP (£)</option>
-                                 <option value="cad">CAD ($)</option>
+                                 <option value="chf">CHF (Fr)</option> <option value="cad">CAD ($)</option>
                              </select>
                          </div>
                      </div>
@@ -425,11 +425,29 @@
             const iBio = document.getElementById('inputBio');
             if(iBio) iBio.value = expertData.presentation || "";
 
-            // Charge Prix & Devise
+            // Charge Prix
             const iPrice = document.getElementById('inputPrice');
-            const iCurr = document.getElementById('inputCurrency');
             if(iPrice) iPrice.value = expertData.price || "";
-            if(iCurr && expertData.currency) iCurr.value = expertData.currency;
+
+            // Charge Devise (Avec Détection Intelligente)
+            const iCurr = document.getElementById('inputCurrency');
+            if(iCurr) {
+                if (expertData.currency) {
+                    // Cas 1 : L'expert a déjà choisi, on respecte son choix
+                    iCurr.value = expertData.currency;
+                } else {
+                    // Cas 2 : C'est un nouveau, on devine selon son fuseau horaire
+                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.toLowerCase();
+                    let detected = 'usd'; // Par défaut
+
+                    if (tz.includes('london') || tz.includes('dublin')) detected = 'gbp';
+                    else if (tz.includes('zurich') || tz.includes('geneva')) detected = 'chf';
+                    else if (tz.includes('paris') || tz.includes('berlin') || tz.includes('madrid') || tz.includes('rome') || tz.includes('amsterdam')) detected = 'eur';
+                    else if (tz.includes('toronto') || tz.includes('vancouver') || tz.includes('montreal')) detected = 'cad';
+                    
+                    iCurr.value = detected;
+                }
+            }
             
             // Avatar
             if (expertData.photo_url) {
