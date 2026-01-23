@@ -668,6 +668,7 @@
   // Modal
   const backdrop = document.getElementById("modalBackdrop");
   function closeModal(){ backdrop.style.display = "none"; selectedSlot = null; }
+  
   function openModal(slot){
     selectedSlot = slot;
     document.getElementById("modalError").style.display = "none";
@@ -680,7 +681,22 @@
   
   document.getElementById("closeModal").addEventListener("click", closeModal);
   document.getElementById("cancelModal").addEventListener("click", closeModal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeModal(); });
+
+  // --- CORRECTION BUG "SÉLECTION DE TEXTE" ---
+  let isMouseDownOnBackdrop = false;
+
+  backdrop.addEventListener("mousedown", (e) => {
+      // On note si le clic a commencé sur le fond gris
+      isMouseDownOnBackdrop = (e.target === backdrop);
+  });
+
+  backdrop.addEventListener("click", (e) => {
+      // On ferme seulement si le clic a commencé ET fini sur le fond gris
+      if (isMouseDownOnBackdrop && e.target === backdrop) {
+          closeModal();
+      }
+      isMouseDownOnBackdrop = false;
+  });
 
   // Booking
   document.getElementById("goSupport").addEventListener("click", async function() {
