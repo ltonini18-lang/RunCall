@@ -759,7 +759,18 @@
   if(bioBtn){
       bioBtn.addEventListener("click", () => bioWrap.classList.toggle("is-open"));
   }
-
+// --- FIX : DÉBLOQUER LE BOUTON AU RETOUR ---
+  window.addEventListener('pageshow', function(event) {
+      // Si la page est restaurée depuis le cache du navigateur (bouton retour)
+      if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+          const btn = document.getElementById("goSupport");
+          if (btn) {
+              btn.disabled = false;
+              // On remet le texte correct selon la langue
+              btn.textContent = (localStorage.getItem('runcall_lang') === 'fr') ? "Continuer" : "Continue";
+          }
+      }
+  });
 })();
 </script>
 
