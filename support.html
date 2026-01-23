@@ -43,7 +43,9 @@
         <p class="support-note" id="introText"></p>
 
         <div class="support-grid" id="pricingGrid">
-            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 20px;">
+            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 20px;"
+                 data-fr="Chargement..." 
+                 data-en="Loading...">
                 Chargement...
             </div>
         </div>
@@ -90,7 +92,6 @@
   const intro = document.getElementById('introText');
   const lang = localStorage.getItem('runcall_lang') || 'fr';
 
-  // Liste des devises avec le CHF ajouté
   const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$', 'chf': 'CHF ' };
 
   if (!bookingId) {
@@ -115,7 +116,8 @@
           
           window.location.href = json.checkout_url;
       } catch (err) {
-          alert("Error: " + err.message);
+          const msg = lang === 'fr' ? "Une erreur est survenue." : "An error occurred.";
+          alert(msg + "\n" + err.message);
           window.location.reload();
       }
   }
@@ -128,7 +130,6 @@
       const symbol = symbols[info.currency] || '$';
       if(grid) grid.innerHTML = ''; 
 
-      // On prépare les variables de texte
       let textFr = "";
       let textEn = "";
 
@@ -169,18 +170,21 @@
           });
       }
 
-      // --- APPLICATION DU TEXTE (Sans Flash) ---
+      // --- APPLICATION DU TEXTE ---
       if(intro) {
-          // On injecte les textes dans les attributs pour que le switch langue fonctionne après
           intro.dataset.fr = textFr;
           intro.dataset.en = textEn;
-          // On affiche le texte directement dans la bonne langue
           intro.innerHTML = (lang === 'fr') ? textFr : textEn;
       }
 
   } catch (err) {
       console.error(err);
-      if(grid) grid.innerHTML = `<div style="color:red; text-align:center;">Erreur de chargement. <br><a href="#" onclick="window.location.reload()">Réessayer</a></div>`;
+      // Message d'erreur bilingue si le chargement échoue
+      const errMsg = lang === 'fr' 
+        ? "Erreur de chargement.<br><a href='#' onclick='window.location.reload()'>Réessayer</a>" 
+        : "Loading error.<br><a href='#' onclick='window.location.reload()'>Try again</a>";
+        
+      if(grid) grid.innerHTML = `<div style="color:red; text-align:center;">${errMsg}</div>`;
   }
 
 })();
