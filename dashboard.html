@@ -231,6 +231,26 @@
                          <label class="label" data-fr="Présentation" data-en="Bio"></label>
                          <textarea id="inputBio" rows="5" class="textarea"></textarea>
                      </div>
+
+                     <div class="form-group">
+                         <label class="label">
+                             <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
+                             <span style="font-weight:400; color:#64748b; font-size:0.85em;" 
+                                   data-fr="(Laisser vide pour utiliser les 3 paliers par défaut)" 
+                                   data-en="(Leave empty to use default 3 tiers)">
+                             </span>
+                         </label>
+                         <div style="display:flex; gap:10px;">
+                             <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
+                             <select id="inputCurrency" class="input" style="flex:1;">
+                                 <option value="usd">USD ($)</option>
+                                 <option value="eur">EUR (€)</option>
+                                 <option value="gbp">GBP (£)</option>
+                                 <option value="cad">CAD ($)</option>
+                             </select>
+                         </div>
+                     </div>
+
                      <button type="submit" class="btn btn-primary" id="saveProfileBtn">
                          <span data-fr="Enregistrer" data-en="Save Changes"></span>
                      </button>
@@ -404,6 +424,12 @@
             
             const iBio = document.getElementById('inputBio');
             if(iBio) iBio.value = expertData.presentation || "";
+
+            // Charge Prix & Devise
+            const iPrice = document.getElementById('inputPrice');
+            const iCurr = document.getElementById('inputCurrency');
+            if(iPrice) iPrice.value = expertData.price || "";
+            if(iCurr && expertData.currency) iCurr.value = expertData.currency;
             
             // Avatar
             if (expertData.photo_url) {
@@ -485,22 +511,24 @@
                 
                 const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${fromStr}&to=${toDate.toISOString()}`;
                 const res = await fetch(apiUrl);
-                const slots = await res.json();
+                
+                // FIX pour le nouveau format { slots: [] }
+                const response = await res.json();
+                const slots = Array.isArray(response) ? response : (response.slots || []);
 
                 if(loader) loader.classList.add('hidden');
 
-                if (slots.error) {
-                    console.error("API Error:", slots.error);
-                    if (typeof slots.error === 'string' && slots.error.includes("Compte Google")) {
+                if (response.error) {
+                    console.error("API Error:", response.error);
+                    if (typeof response.error === 'string' && response.error.includes("Compte Google")) {
                          localStorage.removeItem('runcall_cal_connected');
-                         // On ne force pas le reload ici pour ne pas boucler, juste l'UI
                          document.getElementById('stateConnect').classList.remove('hidden');
                          document.getElementById('stateCalendar').classList.add('hidden');
                          return;
                     }
                 }
 
-                if (!slots || !Array.isArray(slots) || slots.length === 0) {
+                if (!slots || slots.length === 0) {
                     if(emptyMsg) emptyMsg.classList.remove('hidden');
                 } else {
                     slots.forEach(slot => {
@@ -615,6 +643,11 @@
                     const name = document.getElementById('inputName').value;
                     const bio = document.getElementById('inputBio').value;
                     
+                    // NOUVEAU : Récupérer le prix et la devise
+                    const rawPrice = document.getElementById('inputPrice').value;
+                    const priceVal = rawPrice ? parseInt(rawPrice) : null;
+                    const currencyVal = document.getElementById('inputCurrency').value || 'usd';
+                    
                     // Gestion Upload Photo (Si un fichier est sélectionné)
                     let newPhotoUrl = expertData.photo_url;
                     const fileInput = document.getElementById('avatarInput'); // Assure-toi que ton input file a cet ID ou change-le ici
@@ -635,10 +668,12 @@
                         newPhotoUrl = publicUrl;
                     }
 
-                    // Mise à jour Base de Données
+                    // Mise à jour Base de Données (AVEC PRIX ET DEVISE)
                     const { error } = await sb.from('experts').update({
                         name: name,
                         presentation: bio,
+                        price: priceVal,       // <--- AJOUT
+                        currency: currencyVal, // <--- AJOUT
                         photo_url: newPhotoUrl,
                         updated_at: new Date()
                     }).eq('id', expertId);
