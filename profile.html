@@ -692,12 +692,24 @@
     const email = document.getElementById("bookEmail").value.trim();
     const note = document.getElementById("bookNote").value.trim();
 
+    // --- 1. VALIDATION EMAIL STRICTE (Modif demandée) ---
     if (!name || !email) {
       showError(errEl, lang === "fr" ? "Champs manquants." : "Missing fields.");
       return;
     }
 
+    // Regex simple et efficace pour l'email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showError(errEl, lang === "fr" ? "Email invalide." : "Invalid email address.");
+        return;
+    }
+    // ----------------------------------------------------
+
     btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = "..."; // Petit effet visuel
+
     try {
       const resp = await fetch("/api/bookings/create-pending", {
         method: "POST",
@@ -718,8 +730,10 @@
       
       window.location.href = `support.html?booking_id=${encodeURIComponent(json.booking_id)}`;
     } catch (e) {
-      showError(errEl, "Erreur. Réessaie.");
+      console.error(e);
+      showError(errEl, lang === "fr" ? "Erreur technique. Réessaie." : "Server error. Try again.");
       btn.disabled = false;
+      btn.textContent = originalText;
     }
   });
 
