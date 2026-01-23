@@ -1,9 +1,10 @@
-const { createClient } = require('@supabase/supabase-js');
+// /api/stripe/create-checkout-session.js
 const Stripe = require("stripe");
+// On reprend ton import d'origine qui fonctionne partout ailleurs
+const { supabaseAdmin } = require("../_lib/supabase");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Prefer env BASE_URL, fallback to prod
 const BASE_URL = process.env.BASE_URL || "https://run-call.vercel.app";
 
 module.exports = async function handler(req, res) {
@@ -13,7 +14,6 @@ module.exports = async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') { res.statusCode = 200; return res.end(); }
-
   if (req.method !== "POST") {
     res.statusCode = 405;
     return res.end(JSON.stringify({ error: "Method not allowed" }));
@@ -22,7 +22,6 @@ module.exports = async function handler(req, res) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const booking_id = body.booking_id;
-    // tier peut être null si l'expert a un prix fixe
     const tier = body.price_tier ? Number(body.price_tier) : null; 
 
     if (!booking_id) {
@@ -30,40 +29,44 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: "Invalid booking_id" }));
     }
 
-    // --- FIX : CONNEXION DIRECTE ADMIN ---
-    // On contourne les sécurités RLS pour être sûr de lire la réservation et l'expert associé
-    const sb = createClient(
-        process.env.SUPABASE_URL, 
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    // On utilise ton helper admin existant
+    const sb = supabaseAdmin();
 
-    // 1) Load booking ET l'expert lié
-    const { data: booking, error: readErr } = await sb
+    // ÉTAPE 1 : Récupérer la RÉSERVATION seule (Sans le Join qui bug)
+    const { data: booking, error: bookingErr } = await sb
       .from("bookings")
-      .select(`
-        *,
-        experts ( id, stripe_account_id, price, currency )
-      `)
+      .select("*") // On prend tout
       .eq("id", booking_id)
       .single();
 
-    if (readErr || !booking) {
-      console.error("Booking DB Error:", readErr);
+    if (bookingErr || !booking) {
+      console.error("Booking Error:", bookingErr);
       res.statusCode = 404;
-      return res.end(JSON.stringify({ error: "Booking not found (DB Error)" }));
+      return res.end(JSON.stringify({ error: "Booking not found" }));
     }
 
-    const expert = booking.experts;
+    // ÉTAPE 2 : Récupérer l'EXPERT séparément (Plus fiable)
+    const { data: expert, error: expertErr } = await sb
+        .from("experts")
+        .select("id, stripe_account_id, price, currency")
+        .eq("id", booking.expert_id)
+        .single();
+
+    if (expertErr || !expert) {
+        console.error("Expert Error:", expertErr);
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ error: "Expert not found linked to this booking" }));
+    }
 
     // VÉRIFICATION CRITIQUE
-    if (!expert || !expert.stripe_account_id) {
+    if (!expert.stripe_account_id) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Cet expert n'a pas configuré ses paiements (Stripe manquants)." }));
     }
 
-    // 2) Validate status & expiry
+    // ÉTAPE 3 : Vérifs logiques
     const expiresAt = new Date(booking.expires_at).getTime();
-    if (Number.isNaN(expiresAt) || expiresAt <= Date.now() - 120000) { // 2 min buffer
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now() - 120000) { 
       res.statusCode = 410;
       return res.end(JSON.stringify({ error: "This hold expired. Please pick another slot." }));
     }
@@ -73,10 +76,11 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: `Booking is not payable (status: ${booking.status})` }));
     }
 
-    // 3) LOGIQUE DE PRIX & DEVISE
+    // ÉTAPE 4 : Calculs Prix & Devise
     const currency = expert.currency || 'usd'; 
-    
     let finalAmount = expert.price; 
+    
+    // Si pas de prix expert, on prend le choix client
     if (!finalAmount) {
         finalAmount = tier || 49; 
     }
@@ -84,7 +88,7 @@ module.exports = async function handler(req, res) {
     const amountCents = Math.round(finalAmount * 100);
     const platformFee = Math.round(amountCents * 0.20); // 20% com
 
-    // 4) Create Stripe Checkout session (CONNECT)
+    // ÉTAPE 5 : Session Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: booking_id,
@@ -121,7 +125,7 @@ module.exports = async function handler(req, res) {
       cancel_url: `${BASE_URL}/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`,
     });
 
-    // 5) Persist session
+    // ÉTAPE 6 : Sauvegarde
     await sb
       .from("bookings")
       .update({
@@ -131,8 +135,7 @@ module.exports = async function handler(req, res) {
       })
       .eq("id", booking_id);
 
-    res.setHeader("Content-Type", "application/json");
-    return res.end(JSON.stringify({ checkout_url: session.url, session_id: session.id }));
+    return res.json({ checkout_url: session.url, session_id: session.id });
 
   } catch (e) {
     console.error("Stripe Handler Error:", e);
