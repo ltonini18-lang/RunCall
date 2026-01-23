@@ -1,6 +1,5 @@
 // /api/stripe/create-checkout-session.js
 const Stripe = require("stripe");
-// On reprend ton import d'origine qui fonctionne partout ailleurs
 const { supabaseAdmin } = require("../_lib/supabase");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
@@ -29,13 +28,12 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: "Invalid booking_id" }));
     }
 
-    // On utilise ton helper admin existant
     const sb = supabaseAdmin();
 
-    // ÉTAPE 1 : Récupérer la RÉSERVATION seule (Sans le Join qui bug)
+    // ÉTAPE 1 : Récupérer la RÉSERVATION
     const { data: booking, error: bookingErr } = await sb
       .from("bookings")
-      .select("*") // On prend tout
+      .select("*")
       .eq("id", booking_id)
       .single();
 
@@ -45,10 +43,10 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: "Booking not found" }));
     }
 
-    // ÉTAPE 2 : Récupérer l'EXPERT séparément (Plus fiable)
+    // ÉTAPE 2 : Récupérer l'EXPERT (Avec son NOM)
     const { data: expert, error: expertErr } = await sb
         .from("experts")
-        .select("id, stripe_account_id, price, currency")
+        .select("id, stripe_account_id, price, currency, name") 
         .eq("id", booking.expert_id)
         .single();
 
@@ -58,7 +56,6 @@ module.exports = async function handler(req, res) {
         return res.end(JSON.stringify({ error: "Expert not found linked to this booking" }));
     }
 
-    // VÉRIFICATION CRITIQUE
     if (!expert.stripe_account_id) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Cet expert n'a pas configuré ses paiements (Stripe manquants)." }));
@@ -80,13 +77,12 @@ module.exports = async function handler(req, res) {
     const currency = expert.currency || 'usd'; 
     let finalAmount = expert.price; 
     
-    // Si pas de prix expert, on prend le choix client
     if (!finalAmount) {
         finalAmount = tier || 49; 
     }
 
     const amountCents = Math.round(finalAmount * 100);
-    const platformFee = Math.round(amountCents * 0.20); // 20% com
+    const platformFee = Math.round(amountCents * 0.20); 
 
     // ÉTAPE 5 : Session Stripe
     const session = await stripe.checkout.sessions.create({
@@ -99,8 +95,9 @@ module.exports = async function handler(req, res) {
           price_data: {
             currency: currency,
             product_data: { 
-                name: "Consultation RunCall",
-                description: `Expert: ${booking.user_name || 'Coach'}`
+                // ✅ TES NOUVEAUX TEXTES ICI :
+                name: "Échange vidéo RunCall", 
+                description: `Avec ${expert.name || 'un membre RunCall'}` 
             },
             unit_amount: amountCents,
           },
