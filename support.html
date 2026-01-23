@@ -40,10 +40,7 @@
       </div>
 
       <div class="checkout-body">
-        <p class="support-note" id="introText"
-           data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
-           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person.">
-        </p>
+        <p class="support-note" id="introText"></p>
 
         <div class="support-grid" id="pricingGrid">
             <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 20px;">
@@ -93,7 +90,7 @@
   const intro = document.getElementById('introText');
   const lang = localStorage.getItem('runcall_lang') || 'fr';
 
-  // On ajoute 'chf': 'Fr' ou 'CHF' selon ta préférence
+  // Liste des devises avec le CHF ajouté
   const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$', 'chf': 'CHF ' };
 
   if (!bookingId) {
@@ -125,27 +122,20 @@
 
   // B. Récupération de la config Expert
   try {
-      // Ajout d'un timestamp pour éviter le cache navigateur (?t=...)
       const res = await fetch(`/api/bookings/get-info?booking_id=${bookingId}&t=${Date.now()}`);
       const info = await res.json();
       
-      console.log("Booking Info:", info); // Pour debug dans la console si besoin
-
       const symbol = symbols[info.currency] || '$';
       if(grid) grid.innerHTML = ''; 
 
+      // On prépare les variables de texte
+      let textFr = "";
+      let textEn = "";
+
       if (info.hasFixedPrice) {
           // --- CAS 1 : PRIX FIXE ---
-          const textFr = "Participation pour cet échange :";
-          const textEn = "Contribution for this exchange:";
-
-          // 1. On met à jour la "mémoire" de traduction (pour que le switch langue marche après)
-          if(intro) {
-              intro.dataset.fr = textFr;
-              intro.dataset.en = textEn;
-              // 2. On applique le texte immédiatement dans la bonne langue
-              intro.innerHTML = lang === 'fr' ? textFr : textEn;
-          }
+          textFr = "Participation pour cet échange :";
+          textEn = "Contribution for this exchange:";
           
           if(grid) grid.style.gridTemplateColumns = "1fr";
           
@@ -164,7 +154,10 @@
 
       } else {
           // --- CAS 2 : PALIERS (29/49/79) ---
-          if(grid) grid.style.gridTemplateColumns = ""; // Reset grid style
+          textFr = "Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant.";
+          textEn = "All options give access to the same conversation. You’re simply choosing how much you want to support the person.";
+          
+          if(grid) grid.style.gridTemplateColumns = ""; 
           
           const tiers = [29, 49, 79];
           tiers.forEach((tier, index) => {
@@ -174,6 +167,15 @@
               btn.onclick = () => goToStripe(tier);
               if(grid) grid.appendChild(btn);
           });
+      }
+
+      // --- APPLICATION DU TEXTE (Sans Flash) ---
+      if(intro) {
+          // On injecte les textes dans les attributs pour que le switch langue fonctionne après
+          intro.dataset.fr = textFr;
+          intro.dataset.en = textEn;
+          // On affiche le texte directement dans la bonne langue
+          intro.innerHTML = (lang === 'fr') ? textFr : textEn;
       }
 
   } catch (err) {
