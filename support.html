@@ -46,7 +46,9 @@
         </p>
 
         <div class="support-grid" id="pricingGrid">
-            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8;">Loading...</div>
+            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8; padding: 20px;">
+                Chargement...
+            </div>
         </div>
 
         <div class="checkout-footer">
@@ -94,13 +96,12 @@
   const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$' };
 
   if (!bookingId) {
-      grid.innerHTML = `<div style="color:red;">Error: Booking ID missing.</div>`;
+      if(grid) grid.innerHTML = `<div style="color:red; text-align:center;">Error: Booking ID missing.</div>`;
       return;
   }
 
   // A. Fonction de paiement
   async function goToStripe(priceTier = null) {
-      // Bloquer l'interface
       const allBtns = document.querySelectorAll('button');
       allBtns.forEach(b => { b.disabled = true; b.style.opacity = '0.7'; b.textContent = '...'; });
 
@@ -123,20 +124,22 @@
 
   // B. Récupération de la config Expert
   try {
-      const res = await fetch(`/api/bookings/get-info?booking_id=${bookingId}`);
+      // Ajout d'un timestamp pour éviter le cache navigateur (?t=...)
+      const res = await fetch(`/api/bookings/get-info?booking_id=${bookingId}&t=${Date.now()}`);
       const info = await res.json();
       
+      console.log("Booking Info:", info); // Pour debug dans la console si besoin
+
       const symbol = symbols[info.currency] || '$';
-      grid.innerHTML = ''; // Clear loading
+      if(grid) grid.innerHTML = ''; 
 
       if (info.hasFixedPrice) {
           // --- CAS 1 : PRIX FIXE ---
-          intro.innerHTML = lang === 'fr' 
-              ? "Cet expert applique un tarif fixe pour la consultation." 
+          if(intro) intro.innerHTML = lang === 'fr' 
+              ? "Cet expert applique un tarif unique pour la consultation." 
               : "This expert has a fixed rate for the consultation.";
           
-          // Style : Une seule colonne
-          grid.style.gridTemplateColumns = "1fr";
+          if(grid) grid.style.gridTemplateColumns = "1fr";
           
           const btn = document.createElement('button');
           btn.className = "support-btn featured";
@@ -149,25 +152,25 @@
             </div>
           `;
           btn.onclick = () => goToStripe(null);
-          grid.appendChild(btn);
+          if(grid) grid.appendChild(btn);
 
       } else {
           // --- CAS 2 : PALIERS (29/49/79) ---
-          // On garde le texte d'intro par défaut (déjà dans le HTML)
+          if(grid) grid.style.gridTemplateColumns = ""; // Reset grid style
           
           const tiers = [29, 49, 79];
           tiers.forEach((tier, index) => {
               const btn = document.createElement('button');
-              btn.className = index === 1 ? "support-btn featured" : "support-btn"; // Le milieu est "featured"
+              btn.className = index === 1 ? "support-btn featured" : "support-btn";
               btn.innerHTML = `<span class="price">${tier}${symbol}</span>`;
               btn.onclick = () => goToStripe(tier);
-              grid.appendChild(btn);
+              if(grid) grid.appendChild(btn);
           });
       }
 
   } catch (err) {
       console.error(err);
-      grid.innerHTML = `<div style="color:red">Erreur de chargement. <a href="#" onclick="window.location.reload()">Réessayer</a></div>`;
+      if(grid) grid.innerHTML = `<div style="color:red; text-align:center;">Erreur de chargement. <br><a href="#" onclick="window.location.reload()">Réessayer</a></div>`;
   }
 
 })();
