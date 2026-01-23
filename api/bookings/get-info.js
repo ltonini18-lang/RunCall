@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 module.exports = async (req, res) => {
-    // Headers pour autoriser la page publique à lire ça
+    // Headers pour autoriser la page publique
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -14,25 +14,36 @@ module.exports = async (req, res) => {
 
         const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-        // On va chercher l'expert lié à la réservation pour connaître son tarif
-        const { data: booking, error } = await supabase
+        // ÉTAPE 1 : On récupère l'expert_id via la réservation
+        const { data: booking, error: errBooking } = await supabase
             .from('bookings')
-            .select(`id, experts ( price, currency )`)
+            .select('expert_id')
             .eq('id', booking_id)
             .single();
 
-        if (error || !booking) throw new Error("Réservation introuvable");
+        if (errBooking || !booking) throw new Error("Réservation introuvable");
 
-        const expert = booking.experts;
+        // ÉTAPE 2 : On récupère le prix de l'expert directement
+        // (Cette méthode séquentielle évite les bugs de relation "JOIN" dans Supabase)
+        const { data: expert, error: errExpert } = await supabase
+            .from('experts')
+            .select('price, currency')
+            .eq('id', booking.expert_id)
+            .single();
+
+        if (errExpert || !expert) throw new Error("Expert introuvable");
         
-        // On renvoie la config
+        // On vérifie que le prix existe et qu'il est supérieur à 0
+        const hasPrice = (expert.price !== null && expert.price !== undefined && expert.price > 0);
+
         return res.json({
-            hasFixedPrice: !!expert.price, // Vrai si un prix est défini
+            hasFixedPrice: hasPrice,
             fixedPrice: expert.price,
-            currency: expert.currency || 'usd' // Par défaut USD
+            currency: expert.currency || 'usd'
         });
 
     } catch (e) {
+        console.error("API Get-Info Error:", e);
         return res.status(500).json({ error: e.message });
     }
 };
