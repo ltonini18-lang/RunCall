@@ -1,6 +1,5 @@
-// /api/stripe/create-checkout-session.js
+const { createClient } = require('@supabase/supabase-js');
 const Stripe = require("stripe");
-const { supabaseAdmin } = require("../_lib/supabase");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -8,7 +7,7 @@ const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const BASE_URL = process.env.BASE_URL || "https://run-call.vercel.app";
 
 module.exports = async function handler(req, res) {
-  // Headers CORS (Au cas où)
+  // Headers CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Content-Type', 'application/json');
@@ -23,7 +22,7 @@ module.exports = async function handler(req, res) {
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const booking_id = body.booking_id;
-    // tier peut être null si l'expert a un prix fixe, donc on ne valide pas strictement ici
+    // tier peut être null si l'expert a un prix fixe
     const tier = body.price_tier ? Number(body.price_tier) : null; 
 
     if (!booking_id) {
@@ -31,10 +30,14 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: "Invalid booking_id" }));
     }
 
-    const sb = supabaseAdmin();
+    // --- FIX : CONNEXION DIRECTE ADMIN ---
+    // On contourne les sécurités RLS pour être sûr de lire la réservation et l'expert associé
+    const sb = createClient(
+        process.env.SUPABASE_URL, 
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
 
-    // 1) Load booking ET l'expert lié (JOIN)
-    // On a besoin de stripe_account_id, price, et currency de l'expert
+    // 1) Load booking ET l'expert lié
     const { data: booking, error: readErr } = await sb
       .from("bookings")
       .select(`
@@ -45,13 +48,14 @@ module.exports = async function handler(req, res) {
       .single();
 
     if (readErr || !booking) {
+      console.error("Booking DB Error:", readErr);
       res.statusCode = 404;
-      return res.end(JSON.stringify({ error: "Booking not found" }));
+      return res.end(JSON.stringify({ error: "Booking not found (DB Error)" }));
     }
 
     const expert = booking.experts;
 
-    // VÉRIFICATION CRITIQUE : L'expert a-t-il connecté Stripe ?
+    // VÉRIFICATION CRITIQUE
     if (!expert || !expert.stripe_account_id) {
         res.statusCode = 400;
         return res.end(JSON.stringify({ error: "Cet expert n'a pas configuré ses paiements (Stripe manquants)." }));
@@ -59,8 +63,7 @@ module.exports = async function handler(req, res) {
 
     // 2) Validate status & expiry
     const expiresAt = new Date(booking.expires_at).getTime();
-    // On ajoute une petite marge de tolérance (ex: 2 min) pour éviter les frustrations de dernière seconde
-    if (Number.isNaN(expiresAt) || expiresAt <= Date.now() - 120000) { 
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now() - 120000) { // 2 min buffer
       res.statusCode = 410;
       return res.end(JSON.stringify({ error: "This hold expired. Please pick another slot." }));
     }
@@ -70,22 +73,16 @@ module.exports = async function handler(req, res) {
       return res.end(JSON.stringify({ error: `Booking is not payable (status: ${booking.status})` }));
     }
 
-    // 3) LOGIQUE DE PRIX & DEVISE (La nouveauté) 💰
-    
-    // A. Quelle devise ? (Défaut USD)
+    // 3) LOGIQUE DE PRIX & DEVISE
     const currency = expert.currency || 'usd'; 
     
-    // B. Quel montant ? (Prix expert > Prix choix client > Fallback 49)
     let finalAmount = expert.price; 
     if (!finalAmount) {
         finalAmount = tier || 49; 
     }
 
-    // Conversion en centimes (Stripe attend des entiers)
     const amountCents = Math.round(finalAmount * 100);
-    
-    // C. Calcul de ta Commission (20%)
-    const platformFee = Math.round(amountCents * 0.20); 
+    const platformFee = Math.round(amountCents * 0.20); // 20% com
 
     // 4) Create Stripe Checkout session (CONNECT)
     const session = await stripe.checkout.sessions.create({
@@ -96,54 +93,49 @@ module.exports = async function handler(req, res) {
       line_items: [
         {
           price_data: {
-            currency: currency, // Dynamique (eur, usd...)
+            currency: currency,
             product_data: { 
                 name: "Consultation RunCall",
-                description: `Expert: ${booking.user_name || 'Coach'}` // Affichage pour le client
+                description: `Expert: ${booking.user_name || 'Coach'}`
             },
-            unit_amount: amountCents, // Montant total
+            unit_amount: amountCents,
           },
           quantity: 1,
         },
       ],
 
-      // 🔥 LE CŒUR DE STRIPE CONNECT : LE SPLIT
       payment_intent_data: {
-        application_fee_amount: platformFee, // Ce que TU gardes
+        application_fee_amount: platformFee,
         transfer_data: {
-            destination: expert.stripe_account_id, // Ce que L'EXPERT reçoit
+            destination: expert.stripe_account_id,
         },
       },
 
       metadata: {
         booking_id,
         expert_id: expert.id || "",
-        price_tier: String(finalAmount), // On stocke le montant final payé
+        price_tier: String(finalAmount),
       },
 
       success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}&booking_id=${booking_id}`,
       cancel_url: `${BASE_URL}/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`,
     });
 
-    // 5) Persist session + status
-    const { error: updErr } = await sb
+    // 5) Persist session
+    await sb
       .from("bookings")
       .update({
-        price_tier: finalAmount, // On sauvegarde le montant réel payé
+        price_tier: finalAmount,
         stripe_session_id: session.id,
         status: "pending_payment",
       })
       .eq("id", booking_id);
 
-    if (updErr) {
-      console.error("Supabase update failed:", updErr);
-    }
-
     res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ checkout_url: session.url, session_id: session.id }));
 
   } catch (e) {
-    console.error("Stripe Error:", e);
+    console.error("Stripe Handler Error:", e);
     res.statusCode = 500;
     return res.end(JSON.stringify({ error: e?.message || "Stripe error" }));
   }
