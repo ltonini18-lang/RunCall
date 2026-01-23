@@ -1,4 +1,3 @@
-<!-- support.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -11,7 +10,6 @@
 
 <body>
 
-<!-- HEADER -->
 <header class="site-header">
   <div class="container header-inner">
     <a href="/" class="logo-link">
@@ -20,7 +18,6 @@
   </div>
 </header>
 
-<!-- LANGUAGE SWITCH -->
 <div class="lang-switch">
   <button type="button" data-lang="fr">FR</button>
   <button type="button" data-lang="en">EN</button>
@@ -43,30 +40,19 @@
       </div>
 
       <div class="checkout-body">
-        <p class="support-note"
+        <p class="support-note" id="introText"
            data-fr="Toutes les options donnent accès à la même conversation. Tu choisis simplement à quel montant tu souhaites soutenir l’intervenant."
-           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person."></p>
+           data-en="All options give access to the same conversation. You’re simply choosing how much you want to support the person.">
+        </p>
 
-        <div class="support-grid">
-  <button class="support-btn" type="button" data-tier="29">
-    <span class="price" data-fr="$29" data-en="$29"></span>
-  </button>
-
-  <button class="support-btn featured" type="button" data-tier="49">
-    <span class="price" data-fr="$49" data-en="$49"></span>
-  </button>
-
-  <button class="support-btn" type="button" data-tier="79">
-    <span class="price" data-fr="$79" data-en="$79"></span>
-  </button>
-</div>
-
+        <div class="support-grid" id="pricingGrid">
+            <div style="grid-column: 1/-1; text-align: center; color: #94a3b8;">Loading...</div>
+        </div>
 
         <div class="checkout-footer">
           <div class="secure">
             <div class="lock">✓</div>
-            <span data-fr="Paiement sécurisé"
-                  data-en="Secure payment"></span>
+            <span data-fr="Paiement sécurisé" data-en="Secure payment"></span>
           </div>
         </div>
       </div>
@@ -76,82 +62,114 @@
   </div>
 </section>
 
-<!-- LANGUAGE SCRIPT -->
 <script>
+// 1. Langue
 (function () {
   const buttons = document.querySelectorAll('.lang-switch button');
   let lang = localStorage.getItem('runcall_lang');
-
   if (!lang) {
     const browserLang = navigator.language || navigator.userLanguage;
     lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
   }
-
-  function applyLanguage(lang) {
+  function applyLanguage(nextLang) {
+    lang = nextLang;
     document.querySelectorAll('[data-fr][data-en]').forEach(el => {
       el.textContent = el.dataset[lang];
     });
-
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
+    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
     localStorage.setItem('runcall_lang', lang);
   }
-
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
-  });
-
+  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
   applyLanguage(lang);
 })();
-</script>
-<script>
-(function () {
+
+// 2. Logique Prix & Paiement
+(async function () {
   const params = new URLSearchParams(window.location.search);
   const bookingId = params.get("booking_id");
+  const grid = document.getElementById('pricingGrid');
+  const intro = document.getElementById('introText');
+  const lang = localStorage.getItem('runcall_lang') || 'fr';
 
-  const buttons = document.querySelectorAll(".support-btn[data-tier]");
+  const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$' };
 
-  function setDisabled(disabled) {
-    buttons.forEach(b => b.disabled = disabled);
+  if (!bookingId) {
+      grid.innerHTML = `<div style="color:red;">Error: Booking ID missing.</div>`;
+      return;
   }
 
-  async function createCheckout(priceTier) {
-    if (!bookingId) {
-      alert("Missing booking_id. Please go back and select a slot again.");
-      return;
-    }
+  // A. Fonction de paiement
+  async function goToStripe(priceTier = null) {
+      // Bloquer l'interface
+      const allBtns = document.querySelectorAll('button');
+      allBtns.forEach(b => { b.disabled = true; b.style.opacity = '0.7'; b.textContent = '...'; });
 
-    try {
-      setDisabled(true);
+      try {
+          const res = await fetch("/api/stripe/create-checkout-session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ booking_id: bookingId, price_tier: priceTier ? Number(priceTier) : null })
+          });
+          const json = await res.json();
+          
+          if (!res.ok) throw new Error(json.error || "Erreur Stripe");
+          
+          window.location.href = json.checkout_url;
+      } catch (err) {
+          alert("Error: " + err.message);
+          window.location.reload();
+      }
+  }
 
-      const resp = await fetch("/api/stripe/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_id: bookingId, price_tier: Number(priceTier) })
-      });
+  // B. Récupération de la config Expert
+  try {
+      const res = await fetch(`/api/bookings/get-info?booking_id=${bookingId}`);
+      const info = await res.json();
+      
+      const symbol = symbols[info.currency] || '$';
+      grid.innerHTML = ''; // Clear loading
 
-      const json = await resp.json();
-      if (!resp.ok) {
-        alert(json?.error || "Stripe error. Please try again.");
-        setDisabled(false);
-        return;
+      if (info.hasFixedPrice) {
+          // --- CAS 1 : PRIX FIXE ---
+          intro.innerHTML = lang === 'fr' 
+              ? "Cet expert applique un tarif fixe pour la consultation." 
+              : "This expert has a fixed rate for the consultation.";
+          
+          // Style : Une seule colonne
+          grid.style.gridTemplateColumns = "1fr";
+          
+          const btn = document.createElement('button');
+          btn.className = "support-btn featured";
+          btn.style.maxWidth = "320px";
+          btn.style.margin = "0 auto";
+          btn.innerHTML = `
+            <span class="price">${info.fixedPrice}${symbol}</span>
+            <div style="font-size:0.85em; margin-top:4px; font-weight:normal; opacity:0.9;">
+                ${lang === 'fr' ? 'Valider la réservation' : 'Confirm booking'}
+            </div>
+          `;
+          btn.onclick = () => goToStripe(null);
+          grid.appendChild(btn);
+
+      } else {
+          // --- CAS 2 : PALIERS (29/49/79) ---
+          // On garde le texte d'intro par défaut (déjà dans le HTML)
+          
+          const tiers = [29, 49, 79];
+          tiers.forEach((tier, index) => {
+              const btn = document.createElement('button');
+              btn.className = index === 1 ? "support-btn featured" : "support-btn"; // Le milieu est "featured"
+              btn.innerHTML = `<span class="price">${tier}${symbol}</span>`;
+              btn.onclick = () => goToStripe(tier);
+              grid.appendChild(btn);
+          });
       }
 
-      window.location.href = json.checkout_url;
-    } catch (e) {
-      alert("Network error. Please try again.");
-      setDisabled(false);
-    }
+  } catch (err) {
+      console.error(err);
+      grid.innerHTML = `<div style="color:red">Erreur de chargement. <a href="#" onclick="window.location.reload()">Réessayer</a></div>`;
   }
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      const tier = btn.getAttribute("data-tier");
-      createCheckout(tier);
-    });
-  });
 })();
 </script>
 
