@@ -93,7 +93,8 @@
   const intro = document.getElementById('introText');
   const lang = localStorage.getItem('runcall_lang') || 'fr';
 
-  const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$' };
+  // On ajoute 'chf': 'Fr' ou 'CHF' selon ta préférence
+  const symbols = { 'usd': '$', 'eur': '€', 'gbp': '£', 'cad': 'CA$', 'chf': 'CHF ' };
 
   if (!bookingId) {
       if(grid) grid.innerHTML = `<div style="color:red; text-align:center;">Error: Booking ID missing.</div>`;
@@ -135,9 +136,10 @@
 
       if (info.hasFixedPrice) {
           // --- CAS 1 : PRIX FIXE ---
+          // Phrase douce et engageante
           if(intro) intro.innerHTML = lang === 'fr' 
-              ? "Cet expert applique un tarif unique pour la consultation." 
-              : "This expert has a fixed rate for the consultation.";
+              ? "Participation pour cet échange :" 
+              : "Contribution for this exchange:";
           
           if(grid) grid.style.gridTemplateColumns = "1fr";
           
@@ -148,7 +150,7 @@
           btn.innerHTML = `
             <span class="price">${info.fixedPrice}${symbol}</span>
             <div style="font-size:0.85em; margin-top:4px; font-weight:normal; opacity:0.9;">
-                ${lang === 'fr' ? 'Valider la réservation' : 'Confirm booking'}
+                ${lang === 'fr' ? 'Valider' : 'Confirm'}
             </div>
           `;
           btn.onclick = () => goToStripe(null);
