@@ -9,26 +9,30 @@
   <script src="js/config.js"></script>
 
   <style>
-    /* RESET TOTAL : Règle le problème de la bande blanche */
-    html, body {
+    /* 1. RESET UNIVERSEL : Supprime toutes les bandes blanches parasites */
+    * {
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
       width: 100%;
       height: 100%;
-      overflow: hidden; /* Empêche le scroll inutile */
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden; /* Empêche le scroll */
     }
     
-    /* Layout Split Screen 50/50 Strict */
+    /* Layout : Coupe l'écran en deux parties égales */
     .container {
       display: flex;
       width: 100vw;
       height: 100vh;
     }
 
-    /* --- PARTIE GAUCHE : L'Univers RunCall --- */
+    /* --- GAUCHE : Visuel RunCall --- */
     .brand-side {
-      flex: 1; /* Prend exactement 50% */
+      flex: 1;
       background-color: #f8fafc;
       position: relative;
       display: flex;
@@ -36,18 +40,16 @@
       justify-content: center;
       padding: 80px;
       overflow: hidden;
-      z-index: 1;
     }
 
-    /* Le fond "Mouvement/Sport" en CSS pur (Lignes de vitesse) */
+    /* Fond dynamique (Lignes) */
     .brand-bg {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
       background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
-      z-index: -1;
+      z-index: 0;
     }
     
-    /* Forme abstraite dynamique (Bande oblique bleue) */
     .motion-shape {
       position: absolute;
       top: -20%;
@@ -56,37 +58,42 @@
       height: 150%;
       background: linear-gradient(200deg, rgba(22, 119, 255, 0.03) 0%, rgba(22, 119, 255, 0.1) 100%);
       transform: skewX(-20deg);
-      z-index: -1;
+      z-index: 0;
+    }
+
+    .brand-content {
+      position: relative;
+      z-index: 1;
+      max-width: 550px;
     }
 
     .brand-logo {
       font-size: 2rem;
       font-weight: 900;
-      color: #1677ff; /* Bleu RunCall */
+      color: #1677ff;
       margin-bottom: 30px;
       display: inline-block;
       text-decoration: none;
     }
 
     .brand-title {
-      font-size: 3.5rem; /* Plus gros, plus impactant */
+      font-size: 3.5rem;
       font-weight: 800;
       color: #0f172a;
-      line-height: 1.05;
+      line-height: 1.1;
       margin-bottom: 24px;
-      letter-spacing: -0.04em;
+      letter-spacing: -0.03em;
     }
 
     .brand-desc {
       font-size: 1.35rem;
       color: #64748b;
       line-height: 1.5;
-      max-width: 500px;
     }
 
-    /* --- PARTIE DROITE : Connexion --- */
+    /* --- DROITE : Formulaire --- */
     .login-side {
-      flex: 1; /* Prend exactement 50% */
+      flex: 1;
       background: white;
       display: flex;
       flex-direction: column;
@@ -98,7 +105,7 @@
 
     .login-box {
       width: 100%;
-      max-width: 400px; /* Un peu plus large pour respirer */
+      max-width: 400px;
       text-align: center;
     }
 
@@ -119,23 +126,22 @@
       line-height: 1.5;
     }
 
-    /* Bouton Google */
     .btn-google {
       display: flex;
       align-items: center;
       justify-content: center;
       width: 100%;
-      padding: 18px; /* Un peu plus épais pour le tactile */
+      padding: 18px;
       background: #fff;
       color: #1e293b;
       font-weight: 600;
       border: 1px solid #e2e8f0;
-      border-radius: 16px; /* Plus arrondi = plus moderne */
+      border-radius: 16px;
       cursor: pointer;
       transition: all 0.2s ease;
       font-size: 1.05rem;
       gap: 14px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
     }
 
     .btn-google:hover {
@@ -144,15 +150,14 @@
       transform: translateY(-2px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
-    
-    .btn-google:active { transform: translateY(0); }
 
-    /* Mobile Responsive */
+    /* Mobile */
     @media (max-width: 1000px) {
-      .container { flex-direction: column; height: auto; }
+      .container { flex-direction: column; height: auto; overflow: auto; }
       .brand-side { padding: 60px 30px; min-height: 300px; }
-      .brand-title { font-size: 2.5rem; }
+      .brand-title { font-size: 2.2rem; }
       .login-side { padding: 60px 30px; min-height: 50vh; }
+      html, body { overflow: auto; } /* Réactive le scroll sur mobile */
     }
   </style>
 </head>
@@ -161,40 +166,76 @@
   <div class="container">
     <div class="brand-side">
       <div class="brand-bg"></div>
-      <div class="motion-shape"></div> <a href="index.html" class="brand-logo">RunCall</a>
+      <div class="motion-shape"></div>
       
-      <h1 class="brand-title">Donnez du rythme à vos échanges.</h1>
-      
-      <p class="brand-desc">
-        Gérez vos disponibilités et réalisez vos sessions vidéo, partout, tout le temps.
-      </p>
+      <div class="brand-content">
+        <a href="index.html" class="brand-logo">RunCall</a>
+        <h1 class="brand-title" id="txt-hero-title">Programmez et réalisez vos échanges vidéo.</h1>
+        <p class="brand-desc" id="txt-hero-desc">
+          Gérez vos disponibilités et réalisez vos échanges vidéo en toute simplicité.
+        </p>
+      </div>
     </div>
 
     <div class="login-side">
       <div class="login-box">
         <div class="login-header">
-          <h2 class="login-title">Espace Intervenant</h2>
-          <p class="login-subtitle">
+          <h2 class="login-title" id="txt-login-title">Espace Intervenant</h2>
+          <p class="login-subtitle" id="txt-login-sub">
             Connectez-vous pour accéder à votre tableau de bord ou créer un compte.
           </p>
         </div>
 
         <button id="googleBtn" class="btn-google">
           <svg width="24" height="24" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Continuer avec Google
+          <span id="txt-btn">Continuer avec Google</span>
         </button>
       </div>
     </div>
   </div>
 
   <script>
+    /* ---------------------------------------------------------
+       1. GESTION DES LANGUES (Auto-Détection)
+       --------------------------------------------------------- */
+    const translations = {
+      en: {
+        heroTitle: "Schedule and host your video calls.",
+        heroDesc: "Manage your availability and conduct your video exchanges with ease.",
+        loginTitle: "Expert Area",
+        loginSub: "Log in to access your dashboard or create an account.",
+        btn: "Continue with Google"
+      },
+      fr: {
+        heroTitle: "Programmez et réalisez vos échanges vidéo.",
+        heroDesc: "Gérez vos disponibilités et réalisez vos échanges vidéo en toute simplicité.",
+        loginTitle: "Espace Intervenant",
+        loginSub: "Connectez-vous pour accéder à votre tableau de bord ou créer un compte.",
+        btn: "Continuer avec Google"
+      }
+    };
+
+    // Détection simple : si la langue commence par "en", on passe en anglais. Sinon FR par défaut.
+    const userLang = navigator.language || navigator.userLanguage; 
+    const lang = userLang.startsWith('en') ? 'en' : 'fr';
+
+    document.getElementById('txt-hero-title').textContent = translations[lang].heroTitle;
+    document.getElementById('txt-hero-desc').textContent = translations[lang].heroDesc;
+    document.getElementById('txt-login-title').textContent = translations[lang].loginTitle;
+    document.getElementById('txt-login-sub').textContent = translations[lang].loginSub;
+    document.getElementById('txt-btn').textContent = translations[lang].btn;
+
+    /* ---------------------------------------------------------
+       2. CONNEXION SUPABASE (Ton code original)
+       --------------------------------------------------------- */
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     document.getElementById('googleBtn').addEventListener('click', async function(){
       this.style.opacity = 0.7; 
-      this.innerHTML = "Connexion..."; 
+      // Petit feedback visuel selon la langue
+      this.querySelector('span').innerText = lang === 'en' ? "Loading..." : "Connexion...";
       
       await sb.auth.signInWithOAuth({
         provider: 'google',
