@@ -385,24 +385,29 @@
         if (!expertData && session) {
             console.log("🆕 Nouvel utilisateur (ou reset) détecté : Création du profil...");
             
+            // 1. On récupère le nom Google (ou une valeur par défaut si introuvable)
+            const googleName = session.user.user_metadata.full_name || session.user.user_metadata.name || "Nouveau RunCaller";
+            
+            // 2. On récupère la photo Google
+            const googlePhoto = session.user.user_metadata.avatar_url || session.user.user_metadata.picture || "";
+
             const { data: newExpert, error: createErr } = await sb
                 .from('experts')
                 .insert([{
                     auth_user_id: session.user.id,
                     email: session.user.email,
-                    name: "Nouveau RunCaller", 
-                    presentation: "Je suis un expert RunCall."
+                    name: googleName,       // <--- ICI : On met le vrai nom Google
+                    presentation: "",       // <--- ICI : On laisse vide comme demandé
+                    photo_url: googlePhoto  // Bonus : On met direct la photo de profil Google
                 }])
                 .select()
                 .single();
 
             if (createErr) {
                 console.error("Erreur création profil:", createErr);
-                // On ne bloque pas tout, mais l'UI sera vide
             } else {
                 expertData = newExpert;
                 expertId = newExpert.id;
-                // On met à jour l'URL proprement pour afficher l'ID
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.set('expert_id', expertId);
                 window.history.pushState({}, '', newUrl);
