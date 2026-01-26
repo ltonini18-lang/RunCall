@@ -13,27 +13,28 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background-color: #f8fafc; }
 
-    /* CONTENEUR PRINCIPAL */
+    /* --- LAYOUT GRID : LA SOLUTION RIGIDE --- */
     .container {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
-      display: flex;
       z-index: 9999;
       background: white;
+      
+      /* C'est ici que la magie opère : GRILLE */
+      display: grid;
+      /* 75% pour la gauche, 25% pour la droite */
+      grid-template-columns: 3fr 1fr; 
     }
 
-    /* --- GAUCHE : STRICTEMENT 75% --- */
+    /* --- GAUCHE (BLEU) --- */
     .brand-side {
-      width: 75%; /* Largeur imposée */
-      flex: 0 0 75%; /* Empêche le redimensionnement */
       position: relative;
+      background-color: #f8fafc;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      align-items: flex-start; /* Contenu aligné à gauche */
-      padding: 8vw; /* Marge relative à la largeur de l'écran pour garder l'équilibre */
-      overflow: hidden;
-      background-color: #f8fafc;
+      padding: 6vw; /* Padding dynamique */
     }
 
     .brand-bg {
@@ -49,7 +50,7 @@
       z-index: 0;
     }
 
-    .brand-content { position: relative; z-index: 1; width: 100%; max-width: 800px; }
+    .brand-content { position: relative; z-index: 1; width: 100%; max-width: 900px; }
 
     .brand-logo {
       font-size: 2.5rem; font-weight: 900; color: #1677ff;
@@ -57,28 +58,26 @@
     }
 
     .brand-title {
-      font-size: 4rem; font-weight: 800; color: #0f172a;
+      font-size: 4.5vw; /* Taille responsive pour éviter que ça casse sur les petits écrans */
+      font-weight: 800; color: #0f172a;
       line-height: 1.05; margin-bottom: 30px; letter-spacing: -0.04em;
     }
 
-    .brand-desc { font-size: 1.5rem; color: #64748b; line-height: 1.5; max-width: 90%; }
+    .brand-desc { font-size: 1.4rem; color: #64748b; line-height: 1.5; max-width: 85%; }
 
-    /* --- DROITE : STRICTEMENT 25% --- */
+    /* --- DROITE (BLANC) --- */
     .login-side {
-      width: 25%; /* Largeur imposée */
-      flex: 0 0 25%; /* Empêche le redimensionnement */
-      min-width: 350px; /* Sécurité : ne descend pas sous 350px pour le confort */
       background: white;
-      display: flex; flex-direction: column;
-      justify-content: center; align-items: center;
-      padding: 40px;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
       border-left: 1px solid #f1f5f9;
+      /* On s'assure que le contenu ne dépasse jamais */
+      overflow-y: auto; 
     }
-
-    /* Note: Si l'écran est trop petit et que les 25% sont inférieurs à 350px,
-       la propriété min-width va forcer la colonne à s'agrandir un peu, 
-       ce qui est mieux que d'écraser le formulaire. */
 
     .lang-switcher {
       position: absolute; top: 30px; right: 30px;
@@ -92,7 +91,7 @@
     .lang-btn.active { color: #0f172a; font-weight: 800; }
     .sep { color: #e2e8f0; font-size: 0.85rem; }
 
-    .login-box { width: 100%; max-width: 320px; text-align: center; }
+    .login-box { width: 100%; max-width: 340px; text-align: center; }
     .login-header { margin-bottom: 30px; }
     .login-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
     .login-subtitle { color: #64748b; font-size: 0.95rem; line-height: 1.4; }
@@ -112,12 +111,19 @@
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
-    /* Mobile Responsive */
-    @media (max-width: 1024px) {
-      .container { position: relative; flex-direction: column; height: auto; }
-      .brand-side { width: 100%; flex: none; padding: 60px 30px; min-height: 400px; }
+    /* RESPONSIVE TABLETTE/MOBILE */
+    @media (max-width: 1100px) {
+      /* Dès qu'on est sur un écran moyen, on empile tout */
+      .container { 
+        position: relative; 
+        display: flex; 
+        flex-direction: column; 
+        height: auto; 
+        overflow: auto;
+      }
+      .brand-side { padding: 80px 40px; min-height: 40vh; }
       .brand-title { font-size: 3rem; }
-      .login-side { width: 100%; flex: none; padding: 60px 30px; min-height: 60vh; border-left: none; }
+      .login-side { padding: 60px 30px; min-height: 50vh; border-left: none; }
       html, body { overflow: auto; }
     }
   </style>
