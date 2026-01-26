@@ -17,27 +17,24 @@
       background-color: #f8fafc;
     }
 
-    /* --- STRATEGIE OVERLAY FIXE --- */
-    /* On sort du flux normal pour se coller à l'écran quoi qu'il arrive */
+    /* --- LAYOUT GLOBAL (FIXED OVERLAY) --- */
     .container {
-      position: fixed; /* L'arme absolue contre les marges */
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
       display: flex;
-      z-index: 9999; /* On passe au-dessus de tout */
-      background: white; /* Sécurité */
+      z-index: 9999;
+      background: white;
     }
 
-    /* --- GAUCHE --- */
+    /* --- GAUCHE : 75% DE L'ECRAN (flex: 3) --- */
     .brand-side {
-      flex: 1;
+      flex: 3; /* C'est ici que la magie opère (3 parts sur 4) */
       position: relative;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding: 60px;
+      justify-content: center; /* Centre verticalement */
+      align-items: center;     /* Centre le bloc texte horizontalement */
+      padding: 80px;           /* Marge interne confortable */
       overflow: hidden;
       background-color: #f8fafc;
     }
@@ -48,69 +45,77 @@
       z-index: 0;
     }
     
+    /* Forme décorative ajustée pour le format large */
     .motion-shape {
-      position: absolute; top: -20%; right: -20%; width: 80%; height: 150%;
+      position: absolute; top: -10%; right: -10%; width: 60%; height: 120%;
       background: linear-gradient(200deg, rgba(22, 119, 255, 0.03) 0%, rgba(22, 119, 255, 0.1) 100%);
-      transform: skewX(-20deg);
+      transform: skewX(-15deg);
       z-index: 0;
     }
 
-    .brand-content { position: relative; z-index: 1; max-width: 600px; }
+    /* Contenu Gauche */
+    .brand-content { 
+      position: relative; 
+      z-index: 1; 
+      max-width: 700px; /* Plus large car on a de la place */
+      text-align: left; /* Le texte reste aligné à gauche pour la lisibilité */
+      width: 100%;
+    }
 
     .brand-logo {
-      font-size: 2rem; font-weight: 900; color: #1677ff;
-      margin-bottom: 30px; display: inline-block; text-decoration: none;
+      font-size: 2.5rem; font-weight: 900; color: #1677ff;
+      margin-bottom: 40px; display: inline-block; text-decoration: none;
     }
 
     .brand-title {
-      font-size: 3.5rem; font-weight: 800; color: #0f172a;
-      line-height: 1.1; margin-bottom: 24px; letter-spacing: -0.03em;
+      font-size: 4rem; /* Titre plus gros et impactant */
+      font-weight: 800; color: #0f172a;
+      line-height: 1.05; margin-bottom: 30px; letter-spacing: -0.04em;
     }
 
-    .brand-desc { font-size: 1.35rem; color: #64748b; line-height: 1.5; }
+    .brand-desc { 
+      font-size: 1.5rem; color: #64748b; line-height: 1.5; max-width: 90%; 
+    }
 
-    /* --- DROITE --- */
+    /* --- DROITE : 25% DE L'ECRAN (flex: 1) --- */
     .login-side {
-      flex: 1;
+      flex: 1; /* 1 part sur 4 */
       background: white;
       display: flex; flex-direction: column;
-      justify-content: center; align-items: center;
-      padding: 40px;
-      position: relative;
-    }
-
-    /* Switcher de Langue */
-    .lang-switcher {
-      position: absolute;
-      top: 30px;
-      right: 40px;
-      display: flex;
-      gap: 10px;
+      justify-content: center; 
       align-items: center;
-      z-index: 10000; /* Très haut pour être cliquable */
+      padding: 40px; /* Moins de padding car la colonne est étroite */
+      position: relative;
+      border-left: 1px solid #f1f5f9; /* Séparation subtile */
+      min-width: 320px; /* Sécurité pour ne pas écraser le formulaire */
     }
 
+    /* Switcher Langue */
+    .lang-switcher {
+      position: absolute; top: 30px; right: 30px;
+      display: flex; gap: 10px; align-items: center; z-index: 10;
+    }
     .lang-btn {
-      background: none; border: none;
-      font-size: 0.9rem; font-weight: 600; color: #94a3b8;
-      cursor: pointer; padding: 5px; transition: color 0.2s;
+      background: none; border: none; font-size: 0.85rem; font-weight: 600; 
+      color: #94a3b8; cursor: pointer; padding: 5px; transition: color 0.2s;
     }
     .lang-btn:hover { color: #64748b; }
     .lang-btn.active { color: #0f172a; font-weight: 800; }
-    .sep { color: #e2e8f0; font-size: 0.9rem; }
+    .sep { color: #e2e8f0; font-size: 0.85rem; }
 
-    .login-box { width: 100%; max-width: 400px; text-align: center; }
-    .login-header { margin-bottom: 40px; }
-    .login-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
-    .login-subtitle { color: #64748b; font-size: 1rem; line-height: 1.5; }
+    /* Boite de Login */
+    .login-box { width: 100%; max-width: 320px; text-align: center; }
+    .login-header { margin-bottom: 30px; }
+    .login-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+    .login-subtitle { color: #64748b; font-size: 0.95rem; line-height: 1.4; }
 
     .btn-google {
       display: flex; align-items: center; justify-content: center;
-      width: 100%; padding: 18px;
+      width: 100%; padding: 16px;
       background: #fff; color: #1e293b; font-weight: 600;
-      border: 1px solid #e2e8f0; border-radius: 16px;
+      border: 1px solid #e2e8f0; border-radius: 12px;
       cursor: pointer; transition: all 0.2s ease;
-      font-size: 1.05rem; gap: 14px;
+      font-size: 1rem; gap: 12px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
     }
     .btn-google:hover {
@@ -119,14 +124,14 @@
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
-    @media (max-width: 1000px) {
-      /* Sur mobile on redevient normal pour scroller */
-      .container { position: relative; flex-direction: column; height: auto; width: 100%; }
-      .brand-side { padding: 50px 25px; min-height: 300px; }
-      .brand-title { font-size: 2.5rem; }
-      .login-side { padding: 50px 25px; min-height: 50vh; }
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+      /* Sur tablette/mobile, on repasse en empilé car 25% c'est trop étroit */
+      .container { position: relative; flex-direction: column; height: auto; }
+      .brand-side { padding: 60px 30px; min-height: 400px; flex: none; width: 100%; }
+      .brand-title { font-size: 3rem; }
+      .login-side { padding: 60px 30px; min-height: 60vh; flex: none; width: 100%; border-left: none; }
       html, body { overflow: auto; }
-      .lang-switcher { top: 20px; right: 20px; }
     }
   </style>
 </head>
@@ -167,12 +172,11 @@
   </div>
 
   <script>
-    /* TRADUCTIONS : Nettoyage du mot Expert */
     const translations = {
       en: {
         heroTitle: "Share your experience on RunCall.",
         heroDesc: "Schedule your availability and let people ask you questions via video.",
-        loginTitle: "Host Area", /* Remplacement Validé */
+        loginTitle: "Host Area",
         loginSub: "Log in to access your dashboard or create an account.",
         btn: "Continue with Google"
       },
@@ -189,7 +193,6 @@
 
     function setLanguage(lang) {
       currentLang = lang;
-      
       document.getElementById('txt-hero-title').textContent = translations[lang].heroTitle;
       document.getElementById('txt-hero-desc').textContent = translations[lang].heroDesc;
       document.getElementById('txt-login-title').textContent = translations[lang].loginTitle;
@@ -200,16 +203,13 @@
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
     }
 
-    /* Initialisation */
     const userLang = navigator.language || navigator.userLanguage;
     const initialLang = userLang.startsWith('fr') ? 'fr' : 'en';
     setLanguage(initialLang);
 
-    /* Events */
     document.getElementById('btn-fr').addEventListener('click', () => setLanguage('fr'));
     document.getElementById('btn-en').addEventListener('click', () => setLanguage('en'));
 
-    /* Supabase Logic */
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -217,7 +217,6 @@
     document.getElementById('googleBtn').addEventListener('click', async function(){
       this.style.opacity = 0.7; 
       this.querySelector('span').innerText = currentLang === 'fr' ? "Connexion..." : "Loading...";
-      
       await sb.auth.signInWithOAuth({
         provider: 'google',
         options: { 
