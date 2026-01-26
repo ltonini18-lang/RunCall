@@ -9,15 +9,11 @@
   <script src="js/config.js"></script>
 
   <style>
-    /* RESET TOTAL */
+    /* RESET */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    html, body {
-      width: 100%; height: 100%; overflow: hidden;
-      background-color: #f8fafc;
-    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background-color: #f8fafc; }
 
-    /* --- LAYOUT GLOBAL (FIXED OVERLAY) --- */
+    /* CONTENEUR PRINCIPAL */
     .container {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -26,15 +22,16 @@
       background: white;
     }
 
-    /* --- GAUCHE : 75% DE L'ECRAN (flex: 3) --- */
+    /* --- GAUCHE : STRICTEMENT 75% --- */
     .brand-side {
-      flex: 3; /* C'est ici que la magie opère (3 parts sur 4) */
+      width: 75%; /* Largeur imposée */
+      flex: 0 0 75%; /* Empêche le redimensionnement */
       position: relative;
       display: flex;
       flex-direction: column;
-      justify-content: center; /* Centre verticalement */
-      align-items: center;     /* Centre le bloc texte horizontalement */
-      padding: 80px;           /* Marge interne confortable */
+      justify-content: center;
+      align-items: flex-start; /* Contenu aligné à gauche */
+      padding: 8vw; /* Marge relative à la largeur de l'écran pour garder l'équilibre */
       overflow: hidden;
       background-color: #f8fafc;
     }
@@ -45,7 +42,6 @@
       z-index: 0;
     }
     
-    /* Forme décorative ajustée pour le format large */
     .motion-shape {
       position: absolute; top: -10%; right: -10%; width: 60%; height: 120%;
       background: linear-gradient(200deg, rgba(22, 119, 255, 0.03) 0%, rgba(22, 119, 255, 0.1) 100%);
@@ -53,14 +49,7 @@
       z-index: 0;
     }
 
-    /* Contenu Gauche */
-    .brand-content { 
-      position: relative; 
-      z-index: 1; 
-      max-width: 700px; /* Plus large car on a de la place */
-      text-align: left; /* Le texte reste aligné à gauche pour la lisibilité */
-      width: 100%;
-    }
+    .brand-content { position: relative; z-index: 1; width: 100%; max-width: 800px; }
 
     .brand-logo {
       font-size: 2.5rem; font-weight: 900; color: #1677ff;
@@ -68,29 +57,29 @@
     }
 
     .brand-title {
-      font-size: 4rem; /* Titre plus gros et impactant */
-      font-weight: 800; color: #0f172a;
+      font-size: 4rem; font-weight: 800; color: #0f172a;
       line-height: 1.05; margin-bottom: 30px; letter-spacing: -0.04em;
     }
 
-    .brand-desc { 
-      font-size: 1.5rem; color: #64748b; line-height: 1.5; max-width: 90%; 
-    }
+    .brand-desc { font-size: 1.5rem; color: #64748b; line-height: 1.5; max-width: 90%; }
 
-    /* --- DROITE : 25% DE L'ECRAN (flex: 1) --- */
+    /* --- DROITE : STRICTEMENT 25% --- */
     .login-side {
-      flex: 1; /* 1 part sur 4 */
+      width: 25%; /* Largeur imposée */
+      flex: 0 0 25%; /* Empêche le redimensionnement */
+      min-width: 350px; /* Sécurité : ne descend pas sous 350px pour le confort */
       background: white;
       display: flex; flex-direction: column;
-      justify-content: center; 
-      align-items: center;
-      padding: 40px; /* Moins de padding car la colonne est étroite */
+      justify-content: center; align-items: center;
+      padding: 40px;
       position: relative;
-      border-left: 1px solid #f1f5f9; /* Séparation subtile */
-      min-width: 320px; /* Sécurité pour ne pas écraser le formulaire */
+      border-left: 1px solid #f1f5f9;
     }
 
-    /* Switcher Langue */
+    /* Note: Si l'écran est trop petit et que les 25% sont inférieurs à 350px,
+       la propriété min-width va forcer la colonne à s'agrandir un peu, 
+       ce qui est mieux que d'écraser le formulaire. */
+
     .lang-switcher {
       position: absolute; top: 30px; right: 30px;
       display: flex; gap: 10px; align-items: center; z-index: 10;
@@ -103,7 +92,6 @@
     .lang-btn.active { color: #0f172a; font-weight: 800; }
     .sep { color: #e2e8f0; font-size: 0.85rem; }
 
-    /* Boite de Login */
     .login-box { width: 100%; max-width: 320px; text-align: center; }
     .login-header { margin-bottom: 30px; }
     .login-title { font-size: 1.6rem; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
@@ -126,11 +114,10 @@
 
     /* Mobile Responsive */
     @media (max-width: 1024px) {
-      /* Sur tablette/mobile, on repasse en empilé car 25% c'est trop étroit */
       .container { position: relative; flex-direction: column; height: auto; }
-      .brand-side { padding: 60px 30px; min-height: 400px; flex: none; width: 100%; }
+      .brand-side { width: 100%; flex: none; padding: 60px 30px; min-height: 400px; }
       .brand-title { font-size: 3rem; }
-      .login-side { padding: 60px 30px; min-height: 60vh; flex: none; width: 100%; border-left: none; }
+      .login-side { width: 100%; flex: none; padding: 60px 30px; min-height: 60vh; border-left: none; }
       html, body { overflow: auto; }
     }
   </style>
@@ -150,7 +137,6 @@
     </div>
 
     <div class="login-side">
-      
       <div class="lang-switcher">
         <button id="btn-fr" class="lang-btn">FR</button>
         <span class="sep">|</span>
