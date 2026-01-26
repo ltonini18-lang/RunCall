@@ -9,32 +9,45 @@
   <script src="js/config.js"></script>
 
   <style>
-    /* RESET */
+    /* RESET BASIQUE */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background-color: #f8fafc; }
-
-    /* LAYOUT GRID 60/40 */
-    .container {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 9999;
-      background: white;
-      display: grid;
-      /* CORRECTION : 60% Gauche (3fr) / 40% Droite (2fr) */
-      grid-template-columns: 3fr 2fr; 
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* Pas de scroll */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8fafc;
     }
 
-    /* --- GAUCHE (60%) --- */
+    /* CONTENEUR GLOBAL */
+    .container {
+      /* On force le plein écran */
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      
+      /* La Clé du 50/50 */
+      display: flex;
+      flex-direction: row; /* Côte à côte */
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --- MOITIÉ GAUCHE (50%) --- */
     .brand-side {
+      flex: 1; /* Prend 1 part */
       position: relative;
       background-color: #f8fafc;
-      overflow: hidden;
+      /* Centrage du contenu */
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      padding: 6vw; /* Padding responsive */
+      justify-content: center; /* Vertical */
+      align-items: center;     /* Horizontal */
+      padding: 60px;
+      overflow: hidden;
     }
 
+    /* Fond décoratif */
     .brand-bg {
       position: absolute; top: 0; left: 0; right: 0; bottom: 0;
       background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
@@ -42,13 +55,20 @@
     }
     
     .motion-shape {
-      position: absolute; top: -10%; right: -10%; width: 70%; height: 120%;
+      position: absolute; top: -10%; right: -10%; width: 80%; height: 120%;
       background: linear-gradient(200deg, rgba(22, 119, 255, 0.03) 0%, rgba(22, 119, 255, 0.1) 100%);
       transform: skewX(-15deg);
       z-index: 0;
     }
 
-    .brand-content { position: relative; z-index: 1; width: 100%; max-width: 800px; }
+    /* Contenu Gauche */
+    .brand-content { 
+      position: relative; 
+      z-index: 1; 
+      max-width: 600px; /* Largeur max pour que le texte reste lisible */
+      width: 100%;
+      text-align: left; /* Texte aligné à gauche dans son bloc centré */
+    }
 
     .brand-logo {
       font-size: 2.5rem; font-weight: 900; color: #1677ff;
@@ -56,26 +76,28 @@
     }
 
     .brand-title {
-      font-size: 3.8vw; /* Ajusté pour le ratio 60% */
+      font-size: 3.5rem; 
       font-weight: 800; color: #0f172a;
       line-height: 1.1; margin-bottom: 24px; letter-spacing: -0.03em;
     }
 
-    .brand-desc { font-size: 1.3rem; color: #64748b; line-height: 1.5; max-width: 90%; }
+    .brand-desc { font-size: 1.3rem; color: #64748b; line-height: 1.5; }
 
-    /* --- DROITE (40%) --- */
+    /* --- MOITIÉ DROITE (50%) --- */
     .login-side {
+      flex: 1; /* Prend 1 part (donc égal à la gauche) */
       background: white;
       position: relative;
+      /* Centrage du contenu */
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      justify-content: center; /* Vertical */
+      align-items: center;     /* Horizontal */
       padding: 40px;
       border-left: 1px solid #f1f5f9;
-      overflow-y: auto;
     }
 
+    /* Switcher Langue */
     .lang-switcher {
       position: absolute; top: 30px; right: 40px;
       display: flex; gap: 10px; align-items: center; z-index: 10;
@@ -88,8 +110,13 @@
     .lang-btn.active { color: #0f172a; font-weight: 800; }
     .sep { color: #e2e8f0; font-size: 0.9rem; }
 
-    /* La boîte de login a maintenant de la place */
-    .login-box { width: 100%; max-width: 380px; text-align: center; }
+    /* Login Box */
+    .login-box { 
+      width: 100%; 
+      max-width: 400px; /* Limite la largeur pour ne pas être trop large sur grand écran */
+      text-align: center; 
+    }
+    
     .login-header { margin-bottom: 30px; }
     .login-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
     .login-subtitle { color: #64748b; font-size: 1rem; line-height: 1.5; }
@@ -109,15 +136,18 @@
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
     }
 
-    /* MOBILE / TABLETTE (< 1024px) */
-    @media (max-width: 1024px) {
+    /* MOBILE / TABLETTE (< 1000px) */
+    @media (max-width: 1000px) {
+      /* On passe en colonne simple */
       .container { 
-        display: flex; flex-direction: column; 
-        position: relative; height: auto; overflow: auto; 
+        position: relative; 
+        flex-direction: column; 
+        height: auto; 
+        overflow-y: auto; 
       }
-      .brand-side { padding: 60px 30px; min-height: 40vh; }
+      .brand-side { flex: none; width: 100%; min-height: 400px; padding: 50px 30px; }
       .brand-title { font-size: 2.5rem; }
-      .login-side { padding: 60px 30px; min-height: 50vh; border-left: none; }
+      .login-side { flex: none; width: 100%; min-height: 60vh; border-left: none; padding: 50px 30px; }
       html, body { overflow: auto; }
     }
   </style>
