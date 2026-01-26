@@ -2,37 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall</title> <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RunCall</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
 
   <style>
-    /* Reset & Base */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
+    /* CORRECTION 3 : Le Reset "Hardcore" pour supprimer les marges */
     html, body {
-      width: 100%; height: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* Bloque tout débordement */
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
+      background-color: #f8fafc; /* Sécurité couleur de fond */
     }
     
+    /* Conteneur qui force le plein écran absolu */
     .container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       display: flex;
-      width: 100vw;
-      height: 100vh;
-      position: relative;
+      width: 100%;
+      height: 100%;
     }
 
     /* --- GAUCHE : Visuel RunCall --- */
     .brand-side {
-      flex: 1;
+      flex: 1; /* Prend 50% exact */
       background-color: #f8fafc;
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding: 80px;
+      /* J'ai réduit un peu le padding pour "aérer" moins les bords si c'était ça ton impression de marge */
+      padding: 60px; 
       overflow: hidden;
     }
 
@@ -49,9 +58,7 @@
       z-index: 0;
     }
 
-    .brand-content {
-      position: relative; z-index: 1; max-width: 600px;
-    }
+    .brand-content { position: relative; z-index: 1; max-width: 600px; }
 
     .brand-logo {
       font-size: 2rem; font-weight: 900; color: #1677ff;
@@ -63,20 +70,19 @@
       line-height: 1.1; margin-bottom: 24px; letter-spacing: -0.03em;
     }
 
-    .brand-desc {
-      font-size: 1.35rem; color: #64748b; line-height: 1.5;
-    }
+    .brand-desc { font-size: 1.35rem; color: #64748b; line-height: 1.5; }
 
     /* --- DROITE : Formulaire --- */
     .login-side {
-      flex: 1; background: white;
+      flex: 1; /* Prend 50% exact */
+      background: white;
       display: flex; flex-direction: column;
       justify-content: center; align-items: center;
       padding: 40px;
-      position: relative; /* Pour positionner le switch */
+      position: relative;
     }
 
-    /* NOUVEAU : Switcher de Langue */
+    /* Switcher de Langue */
     .lang-switcher {
       position: absolute;
       top: 30px;
@@ -88,16 +94,10 @@
     }
 
     .lang-btn {
-      background: none;
-      border: none;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #94a3b8;
-      cursor: pointer;
-      padding: 5px;
-      transition: color 0.2s;
+      background: none; border: none;
+      font-size: 0.9rem; font-weight: 600; color: #94a3b8;
+      cursor: pointer; padding: 5px; transition: color 0.2s;
     }
-
     .lang-btn:hover { color: #64748b; }
     .lang-btn.active { color: #0f172a; font-weight: 800; }
     .sep { color: #e2e8f0; font-size: 0.9rem; }
@@ -123,12 +123,13 @@
     }
 
     @media (max-width: 1000px) {
-      .container { flex-direction: column; height: auto; }
-      .brand-side { padding: 60px 30px; min-height: 300px; }
+      /* Sur mobile, on enlève le position absolute pour laisser scroller */
+      .container { position: relative; flex-direction: column; height: auto; }
+      .brand-side { padding: 50px 25px; min-height: 300px; }
       .brand-title { font-size: 2.2rem; }
-      .login-side { padding: 60px 30px; min-height: 50vh; }
+      .login-side { padding: 50px 25px; min-height: 50vh; }
       html, body { overflow: auto; }
-      .lang-switcher { top: 20px; right: 20px; } /* Ajustement mobile */
+      .lang-switcher { top: 20px; right: 20px; }
     }
   </style>
 </head>
@@ -169,57 +170,49 @@
   </div>
 
   <script>
-    /* Dictionnaire de Traduction */
+    /* CORRECTION 2 : Vocabulaire Nettoyé (Plus de "Expert") */
     const translations = {
       en: {
         heroTitle: "Share your experience on RunCall.",
         heroDesc: "Schedule your availability and let people ask you questions via video.",
-        loginTitle: "Expert Area",
+        loginTitle: "Host Area", /* Remplacé "Expert Area" par "Host Area" */
         loginSub: "Log in to access your dashboard or create an account.",
         btn: "Continue with Google"
       },
       fr: {
         heroTitle: "Partagez votre expérience sur RunCall.",
         heroDesc: "Programmez vos disponibilités et laissez les gens vous poser leurs questions en visio.",
-        loginTitle: "Espace Intervenant",
+        loginTitle: "Espace Intervenant", /* "Intervenant" est validé */
         loginSub: "Connectez-vous pour accéder à votre tableau de bord ou créer un compte.",
         btn: "Continuer avec Google"
       }
     };
 
-    // Variable globale pour suivre la langue
-    let currentLang = 'en'; // Par défaut
+    let currentLang = 'en';
 
-    // Fonction de mise à jour des textes
     function setLanguage(lang) {
       currentLang = lang;
       
-      // Update Textes
       document.getElementById('txt-hero-title').textContent = translations[lang].heroTitle;
       document.getElementById('txt-hero-desc').textContent = translations[lang].heroDesc;
       document.getElementById('txt-login-title').textContent = translations[lang].loginTitle;
       document.getElementById('txt-login-sub').textContent = translations[lang].loginSub;
       document.getElementById('txt-btn').textContent = translations[lang].btn;
 
-      // Update Style des Boutons (Gras/Actif)
       document.getElementById('btn-fr').classList.toggle('active', lang === 'fr');
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
     }
 
-    // --- INITIALISATION ---
-    // Logique de détection : Si navigateur FR => FR, sinon => EN
+    /* Initialisation */
     const userLang = navigator.language || navigator.userLanguage;
     const initialLang = userLang.startsWith('fr') ? 'fr' : 'en';
-    
-    // Lance l'affichage initial
     setLanguage(initialLang);
 
-    // --- ECOUTEURS D'EVENEMENTS (Clics) ---
+    /* Events */
     document.getElementById('btn-fr').addEventListener('click', () => setLanguage('fr'));
     document.getElementById('btn-en').addEventListener('click', () => setLanguage('en'));
 
-
-    /* LOGIQUE SUPABASE (Inchangée) */
+    /* Supabase */
     const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
     const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
