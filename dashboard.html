@@ -182,7 +182,7 @@
                 <h2 class="title" style="margin-bottom:10px;" data-fr="Définis tes disponibilités" data-en="Set your availability"></h2>
                 <p class="subtitle" style="margin-bottom:30px;" 
                    data-fr="RunCall ne voit aucun créneau. Ajoute des disponibilités dans ton agenda."
-                   data-en="RunCall doesn't see any slots yet. Add availability to your calendar.">
+                   data-en="RunCall doesn't see any slots. Add availability to your calendar.">
                 </p>
                 
                 <div style="background:#f8fafc; border:1px dashed var(--border); border-radius:12px; padding:20px; margin-bottom:30px; text-align:left;">
@@ -216,7 +216,7 @@
             </div>
         </div>
 
-        <div id="stateSetupPayouts" class="card hidden" style="text-align:center; padding:50px 20px;">
+        <div id="stateSetupPayouts" class="card hidden" style="text-align:center; padding:50px 20px; border-left:4px solid var(--brand); background:#f0f9ff;">
              <h2 class="title" data-fr="Active les paiements" data-en="Enable Payouts"></h2>
              <p class="subtitle" style="max-width:450px; margin:0 auto 30px;"
                 data-fr="Dernière étape ! Connecte ton compte bancaire pour recevoir tes gains."
@@ -278,7 +278,6 @@
              </div>
              <div class="card-body">
                  <form id="profileForm" style="max-width:600px;">
-                     
                      <div class="avatar-upload-row">
                          <img id="previewAvatar" class="avatar-preview" src="">
                          <div>
@@ -290,7 +289,6 @@
                                    data-fr="Max 500Ko. Carré recommandé." data-en="Max 500KB. Square recommended."></div>
                          </div>
                      </div>
-
                      <div class="form-group">
                          <label class="label" data-fr="Nom complet" data-en="Full name"></label>
                          <input type="text" id="inputName" class="input">
@@ -299,7 +297,6 @@
                          <label class="label" data-fr="Présentation" data-en="Bio"></label>
                          <textarea id="inputBio" rows="5" class="textarea"></textarea>
                      </div>
-
                      <div class="form-group">
                          <label class="label">
                              <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
@@ -318,7 +315,6 @@
                              </select>
                          </div>
                      </div>
-
                      <button type="submit" class="btn btn-primary" id="saveProfileBtn">
                          <span data-fr="Enregistrer" data-en="Save Changes"></span>
                      </button>
@@ -386,7 +382,6 @@
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
             document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
-            // Update dynamique du titre de l'étape
             updateHomeState(); 
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
@@ -458,7 +453,7 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
-        // --- FONCTIONS DATE "V1" (CELLES QUI MARCHAIENT) ---
+        // --- FONCTIONS DATE "V1" ---
         let currentWeekOffset = 0;
         
         function getStartOfWeek(offset) {
@@ -470,26 +465,32 @@
             return d;
         }
 
-        // --- MOTEUR DE VERIFICATION (STRICT ET SÉQUENTIEL) ---
+        // --- MOTEUR DE VERIFICATION (CORRIGÉ & ANTI-CACHE) ---
         async function updateHomeState() {
             // Masquer tout par défaut
-            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            const progressEl = document.getElementById('onboardingProgress');
+            ['stateConnect', 'stateFirstSlots'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // 1. Calendrier (Priorité absolue)
+            const progressEl = document.getElementById('onboardingProgress');
+            const stripeCard = document.getElementById('stateSetupPayouts');
+            const calendarCard = document.getElementById('stateCalendar');
+            
+            // 1. Calendrier
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
                 updateProgress(0, "Connecte ton agenda", "Connect your calendar");
-                return; // STOP ICI
+                return;
             }
 
-            // 2. Créneaux (Priorité 2)
+            // 2. Créneaux (Vérification ANTI-CACHE)
             const startOfWeek = getStartOfWeek(0);
             const toDate = new Date(startOfWeek); 
             toDate.setDate(toDate.getDate() + 7);
             
-            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
+            // L'AJOUT CRUCIAL : &_t=... pour forcer une nouvelle réponse
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
             
             try {
                 const resSlots = await fetch(apiUrl);
@@ -501,21 +502,24 @@
             if (!hasSlots) {
                 document.getElementById('stateFirstSlots').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
                 updateProgress(1, "Définis tes disponibilités", "Set your availability");
-                return; // STOP ICI : On ne passe pas à la suite si 0 créneaux
+                return;
             }
 
-            // 3. Paiements (Priorité 3)
+            // 3. Paiements (NON BLOQUANT : Affiche le calendrier en dessous)
             if (!hasStripe) {
-                document.getElementById('stateSetupPayouts').classList.remove('hidden');
+                stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
                 updateProgress(2, "Active les paiements", "Enable payouts");
-                return; // STOP ICI
+            } else {
+                stripeCard.classList.add('hidden');
+                progressEl.classList.add('hidden'); 
             }
 
-            // 4. Terminé (Affichage du Dashboard final)
-            document.getElementById('stateCalendar').classList.remove('hidden');
-            progressEl.classList.add('hidden'); 
+            // 4. Terminé : Affichage Calendrier (TOUJOURS VISIBLE)
+            calendarCard.classList.remove('hidden');
             
             updateWeekLabel();
             fetchAndRenderSlots();
@@ -533,94 +537,49 @@
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
         }
 
-        // 5. GESTION CONNEXION GOOGLE (CORRIGÉE : SCOPES & TOKEN)
-        const btnConnect = document.getElementById('connectGoogleBtn');
-        if (btnConnect) {
-            btnConnect.addEventListener('click', async () => {
-                localStorage.setItem('runcall_auth_pending', 'true');
-                
-                // On utilise une URL propre pour le retour
-                const cleanRedirect = window.location.origin + window.location.pathname;
+        // --- ACTIONS ---
 
-                const { data, error } = await sb.auth.signInWithOAuth({
-                    provider: 'google',
-                    options: { 
-                        redirectTo: cleanRedirect,
-                        // C'EST ICI LA CLÉ : On demande explicitement l'agenda
-                        scopes: 'https://www.googleapis.com/auth/calendar',
-                        queryParams: { 
-                            access_type: 'offline', // Pour avoir le refresh_token (longue durée)
-                            prompt: 'consent'       // FORCE Google à redemander les cases à cocher
-                        }
-                    }
-                });
-                
-                if (error) {
-                    alert("Erreur lors de la redirection Google : " + error.message);
-                    localStorage.removeItem('runcall_auth_pending');
+        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
+            localStorage.setItem('runcall_auth_pending', 'true');
+            const cleanRedirect = window.location.origin + window.location.pathname;
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { 
+                    redirectTo: cleanRedirect,
+                    scopes: 'https://www.googleapis.com/auth/calendar',
+                    queryParams: { access_type: 'offline', prompt: 'consent' }
                 }
             });
-        }
+        });
 
-        // GESTION DU RETOUR (CALLBACK)
-        // On vérifie si on revient d'une auth Google demandée par nous
-        if (localStorage.getItem('runcall_auth_pending') === 'true' && session) {
-            
-            // On ne sauvegarde que si on a bien reçu le token Provider (Google)
-            if (session.provider_token) {
-                console.log("📥 Réception des clés Google...");
-                
-                const { error: saveErr } = await sb.from('expert_google_accounts').upsert({
-                    expert_id: expertId,
-                    google_email: session.user.email,
-                    access_token: session.provider_token,
-                    refresh_token: session.provider_refresh_token, // Crucial !
-                    expiry_date: Date.now() + 3600 * 1000 
-                });
-
-                if (!saveErr) {
-                    hasCalendar = true; 
-                    // On force un rechargement propre pour nettoyer l'URL
-                    window.history.replaceState({}, document.title, window.location.pathname + "?expert_id=" + expertId);
-                } else {
-                    console.error("Erreur sauvegarde DB:", saveErr);
-                    alert("Erreur de sauvegarde de la connexion. Réessayez.");
-                }
-            }
-            
-            // Nettoyage
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: session.provider_token,
+                refresh_token: session.provider_refresh_token,
+                expiry_date: Date.now() + 3600 * 1000 
+            });
             localStorage.removeItem('runcall_auth_pending');
+            hasCalendar = true; 
         }
 
-        // BOUTON DIAGNOSTIC (TEMPORAIRE)
         document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('checkSlotsBtn');
-             btn.innerHTML = "Analyse...";
+             const originalText = btn.innerHTML;
+             btn.innerHTML = "Vérification...";
              btn.disabled = true;
              
-             // On appelle l'API manuellement sur la semaine en cours
-             const startOfWeek = getStartOfWeek(0); 
-             const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 14);
+             await updateHomeState(); 
              
-             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
-             
-             try {
-                 const res = await fetch(apiUrl);
-                 const data = await res.json();
-                 
-                 // ON AFFICHE LE RAPPORT BRUT DU MOUCHARD
-                 alert("🔍 RAPPORT TECHNIQUE :\n\n" + JSON.stringify(data, null, 2));
-                 
-                 if (data.slots && data.slots.length > 0) {
-                     hasSlots = true;
-                     updateHomeState();
-                 }
-                 
-             } catch (e) {
-                 alert("Erreur réseau : " + e.message);
+             if(!hasSlots) {
+                 const msg = lang==='fr' 
+                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
+                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
+                 alert(msg);
              }
              
-             btn.innerHTML = "🔄 Vérifier mes créneaux";
+             btn.innerHTML = originalText;
              btn.disabled = false;
         });
 
@@ -642,7 +601,7 @@
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER (AFFICHAGE V1) ---
+        // --- CALENDRIER (AFFICHAGE V1 + ANTI-CACHE) ---
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
@@ -672,7 +631,8 @@
 
             try {
                 const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 7);
-                const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
+                // AJOUT ANTI-CACHE ICI AUSSI
+                const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
                 const res = await fetch(apiUrl);
                 const response = await res.json();
                 const slots = Array.isArray(response) ? response : (response.slots || []);
