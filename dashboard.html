@@ -421,13 +421,13 @@
 
         if (!expertData) {
             const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-            const googlePhoto = session.user.user_metadata.avatar_url || "";
+            // PROPRE : On ne force pas la photo Google ici
             const { data: newExpert } = await sb.from('experts').insert([{
                 auth_user_id: session.user.id,
                 email: session.user.email,
                 name: googleName,
                 presentation: "",
-                photo_url: googlePhoto
+                photo_url: "" 
             }]).select().single();
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
@@ -441,22 +441,21 @@
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
             
-            // --- GESTION AVATAR (CORRIGÉE : Pas de Google par défaut) ---
+            // --- GESTION AVATAR PROPRE (Bleu par défaut) ---
             const topAvatar = document.getElementById('topAvatar');
             const previewAvatar = document.getElementById('previewAvatar');
-            // Image bleue par défaut
             const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
 
-            // On ne prend QUE la photo de la DB, on ignore Google
-            const avatarUrl = expertData.photo_url;
-            
-            if (avatarUrl && avatarUrl.trim() !== "") {
-                topAvatar.src = avatarUrl;
-                previewAvatar.src = avatarUrl;
-            } else {
-                topAvatar.src = blueAvatar;
-                previewAvatar.src = blueAvatar;
+            let finalAvatar = blueAvatar;
+
+            // On affiche la photo SEULEMENT si elle vient de la base de données (uploadée)
+            // On ignore volontairement l'avatar Google pour éviter le rond rouge
+            if (expertData.photo_url && expertData.photo_url.trim() !== "") {
+                finalAvatar = expertData.photo_url;
             }
+
+            topAvatar.src = finalAvatar;
+            previewAvatar.src = finalAvatar;
             topAvatar.style.display = 'block';
 
             document.getElementById('inputName').value = expertData.name || "";
@@ -464,6 +463,23 @@
             document.getElementById('inputPrice').value = expertData.price || "";
             document.getElementById('inputCurrency').value = expertData.currency || "usd";
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+        }
+
+        // --- PREVISUALISATION PHOTO (Le fix pour ton problème) ---
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        // Mise à jour immédiate des images
+                        document.getElementById('previewAvatar').src = ev.target.result;
+                        document.getElementById('topAvatar').src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
 
         // --- ONBOARDING LOGIC ---
@@ -480,15 +496,15 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
-        // --- FONCTIONS DATE "V1" ---
+        // --- FONCTIONS DATE ---
         let currentWeekOffset = 0;
         
         function getStartOfWeek(offset) {
             const d = new Date();
-            const day = d.getDay(); // 0 = Dimanche, 1 = Lundi
+            const day = d.getDay(); 
             const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
             d.setDate(diff);
-            d.setHours(0, 0, 0, 0); // Important : Minuit
+            d.setHours(0, 0, 0, 0); 
             return d;
         }
 
@@ -534,7 +550,7 @@
                 return;
             }
 
-            // 3. Paiements (NON BLOQUANT)
+            // 3. Paiements
             if (!hasStripe) {
                 stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -544,7 +560,7 @@
                 progressEl.classList.add('hidden'); 
             }
 
-            // 4. Terminé : Affichage Calendrier
+            // 4. Terminé
             calendarCard.classList.remove('hidden');
             
             updateWeekLabel();
@@ -598,21 +614,17 @@
              const originalText = btn.innerHTML;
              btn.innerHTML = "Vérification...";
              btn.disabled = true;
-             
              await updateHomeState(); 
-             
              if(!hasSlots) {
                  const msg = lang==='fr' 
                     ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
                     : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
                  alert(msg);
              }
-             
              btn.innerHTML = originalText;
              btn.disabled = false;
         });
 
-        // ACTION DU NOUVEAU BOUTON REFRESH
         document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('refreshSlotsBtn');
              btn.style.transform = "rotate(360deg)"; 
@@ -620,10 +632,8 @@
              await updateHomeState(); 
         });
 
-        // ACTION DU BOUTON COPIER HEADER (CORRIGÉE FILE://)
         document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
              let baseUrl = window.location.origin;
-             // Si on est en local (file://) ou que l'origine est nulle, on fallback sur la prod
              if (baseUrl === 'null' || baseUrl.startsWith('file:')) {
                  baseUrl = 'https://runcall.vercel.app';
              }
@@ -705,7 +715,7 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- NAVIGATION FLÈCHES (Déplacé ici pour être sûr qu'il est activé) ---
+        // --- NAVIGATION FLÈCHES ---
         const prevBtn = document.getElementById('prevWeek');
         const nextBtn = document.getElementById('nextWeek');
         
@@ -734,9 +744,10 @@
             });
         });
 
+        // INIT
         updateHomeState();
         
-        // --- SAUVEGARDE PROFIL ---
+        // --- SAUVEGARDE PROFIL (AVEC UPLOAD PHOTO) ---
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -751,28 +762,36 @@
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    let newPhotoUrl = expertData.photo_url;
-                    const fileInput = document.getElementById('avatarInput');
                     
+                    let newPhotoUrl = expertData.photo_url;
+                    
+                    // --- UPLOAD PHOTO ---
+                    const fileInput = document.getElementById('avatarInput');
                     if (fileInput && fileInput.files.length > 0) {
                         const file = fileInput.files[0];
                         const fileExt = file.name.split('.').pop();
                         const fileName = `${expertId}-${Date.now()}.${fileExt}`;
+                        
                         const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
                         if (uploadError) throw uploadError;
+                        
                         const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
                         newPhotoUrl = publicUrl;
                     }
+
                     const { error } = await sb.from('experts').update({
                         name: name,
                         presentation: bio,
                         price: priceVal,
                         currency: currencyVal,
-                        photo_url: newPhotoUrl,
+                        photo_url: newPhotoUrl, // On met à jour l'URL (vide ou nouvelle)
                         updated_at: new Date()
                     }).eq('id', expertId);
+                    
                     if (error) throw error;
                     alert("Profil mis à jour !");
+                    
+                    // Mise à jour de l'affichage local
                     document.getElementById('topTitle').textContent = name;
                     if(newPhotoUrl) {
                         document.getElementById('topAvatar').src = newPhotoUrl;
