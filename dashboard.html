@@ -559,23 +559,35 @@
             hasCalendar = true; 
         }
 
-        // BOUTON VÉRIFIER (Diagnostic)
+        // BOUTON DIAGNOSTIC (TEMPORAIRE)
         document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('checkSlotsBtn');
-             const originalText = btn.innerHTML;
-             btn.innerHTML = "Vérification...";
+             btn.innerHTML = "Analyse...";
              btn.disabled = true;
              
-             await updateHomeState(); 
+             // On appelle l'API manuellement sur la semaine en cours
+             const startOfWeek = getStartOfWeek(0); 
+             const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 14);
              
-             if(!hasSlots) {
-                 const msg = lang==='fr' 
-                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
-                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
-                 alert(msg);
+             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
+             
+             try {
+                 const res = await fetch(apiUrl);
+                 const data = await res.json();
+                 
+                 // ON AFFICHE LE RAPPORT BRUT DU MOUCHARD
+                 alert("🔍 RAPPORT TECHNIQUE :\n\n" + JSON.stringify(data, null, 2));
+                 
+                 if (data.slots && data.slots.length > 0) {
+                     hasSlots = true;
+                     updateHomeState();
+                 }
+                 
+             } catch (e) {
+                 alert("Erreur réseau : " + e.message);
              }
              
-             btn.innerHTML = originalText;
+             btn.innerHTML = "🔄 Vérifier mes créneaux";
              btn.disabled = false;
         });
 
