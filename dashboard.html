@@ -413,7 +413,9 @@
         // AUTH
         const { data: { session }, error: authError } = await sb.auth.getSession();
         if (authError || !session) { 
-            window.location.href = CONFIG.URLS.login; 
+            // .replace() remplace la page actuelle dans l'historique
+            // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
+            window.location.replace(CONFIG.URLS.login); 
             return; 
         }
         clearTimeout(safetyTimer);
