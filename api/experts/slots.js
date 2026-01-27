@@ -27,15 +27,19 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
 
+    const debugLog = { step: "Init", calendars_found: 0, events_scanned: 0, runcall_matches: 0, busy_events: 0 };
+
     try {
         const expertId = req.query.expert_id;
-        if (!expertId) return res.status(200).json([]);
+        if (!expertId) return res.status(200).json({ slots: [], debug: "No Expert ID" });
 
-        // 1. DATES (Logique V1 robuste)
+        // 1. DATES
         const now = new Date();
         const fromParam = req.query.from || now.toISOString();
         const from = new Date(fromParam);
-        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 jours par défaut
+        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+        debugLog.range = { from: from.toISOString(), to: to };
 
         // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
@@ -46,7 +50,7 @@ module.exports = async (req, res) => {
         });
         const rows = accRes.json();
         
-        if (!rows || !rows.length) return res.status(200).json([]); // Pas connecté
+        if (!rows || !rows.length) return res.status(200).json({ slots: [], debug: "Not connected in DB" });
         
         const account = rows[0];
         let { access_token, refresh_token, expiry_date } = account;
@@ -56,50 +60,35 @@ module.exports = async (req, res) => {
             if (refresh_token) {
                 const clientId = process.env.GOOGLE_CLIENT_ID;
                 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
                 if (clientId && clientSecret) {
                     const postData = new URLSearchParams({
-                        client_id: clientId,
-                        client_secret: clientSecret,
-                        refresh_token: refresh_token,
-                        grant_type: "refresh_token"
+                        client_id: clientId, client_secret: clientSecret, refresh_token: refresh_token, grant_type: "refresh_token"
                     }).toString();
-
                     const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                        body: postData
+                        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: postData
                     });
                     const refData = refRes.json();
-                    
                     if (refData && refData.access_token) {
                         access_token = refData.access_token;
-                        const newExpiry = Date.now() + (refData.expires_in * 1000);
-                        simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
-                            body: JSON.stringify({ access_token, expiry_date: newExpiry })
-                        });
                     } else {
-                        // DEBUG : Si le refresh échoue
-                        return res.status(400).json({ error: "Token Refresh Failed", google_response: refData });
+                        return res.status(200).json({ slots: [], debug: "Token Refresh Failed", google_error: refData });
                     }
                 }
             }
         }
 
-        // 4. SCAN GOOGLE CALENDAR
+        // 4. SCAN GOOGLE
         const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
         const calData = calRes.json();
 
-        // --- DEBUG CRITIQUE : Si erreur Google, on l'affiche ! ---
-        if (calData.error) {
-            return res.status(400).json({ error: "Google Calendar Error", details: calData.error });
-        }
+        if (calData.error) return res.status(200).json({ slots: [], debug: "Google List Error", error: calData.error });
 
         const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
+        debugLog.calendars_found = calendars.length;
+        debugLog.calendar_names = calendars.map(c => c.summary);
+
         const availRanges = [];
         const busyRanges = [];
 
@@ -110,36 +99,40 @@ module.exports = async (req, res) => {
 
             const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
             const evData = evRes.json();
-            
-            if (evData.error) {
-                console.warn("Error reading calendar " + cal.id, evData.error);
-                continue;
-            }
-
             const events = evData.items || [];
+            
+            debugLog.events_scanned += events.length;
 
             for (const ev of events) {
                 if (ev.status === 'cancelled') continue;
-                if (!ev.start.dateTime || !ev.end.dateTime) continue;
+                // Important: On gère les événements "Journée entière" (qui n'ont pas de dateTime mais 'date')
+                const startStr = ev.start.dateTime || ev.start.date;
+                const endStr = ev.end.dateTime || ev.end.date;
+                
+                if (!startStr || !endStr) continue;
 
-                const start = new Date(ev.start.dateTime);
-                const end = new Date(ev.end.dateTime);
+                const start = new Date(startStr);
+                const end = new Date(endStr);
                 const text = (ev.summary || "") + " " + (ev.description || "");
 
                 const isRunCall = /run[\s-]?call/i.test(text);
-                const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
                 
-                if (isBooking) busyRanges.push({ start, end });
-                else if (isRunCall) availRanges.push({ start, end });
-                else if (ev.transparency !== 'transparent') busyRanges.push({ start, end });
+                if (isRunCall) {
+                    debugLog.runcall_matches++;
+                    availRanges.push({ start, end });
+                } else if (ev.transparency !== 'transparent') {
+                    // C'est un événement occupé (pas runcall)
+                    debugLog.busy_events++;
+                    busyRanges.push({ start, end });
+                }
             }
         }
 
         // 5. SLICING
         const SLOT_MIN = 30;
         const slots = [];
-        // Filtre de sécurité basique (pas de créneau dans le passé immédiat)
-        const safeNow = new Date(Date.now() + 5 * 60000); 
+        // On enlève le filtre safeNow pour le test, on veut TOUT voir
+        // const safeNow = new Date(now.getTime() + 5 * 60000); 
 
         for (const range of availRanges) {
             let cursor = new Date(range.start.getTime());
@@ -149,13 +142,9 @@ module.exports = async (req, res) => {
                 const sStart = new Date(cursor);
                 const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
                 
-                if (sStart < safeNow) {
-                    cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
-                    continue;
-                }
-
                 let conflict = false;
                 for (const busy of busyRanges) {
+                    // Vérification stricte du conflit
                     if (sStart < busy.end && busy.start < sEnd) {
                         conflict = true; break;
                     }
@@ -166,18 +155,22 @@ module.exports = async (req, res) => {
             }
         }
 
-        slots.sort((a, b) => new Date(a.start) - new Date(b.start));
-        
         const unique = [];
         const seen = new Set();
         for (const s of slots) {
             const k = s.start + "|" + s.end;
             if (!seen.has(k)) { seen.add(k); unique.push(s); }
         }
+        
+        unique.sort((a, b) => new Date(a.start) - new Date(b.start));
 
-        return res.status(200).json(unique);
+        // ON RENVOIE LE RAPPORT DANS LA RÉPONSE
+        return res.status(200).json({ 
+            slots: unique, 
+            debug_info: debugLog 
+        });
 
     } catch (e) {
-        return res.status(500).json({ error: "Server Internal Error", message: e.message });
+        return res.status(200).json({ slots: [], debug: "CRASH", error: e.message });
     }
 };
