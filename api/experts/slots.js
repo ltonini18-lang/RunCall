@@ -33,11 +33,11 @@ module.exports = async (req, res) => {
 
         // 1. DATES & CONFIG
         const now = new Date();
-        const safeNow = new Date(now.getTime() + 5 * 60000); // Marge de sécurité 5 min
+        const safeNow = new Date(now.getTime() + 5 * 60000); // Marge 5 min
         
         const fromParam = req.query.from || now.toISOString();
         const from = new Date(fromParam);
-        const to = req.query.to || new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(); // 3 semaines
+        const to = req.query.to || new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString();
 
         // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
@@ -58,73 +58,64 @@ module.exports = async (req, res) => {
             if (refresh_token) {
                 const clientId = process.env.GOOGLE_CLIENT_ID;
                 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-                if (clientId && clientSecret) {
-                    const postData = new URLSearchParams({
-                        client_id: clientId, client_secret: clientSecret, refresh_token: refresh_token, grant_type: "refresh_token"
-                    }).toString();
-                    const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
-                        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: postData
+                const postData = new URLSearchParams({
+                    client_id: clientId, client_secret: clientSecret, refresh_token: refresh_token, grant_type: "refresh_token"
+                }).toString();
+                const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
+                    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: postData
+                });
+                const refData = refRes.json();
+                if (refData && refData.access_token) {
+                    access_token = refData.access_token;
+                    // Mise à jour DB silencieuse
+                    const newExpiry = Date.now() + (refData.expires_in * 1000);
+                    simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
+                        body: JSON.stringify({ access_token, expiry_date: newExpiry })
                     });
-                    const refData = refRes.json();
-                    if (refData && refData.access_token) {
-                        access_token = refData.access_token;
-                        const newExpiry = Date.now() + (refData.expires_in * 1000);
-                        simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
-                            body: JSON.stringify({ access_token, expiry_date: newExpiry })
-                        });
-                    }
                 }
             }
         }
 
-        // 4. SCAN GOOGLE CALENDAR
-        const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
-            headers: { 'Authorization': `Bearer ${access_token}` }
-        });
-        const calData = calRes.json();
-
-        // Gestion erreur Google explicite
-        if (calData.error) return res.status(400).json({ error: "Google API Error", details: calData.error });
-
-        const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
+        // 4. SCAN GOOGLE CALENDAR (VERSION CORRIGÉE : UNIQUEMENT 'PRIMARY')
+        // On ne liste plus tous les calendriers, on tape directement dans le principal.
+        // Cela fonctionne avec le scope "calendar.events"
         
         const availRanges = [];
         const busyRanges = [];
 
-        for (const cal of calendars) {
-            const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + 
-                `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
-                `&singleEvents=true&orderBy=startTime&showDeleted=false`; // showDeleted=false important pour éviter les fantômes
+        // On cible uniquement le calendrier 'primary'
+        const evUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?` + 
+            `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
+            `&singleEvents=true&orderBy=startTime&showDeleted=false`; 
 
-            const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
-            const evData = evRes.json();
-            const events = evData.items || [];
+        const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
+        const evData = evRes.json();
+        const events = evData.items || [];
 
-            for (const ev of events) {
-                if (ev.status === 'cancelled') continue; // Double sécurité anti-fantôme
-                
-                const startStr = ev.start.dateTime || ev.start.date;
-                const endStr = ev.end.dateTime || ev.end.date;
-                if (!startStr || !endStr) continue;
+        for (const ev of events) {
+            if (ev.status === 'cancelled') continue;
+            
+            const startStr = ev.start.dateTime || ev.start.date;
+            const endStr = ev.end.dateTime || ev.end.date;
+            if (!startStr || !endStr) continue;
 
-                const start = new Date(startStr);
-                const end = new Date(endStr);
-                const text = (ev.summary || "") + " " + (ev.description || "");
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            const text = (ev.summary || "") + " " + (ev.description || "");
 
-                const isRunCall = /run[\s-]?call/i.test(text);
-                const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
-                
-                if (isBooking) {
-                    busyRanges.push({ start, end });
-                } else if (isRunCall) {
-                    // C'est un créneau dispo brut (ex: 14h-18h)
-                    availRanges.push({ start, end });
-                } else if (ev.transparency !== 'transparent') {
-                    // C'est un conflit (dentiste, réunion...)
-                    busyRanges.push({ start, end });
-                }
+            const isRunCall = /run[\s-]?call/i.test(text);
+            const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
+            
+            if (isBooking) {
+                busyRanges.push({ start, end });
+            } else if (isRunCall) {
+                // Créneau de disponibilité
+                availRanges.push({ start, end });
+            } else if (ev.transparency !== 'transparent') {
+                // Conflit (RDV perso, Pro...)
+                busyRanges.push({ start, end });
             }
         }
 
@@ -136,21 +127,18 @@ module.exports = async (req, res) => {
             let cursor = new Date(range.start.getTime());
             const endMs = range.end.getTime();
 
-            // On découpe tant que la tranche de 30min rentre dans l'événement
             while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
                 const sStart = new Date(cursor);
                 const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
                 
-                // Filtre Anti-Passé (Important pour ton fantôme)
                 if (sStart < safeNow) {
                     cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
                     continue;
                 }
 
-                // Vérification des conflits
+                // Vérification conflits
                 let conflict = false;
                 for (const busy of busyRanges) {
-                    // Si le créneau chevauche un événement occupé
                     if (sStart < busy.end && busy.start < sEnd) {
                         conflict = true; break;
                     }
@@ -164,7 +152,7 @@ module.exports = async (req, res) => {
             }
         }
 
-        // Tri et Nettoyage des doublons
+        // Tri et Nettoyage
         slots.sort((a, b) => new Date(a.start) - new Date(b.start));
         
         const unique = [];
