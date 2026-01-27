@@ -441,17 +441,19 @@
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
             
-            // --- GESTION AVATAR INTELLIGENTE ---
-            const avatarUrl = expertData.photo_url || session.user.user_metadata.avatar_url;
+            // --- GESTION AVATAR (CORRIGÉE : Pas de Google par défaut) ---
             const topAvatar = document.getElementById('topAvatar');
             const previewAvatar = document.getElementById('previewAvatar');
+            // Image bleue par défaut
+            const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+
+            // On ne prend QUE la photo de la DB, on ignore Google
+            const avatarUrl = expertData.photo_url;
             
             if (avatarUrl && avatarUrl.trim() !== "") {
                 topAvatar.src = avatarUrl;
                 previewAvatar.src = avatarUrl;
             } else {
-                // FALLBACK : Image bleue par défaut (SVG Data URI)
-                const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
                 topAvatar.src = blueAvatar;
                 previewAvatar.src = blueAvatar;
             }
@@ -613,14 +615,19 @@
         // ACTION DU NOUVEAU BOUTON REFRESH
         document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('refreshSlotsBtn');
-             btn.style.transform = "rotate(360deg)"; // Petite animation
+             btn.style.transform = "rotate(360deg)"; 
              setTimeout(() => btn.style.transform = "none", 500);
              await updateHomeState(); 
         });
 
-        // ACTION DU BOUTON COPIER HEADER
+        // ACTION DU BOUTON COPIER HEADER (CORRIGÉE FILE://)
         document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
-             const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+             let baseUrl = window.location.origin;
+             // Si on est en local (file://) ou que l'origine est nulle, on fallback sur la prod
+             if (baseUrl === 'null' || baseUrl.startsWith('file:')) {
+                 baseUrl = 'https://runcall.vercel.app';
+             }
+             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
              navigator.clipboard.writeText(link);
              alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
@@ -651,6 +658,7 @@
             const lbl = document.getElementById('weekLabel');
             if(lbl) lbl.textContent = `${start.toLocaleDateString(locale, {day:'numeric', month:'short'})} - ${end.toLocaleDateString(locale, {day:'numeric', month:'short'})}`;
         }
+        
         async function fetchAndRenderSlots() {
             if (!expertId) return;
             const grid = document.getElementById('calendarGrid');
@@ -695,6 +703,25 @@
                     });
                 }
             } catch (e) { console.error(e); }
+        }
+
+        // --- NAVIGATION FLÈCHES (Déplacé ici pour être sûr qu'il est activé) ---
+        const prevBtn = document.getElementById('prevWeek');
+        const nextBtn = document.getElementById('nextWeek');
+        
+        if(prevBtn) {
+            prevBtn.addEventListener('click', () => { 
+                currentWeekOffset--; 
+                updateWeekLabel(); 
+                fetchAndRenderSlots(); 
+            });
+        }
+        if(nextBtn) {
+            nextBtn.addEventListener('click', () => { 
+                currentWeekOffset++; 
+                updateWeekLabel(); 
+                fetchAndRenderSlots(); 
+            });
         }
 
         document.querySelectorAll('.sb-item').forEach(item => {
