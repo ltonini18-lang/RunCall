@@ -332,51 +332,29 @@
             <div class="card-body">
                 <div class="flex items-center gap-2 mb-6">
                     <span style="font-size:1.5rem;">💸</span>
-                    <h2 class="title" style="margin:0;" 
-                        data-fr="Mes Revenus" 
-                        data-en="My Earnings">
-                        Mes Revenus
-                    </h2>
+                    <h2 class="title" style="margin:0;" data-fr="Mes Revenus" data-en="My Earnings">Mes Revenus</h2>
                 </div>
-                
                 <div id="payoutStatus" class="mb-6"></div>
-
                 <div id="setupZone" style="display:none;">
-                    <label class="block text-sm font-bold text-gray-700 mb-2" 
-                           data-fr="Pays de votre banque" 
-                           data-en="Bank country">
-                           Pays de votre banque
-                    </label>
-                    
+                    <label class="block text-sm font-bold text-gray-700 mb-2" data-fr="Pays de votre banque" data-en="Bank country">Pays de votre banque</label>
                     <select id="countrySelector" class="w-full p-3 border rounded mb-4 bg-white">
                         <option value="US">🇺🇸 United States</option>
-                        <option value="FR">🇫🇷 France</option>
+                        <option value="FR" selected>🇫🇷 France</option>
                         <option value="GB">🇬🇧 United Kingdom</option>
                         <option value="CH">🇨🇭 Switzerland</option>
                         <option value="CA">🇨🇦 Canada</option>
                     </select>
-
                     <button id="setupStripeBtn" class="btn-primary w-full" style="padding: 15px; font-size: 1.1rem;">
-                        <span data-fr="🏦 Configurer mes virements" data-en="🏦 Setup Payouts">
-                            🏦 Configurer mes virements
-                        </span>
+                        <span data-fr="🏦 Configurer mes virements" data-en="🏦 Setup Payouts">🏦 Configurer mes virements</span>
                     </button>
                 </div>
-
                 <div id="dashboardZone" style="display:none;">
                     <a href="#" id="accessStripeBtn" class="block w-full text-center bg-gray-100 text-gray-800 py-3 rounded font-bold hover:bg-gray-200">
-                        <span data-fr="Accéder à mon portail financier Stripe ↗" data-en="Access my Stripe Financial Portal ↗">
-                            Accéder à mon portail financier Stripe ↗
-                        </span>
+                        <span data-fr="Accéder à mon portail financier Stripe ↗" data-en="Access my Stripe Financial Portal ↗">Accéder à mon portail financier Stripe ↗</span>
                     </a>
                 </div>
-                
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-                    <p class="text-gray-400 text-sm" 
-                       data-fr="L'argent est viré automatiquement sur votre compte." 
-                       data-en="Money is automatically transferred to your account.">
-                       L'argent est viré automatiquement sur votre compte.
-                    </p>
+                    <p class="text-gray-400 text-sm" data-fr="L'argent est viré automatiquement sur votre compte." data-en="Money is automatically transferred to your account.">L'argent est viré automatiquement sur votre compte.</p>
                 </div>
             </div>
         </div>
@@ -390,7 +368,6 @@
 (async function() {
     console.log("🚀 Dashboard UX Unicorn init...");
 
-    // Protection anti-blocage (si le JS plante, on affiche quand même la page après 2s)
     const safetyTimer = setTimeout(() => {
         document.documentElement.classList.remove('auth-pending');
     }, 2000);
@@ -403,20 +380,19 @@
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // --- GESTION LANGUE ---
+        // LANGUE
         let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
             document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
-            // Update dynamique du titre de l'étape
             updateHomeState(); 
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- AUTHENTIFICATION ---
+        // AUTH
         const { data: { session }, error: authError } = await sb.auth.getSession();
         if (authError || !session) { 
             window.location.href = CONFIG.URLS.login; 
@@ -425,7 +401,7 @@
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
 
-        // --- CHARGEMENT EXPERT ---
+        // EXPERT
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
         let expertData = null;
 
@@ -434,7 +410,6 @@
             if (data) { expertData = data; expertId = data.id; }
         }
 
-        // Création auto si nouveau (récupère nom/photo Google)
         if (!expertData) {
             const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
             const googlePhoto = session.user.user_metadata.avatar_url || "";
@@ -448,14 +423,12 @@
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
-        // Mise à jour URL propre
         if(expertId) {
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
             window.history.pushState({}, '', newUrl);
         }
 
-        // --- REMPLISSAGE UI (Header, Profil) ---
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
             if(expertData.photo_url) {
@@ -470,28 +443,25 @@
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
 
-        // --- LOGIQUE D'ACTIVATION (LE COEUR DU SYSTEME) ---
+        // --- ONBOARDING LOGIC ---
         let hasCalendar = false;
         let hasSlots = false;
         let hasStripe = false;
 
-        // 1. Check Calendar (DB)
         const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
         hasCalendar = !!gAccount;
 
-        // 2. Check Stripe (API)
         try {
             const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
             const dataS = await resS.json();
             hasStripe = dataS.isComplete;
-        } catch(e) { console.error("Stripe check fail", e); }
+        } catch(e) { console.error("Stripe check", e); }
 
-        // --- ROUTEUR D'ETAPES ---
         async function updateHomeState() {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             const progressEl = document.getElementById('onboardingProgress');
             
-            // ETAPE 1 : CALENDRIER MANQUANT
+            // 1. Calendrier
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -499,14 +469,12 @@
                 return;
             }
 
-            // ETAPE 2 : CRÉNEAUX MANQUANTS ?
+            // 2. Créneaux (Vérification Standard 2 semaines)
             const now = new Date();
-            now.setHours(0, 0, 0, 0); // Début de journée
-            const nextWeek = new Date(now); 
-            nextWeek.setDate(now.getDate() + 60); // Recherche sur 60 jours !
+            const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 14);
             
-            // FIX ANTI-CACHE : On ajoute _t=${Date.now()}
-            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}&_t=${Date.now()}`;
+            // VERSION "SAFE" : Pas de _t, pas de 60 jours
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}`;
             
             try {
                 const resSlots = await fetch(apiUrl);
@@ -522,7 +490,7 @@
                 return;
             }
 
-            // ETAPE 3 : PAIEMENT MANQUANT
+            // 3. Paiements
             if (!hasStripe) {
                 document.getElementById('stateSetupPayouts').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -530,7 +498,7 @@
                 return;
             }
 
-            // 🎉 TOUT EST BON
+            // Terminé
             document.getElementById('stateCalendar').classList.remove('hidden');
             progressEl.classList.add('hidden'); 
             
@@ -538,7 +506,6 @@
             fetchAndRenderSlots();
         }
 
-        // Mise à jour visuelle de la barre
         function updateProgress(stepIndex, titleFr, titleEn) {
             const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
             dots.forEach((id, i) => {
@@ -551,9 +518,8 @@
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
         }
 
-        // --- ACTIONS (BOUTONS) ---
+        // --- ACTIONS ---
 
-        // A. Connexion Google
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             localStorage.setItem('runcall_auth_pending', 'true');
             await sb.auth.signInWithOAuth({
@@ -578,21 +544,24 @@
             hasCalendar = true; 
         }
 
-        // B. Bouton Vérifier Créneaux (Avec Feedback Visuel)
+        // BOUTON DEBUG : Affiche la vraie erreur si échec
         document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('checkSlotsBtn');
              const originalText = btn.innerHTML;
              btn.innerHTML = "Vérification...";
              btn.disabled = true;
              
-             // On force la mise à jour
-             await updateHomeState();
+             await updateHomeState(); 
              
-             // Feedback si toujours pas de créneaux
              if(!hasSlots) {
+                 // On refait l'appel pour afficher l'erreur exacte
+                 const now = new Date(); const nextWeek = new Date(now); nextWeek.setDate(now.getDate()+14);
+                 const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}`);
+                 const data = await res.json();
+                 
                  const msg = lang==='fr' 
-                    ? "⚠️ Aucun créneau trouvé sur les 60 prochains jours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' dans l'agenda connecté." 
-                    : "⚠️ No slots found in the next 60 days.\n\nMake sure you created a 'RunCall' event in the connected calendar.";
+                    ? "⚠️ Aucun créneau trouvé.\nRéponse du serveur: " + JSON.stringify(data).substring(0, 100)
+                    : "⚠️ No slots found.\nServer response: " + JSON.stringify(data).substring(0, 100);
                  alert(msg);
              }
              
@@ -600,7 +569,6 @@
              btn.disabled = false;
         });
 
-        // C. Setup Stripe
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
              btn.disabled = true; btn.innerText = "Chargement...";
@@ -613,14 +581,13 @@
              } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
         });
 
-        // D. Copier lien
         document.getElementById('copyLinkAction')?.addEventListener('click', () => {
             const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
             navigator.clipboard.writeText(link);
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER (AFFICHAGE) ---
+        // --- CALENDRIER ---
         let currentWeekOffset = 0;
         function getStartOfWeek(offset) {
             const d = new Date(); const day = d.getDay();
@@ -681,7 +648,6 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- NAVIGATION ONGLETS ---
         document.querySelectorAll('.sb-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -694,7 +660,6 @@
 
         updateHomeState();
         
-        // --- SAUVEGARDE PROFIL ---
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -703,14 +668,12 @@
                 const originalText = btn.textContent;
                 btn.textContent = "Sauvegarde...";
                 btn.disabled = true;
-
                 try {
                     const name = document.getElementById('inputName').value;
                     const bio = document.getElementById('inputBio').value;
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    
                     let newPhotoUrl = expertData.photo_url;
                     const fileInput = document.getElementById('avatarInput');
                     
@@ -723,7 +686,6 @@
                         const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
                         newPhotoUrl = publicUrl;
                     }
-
                     const { error } = await sb.from('experts').update({
                         name: name,
                         presentation: bio,
@@ -732,7 +694,6 @@
                         photo_url: newPhotoUrl,
                         updated_at: new Date()
                     }).eq('id', expertId);
-
                     if (error) throw error;
                     alert("Profil mis à jour !");
                     document.getElementById('topTitle').textContent = name;
@@ -745,7 +706,6 @@
             });
         }
         
-        // --- STATUS STRIPE (ONGLET PAIEMENTS) ---
         const payoutStatus = document.getElementById('payoutStatus');
         const setupZone = document.getElementById('setupZone');
         const dashboardZone = document.getElementById('dashboardZone');
