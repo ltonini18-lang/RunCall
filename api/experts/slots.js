@@ -27,17 +27,17 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
 
-    const debugLog = { step: "Start", error: null };
-
     try {
         const expertId = req.query.expert_id;
-        if (!expertId) return res.status(200).json({ slots: [], debug: "No Expert ID" });
+        if (!expertId) return res.status(200).json([]);
 
-        // 1. DATES
+        // 1. DATES & CONFIG
         const now = new Date();
+        const safeNow = new Date(now.getTime() + 5 * 60000); // Marge de sécurité 5 min
+        
         const fromParam = req.query.from || now.toISOString();
         const from = new Date(fromParam);
-        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const to = req.query.to || new Date(now.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(); // 3 semaines
 
         // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
@@ -48,13 +48,12 @@ module.exports = async (req, res) => {
         });
         const rows = accRes.json();
         
-        if (!rows || !rows.length) return res.status(200).json({ slots: [], debug: "Not connected in DB (No rows)" });
+        if (!rows || !rows.length) return res.status(200).json([]);
         
         const account = rows[0];
-        let { access_token, refresh_token, expiry_date, google_email } = account;
-        debugLog.email_in_db = google_email;
+        let { access_token, refresh_token, expiry_date } = account;
 
-        // 3. REFRESH TOKEN
+        // 3. REFRESH TOKEN (Si nécessaire)
         if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
             if (refresh_token) {
                 const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -69,45 +68,43 @@ module.exports = async (req, res) => {
                     const refData = refRes.json();
                     if (refData && refData.access_token) {
                         access_token = refData.access_token;
-                    } else {
-                        return res.status(200).json({ slots: [], debug: "Token Refresh Failed", google_error: refData });
+                        const newExpiry = Date.now() + (refData.expires_in * 1000);
+                        simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
+                            body: JSON.stringify({ access_token, expiry_date: newExpiry })
+                        });
                     }
                 }
             }
         }
 
-        // 4. SCAN GOOGLE
+        // 4. SCAN GOOGLE CALENDAR
         const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
         const calData = calRes.json();
 
-        if (calData.error) return res.status(200).json({ slots: [], debug: "Google API Error", google_error: calData.error });
+        // Gestion erreur Google explicite
+        if (calData.error) return res.status(400).json({ error: "Google API Error", details: calData.error });
 
         const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
         
-        // RAPPORT SUR LES CALENDRIERS TROUVÉS
-        debugLog.calendars_found = calendars.map(c => ({ id: c.id, summary: c.summary, primary: c.primary }));
-
         const availRanges = [];
-        debugLog.events_analyzed = 0;
-        debugLog.runcall_events_found = 0;
+        const busyRanges = [];
 
         for (const cal of calendars) {
-            // On ne scanne que le calendrier principal pour le test, ou ceux qui s'appellent "RunCall" ou qui contiennent l'email
-            // (Pour éviter de scanner 50 calendriers fériés)
             const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + 
                 `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
-                `&singleEvents=true&orderBy=startTime&showDeleted=false`;
+                `&singleEvents=true&orderBy=startTime&showDeleted=false`; // showDeleted=false important pour éviter les fantômes
 
             const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
             const evData = evRes.json();
             const events = evData.items || [];
-            
-            debugLog.events_analyzed += events.length;
 
             for (const ev of events) {
-                if (ev.status === 'cancelled') continue;
+                if (ev.status === 'cancelled') continue; // Double sécurité anti-fantôme
+                
                 const startStr = ev.start.dateTime || ev.start.date;
                 const endStr = ev.end.dateTime || ev.end.date;
                 if (!startStr || !endStr) continue;
@@ -117,21 +114,69 @@ module.exports = async (req, res) => {
                 const text = (ev.summary || "") + " " + (ev.description || "");
 
                 const isRunCall = /run[\s-]?call/i.test(text);
+                const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
                 
-                if (isRunCall) {
-                    debugLog.runcall_events_found++;
-                    availRanges.push({ start: start.toISOString(), end: end.toISOString(), calendar: cal.summary });
+                if (isBooking) {
+                    busyRanges.push({ start, end });
+                } else if (isRunCall) {
+                    // C'est un créneau dispo brut (ex: 14h-18h)
+                    availRanges.push({ start, end });
+                } else if (ev.transparency !== 'transparent') {
+                    // C'est un conflit (dentiste, réunion...)
+                    busyRanges.push({ start, end });
                 }
             }
         }
 
-        // On renvoie directement le rapport brut, sans calcul de slots pour l'instant
-        return res.status(200).json({ 
-            slots: availRanges, // On renvoie les événements bruts comme slots pour voir si on les attrape
-            debug_info: debugLog 
-        });
+        // 5. SLICING (Découpage en tranches de 30 min)
+        const SLOT_MIN = 30;
+        const slots = [];
+
+        for (const range of availRanges) {
+            let cursor = new Date(range.start.getTime());
+            const endMs = range.end.getTime();
+
+            // On découpe tant que la tranche de 30min rentre dans l'événement
+            while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
+                const sStart = new Date(cursor);
+                const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
+                
+                // Filtre Anti-Passé (Important pour ton fantôme)
+                if (sStart < safeNow) {
+                    cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
+                    continue;
+                }
+
+                // Vérification des conflits
+                let conflict = false;
+                for (const busy of busyRanges) {
+                    // Si le créneau chevauche un événement occupé
+                    if (sStart < busy.end && busy.start < sEnd) {
+                        conflict = true; break;
+                    }
+                }
+
+                if (!conflict) {
+                    slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
+                }
+                
+                cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
+            }
+        }
+
+        // Tri et Nettoyage des doublons
+        slots.sort((a, b) => new Date(a.start) - new Date(b.start));
+        
+        const unique = [];
+        const seen = new Set();
+        for (const s of slots) {
+            const k = s.start + "|" + s.end;
+            if (!seen.has(k)) { seen.add(k); unique.push(s); }
+        }
+
+        return res.status(200).json(unique);
 
     } catch (e) {
-        return res.status(200).json({ slots: [], debug: "CRASH", error: e.message });
+        return res.status(500).json({ error: "Server Error", message: e.message });
     }
 };
