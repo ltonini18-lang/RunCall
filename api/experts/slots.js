@@ -1,5 +1,3 @@
-// /api/experts/slots.js - VERSION DEBUG (ERROR REPORTING)
-
 const https = require('https');
 
 function simpleRequest(url, options = {}) {
@@ -33,13 +31,11 @@ module.exports = async (req, res) => {
         const expertId = req.query.expert_id;
         if (!expertId) return res.status(200).json([]);
 
-        // 1. CONFIGURATION TEMPORELLE
+        // 1. DATES (Logique V1 robuste)
         const now = new Date();
-        const safeNow = new Date(now.getTime() + 5 * 60000); // Marge 5 min
-
         const fromParam = req.query.from || now.toISOString();
         const from = new Date(fromParam);
-        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
+        const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 jours par défaut
 
         // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
@@ -55,7 +51,7 @@ module.exports = async (req, res) => {
         const account = rows[0];
         let { access_token, refresh_token, expiry_date } = account;
 
-        // 3. REFRESH TOKEN AUTOMATIQUE (AVEC DEBUG)
+        // 3. REFRESH TOKEN
         if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
             if (refresh_token) {
                 const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -76,47 +72,34 @@ module.exports = async (req, res) => {
                     });
                     const refData = refRes.json();
                     
-                    // --- MODIF 1 : Si le refresh échoue, on le dit ! ---
-                    if (!refData || refData.error) {
-                        console.error("Refresh Error:", refData);
-                        return res.status(400).json({ 
-                            error: "Google Token Refresh Failed", 
-                            details: refData 
-                        });
-                    }
-                    
                     if (refData && refData.access_token) {
                         access_token = refData.access_token;
                         const newExpiry = Date.now() + (refData.expires_in * 1000);
-                        // Mise à jour silencieuse
                         simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
                             method: "PATCH",
                             headers: { "Content-Type": "application/json", 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Prefer': 'return=minimal' },
                             body: JSON.stringify({ access_token, expiry_date: newExpiry })
                         });
+                    } else {
+                        // DEBUG : Si le refresh échoue
+                        return res.status(400).json({ error: "Token Refresh Failed", google_response: refData });
                     }
                 }
             }
         }
 
-        // 4. SCAN GOOGLE CALENDAR (AVEC DEBUG)
+        // 4. SCAN GOOGLE CALENDAR
         const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
         const calData = calRes.json();
 
-        // --- MODIF 2 : Si Google refuse l'accès, on renvoie l'erreur au Dashboard ---
-        if (calRes.status !== 200 || !calData.items) {
-            console.error("Google API Error:", calData);
-            return res.status(400).json({ 
-                error: "Google Calendar API Error", 
-                status: calRes.status,
-                details: calData 
-            });
+        // --- DEBUG CRITIQUE : Si erreur Google, on l'affiche ! ---
+        if (calData.error) {
+            return res.status(400).json({ error: "Google Calendar Error", details: calData.error });
         }
 
         const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
-
         const availRanges = [];
         const busyRanges = [];
 
@@ -128,10 +111,9 @@ module.exports = async (req, res) => {
             const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
             const evData = evRes.json();
             
-            // Si erreur sur un calendrier spécifique, on log mais on continue (pour ne pas bloquer les autres)
-            if(evRes.status !== 200) {
-                console.warn(`Skipping calendar ${cal.id}:`, evData);
-                continue; 
+            if (evData.error) {
+                console.warn("Error reading calendar " + cal.id, evData.error);
+                continue;
             }
 
             const events = evData.items || [];
@@ -144,7 +126,6 @@ module.exports = async (req, res) => {
                 const end = new Date(ev.end.dateTime);
                 const text = (ev.summary || "") + " " + (ev.description || "");
 
-                // Recherche souple ("RunCall", "runcall", "Run call")
                 const isRunCall = /run[\s-]?call/i.test(text);
                 const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
                 
@@ -157,6 +138,8 @@ module.exports = async (req, res) => {
         // 5. SLICING
         const SLOT_MIN = 30;
         const slots = [];
+        // Filtre de sécurité basique (pas de créneau dans le passé immédiat)
+        const safeNow = new Date(Date.now() + 5 * 60000); 
 
         for (const range of availRanges) {
             let cursor = new Date(range.start.getTime());
@@ -195,8 +178,6 @@ module.exports = async (req, res) => {
         return res.status(200).json(unique);
 
     } catch (e) {
-        console.error("API Critical Error", e);
-        // On renvoie l'erreur 500 explicite
-        return res.status(500).json({ error: "Internal Server Error", message: e.message });
+        return res.status(500).json({ error: "Server Internal Error", message: e.message });
     }
 };
