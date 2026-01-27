@@ -415,7 +415,7 @@
         if (authError || !session) { 
             // .replace() remplace la page actuelle dans l'historique
             // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
-            window.location.replace(CONFIG.URLS.login); 
+            window.location.replace("/"); 
             return; 
         }
         clearTimeout(safetyTimer);
