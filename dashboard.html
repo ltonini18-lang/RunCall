@@ -14,13 +14,13 @@
   <link rel="stylesheet" href="style.css" />
   
   <style>
-    /* --- DESIGN PREMIUM --- */
+    /* --- DESIGN SYSTEM --- */
     :root{
       --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
       --muted:#475569; --muted2:#64748b; --brand:#1677ff; 
       --shadow: 0 18px 40px rgba(15,23,42,.08); --radius:18px;
     }
-    body{ background:var(--bg); font-family: -apple-system, system-ui, sans-serif; }
+    body{ background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin:0; }
 
     .dash-shell{ display:flex; min-height: 100vh; }
     
@@ -48,7 +48,7 @@
     
     .dash-content{ max-width: 1100px; margin: 0 auto; padding: 24px 24px 60px; }
 
-    /* Cards Premium */
+    /* Cards */
     .card{ 
       background:var(--card); border:1px solid var(--border); border-radius:var(--radius); 
       overflow:hidden; box-shadow:var(--shadow); margin-bottom:24px; 
@@ -76,21 +76,17 @@
     .btn-primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
     .btn-primary:hover{ background:#0062eb; box-shadow:0 8px 20px rgba(22,119,255,0.25); }
     
-    .btn-google{ background:#fff; color:#374151; }
-
     /* Calendar Grid */
     .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:12px; margin-top:16px; }
     .day-col{ border:1px solid var(--border); border-radius:16px; min-height:220px; background:#fff; display:flex; flex-direction:column; overflow:hidden; }
     .day-head{ padding:10px; text-align:center; border-bottom:1px solid var(--border); font-weight:700; font-size:0.9rem; background:#f9fafb; color:var(--muted); }
     .slots{ padding:8px; display:flex; flex-direction:column; gap:6px; flex:1; background:#fff; }
     
-    /* Les Créneaux (Slots) */
     .slot{ 
         background:rgba(22,119,255,0.08); border:1px solid rgba(22,119,255,0.2); 
         padding:6px 8px; border-radius:8px; font-size:0.85rem; color:var(--brand); 
         font-weight:600; cursor:default;
     }
-    .slot.busy{ background:#f1f5f9; border-color:#e2e8f0; color:#94a3b8; text-decoration:line-through; }
 
     /* Forms */
     .form-group{ margin-bottom:16px; }
@@ -394,6 +390,7 @@
 (async function() {
     console.log("🚀 Dashboard UX Unicorn init...");
 
+    // Protection anti-blocage (si le JS plante, on affiche quand même la page après 2s)
     const safetyTimer = setTimeout(() => {
         document.documentElement.classList.remove('auth-pending');
     }, 2000);
@@ -406,7 +403,7 @@
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // LANGUE
+        // --- GESTION LANGUE ---
         let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
@@ -419,7 +416,7 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // AUTH
+        // --- AUTHENTIFICATION ---
         const { data: { session }, error: authError } = await sb.auth.getSession();
         if (authError || !session) { 
             window.location.href = CONFIG.URLS.login; 
@@ -428,7 +425,7 @@
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
 
-        // EXPERT LOAD / CREATE
+        // --- CHARGEMENT EXPERT ---
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
         let expertData = null;
 
@@ -437,6 +434,7 @@
             if (data) { expertData = data; expertId = data.id; }
         }
 
+        // Création auto si nouveau (récupère nom/photo Google)
         if (!expertData) {
             const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
             const googlePhoto = session.user.user_metadata.avatar_url || "";
@@ -450,12 +448,14 @@
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
+        // Mise à jour URL propre
         if(expertId) {
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
             window.history.pushState({}, '', newUrl);
         }
 
+        // --- REMPLISSAGE UI (Header, Profil) ---
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
             if(expertData.photo_url) {
@@ -470,28 +470,28 @@
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
 
-        // --- LOGIQUE D'ACTIVATION ---
+        // --- LOGIQUE D'ACTIVATION (LE COEUR DU SYSTEME) ---
         let hasCalendar = false;
         let hasSlots = false;
         let hasStripe = false;
 
-        // 1. Check Calendar
+        // 1. Check Calendar (DB)
         const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
         hasCalendar = !!gAccount;
 
-        // 2. Check Stripe
+        // 2. Check Stripe (API)
         try {
             const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
             const dataS = await resS.json();
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check fail", e); }
 
-        // --- ROUTEUR ---
+        // --- ROUTEUR D'ETAPES ---
         async function updateHomeState() {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             const progressEl = document.getElementById('onboardingProgress');
             
-            // ETAPE 1 : CALENDRIER
+            // ETAPE 1 : CALENDRIER MANQUANT
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -499,13 +499,13 @@
                 return;
             }
 
-            // ETAPE 2 : CRÉNEAUX
+            // ETAPE 2 : CRÉNEAUX MANQUANTS ?
             const now = new Date();
-            now.setHours(0, 0, 0, 0); 
+            now.setHours(0, 0, 0, 0); // Début de journée
             const nextWeek = new Date(now); 
             nextWeek.setDate(now.getDate() + 60); // Recherche sur 60 jours !
             
-            // FIX : Ajout du timestamp pour casser le cache navigateur
+            // FIX ANTI-CACHE : On ajoute _t=${Date.now()}
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}&_t=${Date.now()}`;
             
             try {
@@ -522,7 +522,7 @@
                 return;
             }
 
-            // ETAPE 3 : PAIEMENT
+            // ETAPE 3 : PAIEMENT MANQUANT
             if (!hasStripe) {
                 document.getElementById('stateSetupPayouts').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -530,7 +530,7 @@
                 return;
             }
 
-            // TOUT OK
+            // 🎉 TOUT EST BON
             document.getElementById('stateCalendar').classList.remove('hidden');
             progressEl.classList.add('hidden'); 
             
@@ -538,7 +538,7 @@
             fetchAndRenderSlots();
         }
 
-        // UPDATE UI BARRE
+        // Mise à jour visuelle de la barre
         function updateProgress(stepIndex, titleFr, titleEn) {
             const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
             dots.forEach((id, i) => {
@@ -551,7 +551,9 @@
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
         }
 
-        // ACTIONS
+        // --- ACTIONS (BOUTONS) ---
+
+        // A. Connexion Google
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             localStorage.setItem('runcall_auth_pending', 'true');
             await sb.auth.signInWithOAuth({
@@ -576,15 +578,29 @@
             hasCalendar = true; 
         }
 
-        document.getElementById('checkSlotsBtn')?.addEventListener('click', () => {
+        // B. Bouton Vérifier Créneaux (Avec Feedback Visuel)
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('checkSlotsBtn');
+             const originalText = btn.innerHTML;
              btn.innerHTML = "Vérification...";
-             setTimeout(() => {
-                 updateHomeState();
-                 btn.innerHTML = lang==='fr' ? "🔄 Vérifier mes créneaux" : "🔄 Check my slots";
-             }, 1500);
+             btn.disabled = true;
+             
+             // On force la mise à jour
+             await updateHomeState();
+             
+             // Feedback si toujours pas de créneaux
+             if(!hasSlots) {
+                 const msg = lang==='fr' 
+                    ? "⚠️ Aucun créneau trouvé sur les 60 prochains jours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' dans l'agenda connecté." 
+                    : "⚠️ No slots found in the next 60 days.\n\nMake sure you created a 'RunCall' event in the connected calendar.";
+                 alert(msg);
+             }
+             
+             btn.innerHTML = originalText;
+             btn.disabled = false;
         });
 
+        // C. Setup Stripe
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
              btn.disabled = true; btn.innerText = "Chargement...";
@@ -597,13 +613,14 @@
              } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
         });
 
+        // D. Copier lien
         document.getElementById('copyLinkAction')?.addEventListener('click', () => {
             const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
             navigator.clipboard.writeText(link);
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // CALENDRIER
+        // --- CALENDRIER (AFFICHAGE) ---
         let currentWeekOffset = 0;
         function getStartOfWeek(offset) {
             const d = new Date(); const day = d.getDay();
@@ -664,6 +681,7 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- NAVIGATION ONGLETS ---
         document.querySelectorAll('.sb-item').forEach(item => {
             item.addEventListener('click', () => {
                 document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
@@ -676,6 +694,7 @@
 
         updateHomeState();
         
+        // --- SAUVEGARDE PROFIL ---
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -691,6 +710,7 @@
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
+                    
                     let newPhotoUrl = expertData.photo_url;
                     const fileInput = document.getElementById('avatarInput');
                     
@@ -725,6 +745,7 @@
             });
         }
         
+        // --- STATUS STRIPE (ONGLET PAIEMENTS) ---
         const payoutStatus = document.getElementById('payoutStatus');
         const setupZone = document.getElementById('setupZone');
         const dashboardZone = document.getElementById('dashboardZone');
