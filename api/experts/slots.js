@@ -1,4 +1,4 @@
-// /api/experts/slots.js - VERSION FINALE (PROD)
+// /api/experts/slots.js - VERSION DEBUG (ERROR REPORTING)
 
 const https = require('https');
 
@@ -55,13 +55,12 @@ module.exports = async (req, res) => {
         const account = rows[0];
         let { access_token, refresh_token, expiry_date } = account;
 
-        // 3. REFRESH TOKEN AUTOMATIQUE
+        // 3. REFRESH TOKEN AUTOMATIQUE (AVEC DEBUG)
         if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
             if (refresh_token) {
                 const clientId = process.env.GOOGLE_CLIENT_ID;
                 const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-                // Si les variables sont bonnes (suite à ta correction), ça marchera ici
                 if (clientId && clientSecret) {
                     const postData = new URLSearchParams({
                         client_id: clientId,
@@ -77,6 +76,15 @@ module.exports = async (req, res) => {
                     });
                     const refData = refRes.json();
                     
+                    // --- MODIF 1 : Si le refresh échoue, on le dit ! ---
+                    if (!refData || refData.error) {
+                        console.error("Refresh Error:", refData);
+                        return res.status(400).json({ 
+                            error: "Google Token Refresh Failed", 
+                            details: refData 
+                        });
+                    }
+                    
                     if (refData && refData.access_token) {
                         access_token = refData.access_token;
                         const newExpiry = Date.now() + (refData.expires_in * 1000);
@@ -91,11 +99,22 @@ module.exports = async (req, res) => {
             }
         }
 
-        // 4. SCAN GOOGLE CALENDAR
+        // 4. SCAN GOOGLE CALENDAR (AVEC DEBUG)
         const calRes = await simpleRequest("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
             headers: { 'Authorization': `Bearer ${access_token}` }
         });
         const calData = calRes.json();
+
+        // --- MODIF 2 : Si Google refuse l'accès, on renvoie l'erreur au Dashboard ---
+        if (calRes.status !== 200 || !calData.items) {
+            console.error("Google API Error:", calData);
+            return res.status(400).json({ 
+                error: "Google Calendar API Error", 
+                status: calRes.status,
+                details: calData 
+            });
+        }
+
         const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
 
         const availRanges = [];
@@ -108,6 +127,13 @@ module.exports = async (req, res) => {
 
             const evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
             const evData = evRes.json();
+            
+            // Si erreur sur un calendrier spécifique, on log mais on continue (pour ne pas bloquer les autres)
+            if(evRes.status !== 200) {
+                console.warn(`Skipping calendar ${cal.id}:`, evData);
+                continue; 
+            }
+
             const events = evData.items || [];
 
             for (const ev of events) {
@@ -118,6 +144,7 @@ module.exports = async (req, res) => {
                 const end = new Date(ev.end.dateTime);
                 const text = (ev.summary || "") + " " + (ev.description || "");
 
+                // Recherche souple ("RunCall", "runcall", "Run call")
                 const isRunCall = /run[\s-]?call/i.test(text);
                 const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
                 
@@ -127,7 +154,7 @@ module.exports = async (req, res) => {
             }
         }
 
-        // 5. SLICING & FILTRE "ANTI-PASSÉ"
+        // 5. SLICING
         const SLOT_MIN = 30;
         const slots = [];
 
@@ -139,7 +166,6 @@ module.exports = async (req, res) => {
                 const sStart = new Date(cursor);
                 const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
                 
-                // --- FILTRE ICI ---
                 if (sStart < safeNow) {
                     cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
                     continue;
@@ -169,7 +195,8 @@ module.exports = async (req, res) => {
         return res.status(200).json(unique);
 
     } catch (e) {
-        console.error("API Error", e);
-        return res.status(200).json([]); 
+        console.error("API Critical Error", e);
+        // On renvoie l'erreur 500 explicite
+        return res.status(500).json({ error: "Internal Server Error", message: e.message });
     }
 };
