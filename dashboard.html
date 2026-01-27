@@ -181,7 +181,7 @@
             <div style="max-width:550px; margin:0 auto;">
                 <h2 class="title" style="margin-bottom:10px;" data-fr="Définis tes disponibilités" data-en="Set your availability"></h2>
                 <p class="subtitle" style="margin-bottom:30px;" 
-                   data-fr="RunCall ne voit aucun créneau pour l'instant. Ajoute des disponibilités dans ton agenda."
+                   data-fr="RunCall ne voit aucun créneau. Ajoute des disponibilités dans ton agenda."
                    data-en="RunCall doesn't see any slots yet. Add availability to your calendar.">
                 </p>
                 
@@ -386,6 +386,7 @@
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
             document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+            // Update dynamique du titre de l'étape
             updateHomeState(); 
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
@@ -445,6 +446,7 @@
 
         // --- ONBOARDING LOGIC ---
         let hasCalendar = false;
+        let hasSlots = false;
         let hasStripe = false;
 
         const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
@@ -456,37 +458,64 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
-        // --- LOGIQUE UNIFIÉE ---
-        // Le but : Afficher le calendrier dès que l'étape 1 est passée.
-        // On ne bloque plus l'utilisateur si l'API renvoie vide.
+        // --- FONCTIONS DATE "V1" (CELLES QUI MARCHAIENT) ---
+        let currentWeekOffset = 0;
         
+        function getStartOfWeek(offset) {
+            const d = new Date();
+            const day = d.getDay(); // 0 = Dimanche, 1 = Lundi
+            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0); // Important : Minuit
+            return d;
+        }
+
+        // --- MOTEUR DE VERIFICATION (STRICT ET SÉQUENTIEL) ---
         async function updateHomeState() {
             // Masquer tout par défaut
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             const progressEl = document.getElementById('onboardingProgress');
             
-            // ETAPE 1 : CALENDRIER MANQUANT (Toujours bloquant)
+            // 1. Calendrier (Priorité absolue)
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
                 updateProgress(0, "Connecte ton agenda", "Connect your calendar");
-                return;
+                return; // STOP ICI
             }
 
-            // AFFICHER LE CALENDRIER DIRECTEMENT (On débloque la vue)
-            // On affiche le calendrier, et au dessus, soit l'alerte "Step 2" soit "Step 3" selon l'état Stripe
+            // 2. Créneaux (Priorité 2)
+            const startOfWeek = getStartOfWeek(0);
+            const toDate = new Date(startOfWeek); 
+            toDate.setDate(toDate.getDate() + 7);
             
-            document.getElementById('stateCalendar').classList.remove('hidden');
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
             
-            // Gestion de l'état Stripe (Step 3)
+            try {
+                const resSlots = await fetch(apiUrl);
+                const dataSlots = await resSlots.json();
+                const slots = Array.isArray(dataSlots) ? dataSlots : (dataSlots.slots || []);
+                hasSlots = slots.length > 0;
+            } catch(err) { hasSlots = false; }
+
+            if (!hasSlots) {
+                document.getElementById('stateFirstSlots').classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                updateProgress(1, "Définis tes disponibilités", "Set your availability");
+                return; // STOP ICI : On ne passe pas à la suite si 0 créneaux
+            }
+
+            // 3. Paiements (Priorité 3)
             if (!hasStripe) {
                 document.getElementById('stateSetupPayouts').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
                 updateProgress(2, "Active les paiements", "Enable payouts");
-            } else {
-                // Tout est fini
-                progressEl.classList.add('hidden'); 
+                return; // STOP ICI
             }
+
+            // 4. Terminé (Affichage du Dashboard final)
+            document.getElementById('stateCalendar').classList.remove('hidden');
+            progressEl.classList.add('hidden'); 
             
             updateWeekLabel();
             fetchAndRenderSlots();
@@ -530,8 +559,25 @@
             hasCalendar = true; 
         }
 
-        // On enlève le listener "Check Slots" bloquant, car le calendrier est désormais visible
-        // Mais on peut garder un bouton de rafraichissement si besoin dans le futur.
+        // BOUTON VÉRIFIER (Diagnostic)
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             const originalText = btn.innerHTML;
+             btn.innerHTML = "Vérification...";
+             btn.disabled = true;
+             
+             await updateHomeState(); 
+             
+             if(!hasSlots) {
+                 const msg = lang==='fr' 
+                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
+                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
+                 alert(msg);
+             }
+             
+             btn.innerHTML = originalText;
+             btn.disabled = false;
+        });
 
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
@@ -552,16 +598,6 @@
         });
 
         // --- CALENDRIER (AFFICHAGE V1) ---
-        let currentWeekOffset = 0;
-        function getStartOfWeek(offset) {
-            const d = new Date();
-            const day = d.getDay(); // 0 = Dimanche, 1 = Lundi
-            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
-            d.setDate(diff);
-            d.setHours(0, 0, 0, 0); // Important : Minuit
-            return d;
-        }
-        
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
@@ -569,7 +605,6 @@
             const lbl = document.getElementById('weekLabel');
             if(lbl) lbl.textContent = `${start.toLocaleDateString(locale, {day:'numeric', month:'short'})} - ${end.toLocaleDateString(locale, {day:'numeric', month:'short'})}`;
         }
-        
         async function fetchAndRenderSlots() {
             if (!expertId) return;
             const grid = document.getElementById('calendarGrid');
@@ -615,12 +650,6 @@
                 }
             } catch (e) { console.error(e); }
         }
-
-        // Navigation Semaine
-        const prevBtn = document.getElementById('prevWeek');
-        const nextBtn = document.getElementById('nextWeek');
-        if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
-        if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
 
         document.querySelectorAll('.sb-item').forEach(item => {
             item.addEventListener('click', () => {
