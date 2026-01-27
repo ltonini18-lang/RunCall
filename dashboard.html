@@ -533,30 +533,63 @@
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
         }
 
-        // --- ACTIONS ---
+        // 5. GESTION CONNEXION GOOGLE (CORRIGÉE : SCOPES & TOKEN)
+        const btnConnect = document.getElementById('connectGoogleBtn');
+        if (btnConnect) {
+            btnConnect.addEventListener('click', async () => {
+                localStorage.setItem('runcall_auth_pending', 'true');
+                
+                // On utilise une URL propre pour le retour
+                const cleanRedirect = window.location.origin + window.location.pathname;
 
-        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            localStorage.setItem('runcall_auth_pending', 'true');
-            await sb.auth.signInWithOAuth({
-                provider: 'google',
-                options: { 
-                    redirectTo: window.location.href,
-                    scopes: 'https://www.googleapis.com/auth/calendar',
-                    queryParams: { access_type: 'offline', prompt: 'consent' }
+                const { data, error } = await sb.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: { 
+                        redirectTo: cleanRedirect,
+                        // C'EST ICI LA CLÉ : On demande explicitement l'agenda
+                        scopes: 'https://www.googleapis.com/auth/calendar',
+                        queryParams: { 
+                            access_type: 'offline', // Pour avoir le refresh_token (longue durée)
+                            prompt: 'consent'       // FORCE Google à redemander les cases à cocher
+                        }
+                    }
+                });
+                
+                if (error) {
+                    alert("Erreur lors de la redirection Google : " + error.message);
+                    localStorage.removeItem('runcall_auth_pending');
                 }
             });
-        });
+        }
 
-        if (localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
-            await sb.from('expert_google_accounts').upsert({
-                expert_id: expertId,
-                google_email: session.user.email,
-                access_token: session.provider_token,
-                refresh_token: session.provider_refresh_token,
-                expiry_date: Date.now() + 3600 * 1000 
-            });
+        // GESTION DU RETOUR (CALLBACK)
+        // On vérifie si on revient d'une auth Google demandée par nous
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && session) {
+            
+            // On ne sauvegarde que si on a bien reçu le token Provider (Google)
+            if (session.provider_token) {
+                console.log("📥 Réception des clés Google...");
+                
+                const { error: saveErr } = await sb.from('expert_google_accounts').upsert({
+                    expert_id: expertId,
+                    google_email: session.user.email,
+                    access_token: session.provider_token,
+                    refresh_token: session.provider_refresh_token, // Crucial !
+                    expiry_date: Date.now() + 3600 * 1000 
+                });
+
+                if (!saveErr) {
+                    hasCalendar = true; 
+                    // On force un rechargement propre pour nettoyer l'URL
+                    window.history.replaceState({}, document.title, window.location.pathname + "?expert_id=" + expertId);
+                } else {
+                    console.error("Erreur sauvegarde DB:", saveErr);
+                    alert("Erreur de sauvegarde de la connexion. Réessayez.");
+                }
+            }
+            
+            // Nettoyage
             localStorage.removeItem('runcall_auth_pending');
-            hasCalendar = true; 
         }
 
         // BOUTON DIAGNOSTIC (TEMPORAIRE)
