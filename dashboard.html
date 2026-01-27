@@ -386,6 +386,7 @@
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
             document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+            // Update dynamique du titre de l'étape
             updateHomeState(); 
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
@@ -457,7 +458,20 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
+        // --- FONCTIONS UTILITAIRES DE L'ANCIENNE VERSION ---
+        let currentWeekOffset = 0;
+        
+        function getStartOfWeek(offset) {
+            const d = new Date();
+            const day = d.getDay(); // 0 = Dimanche, 1 = Lundi
+            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0); // Reset heure minuit
+            return d;
+        }
+
         async function updateHomeState() {
+            // Masquer tout par défaut
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             const progressEl = document.getElementById('onboardingProgress');
             
@@ -469,12 +483,12 @@
                 return;
             }
 
-            // 2. Créneaux (Vérification Standard 2 semaines)
-            const now = new Date();
-            const nextWeek = new Date(now); nextWeek.setDate(now.getDate() + 14);
+            // 2. Créneaux (LOGIQUE RESTAURÉE DE L'ANCIENNE VERSION)
+            const startOfWeek = getStartOfWeek(0); // Semaine en cours
+            const toDate = new Date(startOfWeek); 
+            toDate.setDate(toDate.getDate() + 14); // On regarde sur 2 semaines, comme avant
             
-            // VERSION "SAFE" : Pas de _t, pas de 60 jours
-            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}`;
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
             
             try {
                 const resSlots = await fetch(apiUrl);
@@ -554,14 +568,9 @@
              await updateHomeState(); 
              
              if(!hasSlots) {
-                 // On refait l'appel pour afficher l'erreur exacte
-                 const now = new Date(); const nextWeek = new Date(now); nextWeek.setDate(now.getDate()+14);
-                 const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${now.toISOString()}&to=${nextWeek.toISOString()}`);
-                 const data = await res.json();
-                 
                  const msg = lang==='fr' 
-                    ? "⚠️ Aucun créneau trouvé.\nRéponse du serveur: " + JSON.stringify(data).substring(0, 100)
-                    : "⚠️ No slots found.\nServer response: " + JSON.stringify(data).substring(0, 100);
+                    ? "⚠️ Aucun créneau trouvé sur les 2 prochaines semaines.\n\nAssurez-vous d'avoir créé un événement 'RunCall' dans l'agenda connecté." 
+                    : "⚠️ No slots found in the next 2 weeks.\n\nMake sure you created a 'RunCall' event in the connected calendar.";
                  alert(msg);
              }
              
@@ -587,14 +596,7 @@
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER ---
-        let currentWeekOffset = 0;
-        function getStartOfWeek(offset) {
-            const d = new Date(); const day = d.getDay();
-            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
-            d.setDate(diff); d.setHours(0, 0, 0, 0);
-            return d;
-        }
+        // --- CALENDRIER (AFFICHAGE) ---
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
@@ -658,8 +660,10 @@
             });
         });
 
+        // INIT
         updateHomeState();
         
+        // --- SAUVEGARDE PROFIL ---
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -706,6 +710,7 @@
             });
         }
         
+        // --- PAYOUTS ---
         const payoutStatus = document.getElementById('payoutStatus');
         const setupZone = document.getElementById('setupZone');
         const dashboardZone = document.getElementById('dashboardZone');
