@@ -458,7 +458,7 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
-        // --- FONCTIONS UTILITAIRES DE L'ANCIENNE VERSION ---
+        // --- FONCTIONS DATE "V1" (CELLES QUI MARCHAIENT) ---
         let currentWeekOffset = 0;
         
         function getStartOfWeek(offset) {
@@ -466,10 +466,11 @@
             const day = d.getDay(); // 0 = Dimanche, 1 = Lundi
             const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
             d.setDate(diff);
-            d.setHours(0, 0, 0, 0); // Reset heure minuit
+            d.setHours(0, 0, 0, 0); // Important : Minuit
             return d;
         }
 
+        // --- MOTEUR DE VERIFICATION (V1 REPLIQUÉ) ---
         async function updateHomeState() {
             // Masquer tout par défaut
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -483,11 +484,15 @@
                 return;
             }
 
-            // 2. Créneaux (LOGIQUE RESTAURÉE DE L'ANCIENNE VERSION)
-            const startOfWeek = getStartOfWeek(0); // Semaine en cours
-            const toDate = new Date(startOfWeek); 
-            toDate.setDate(toDate.getDate() + 14); // On regarde sur 2 semaines, comme avant
+            // 2. Créneaux (UTILISATION STRICTE DE LA LOGIQUE V1)
+            // On calcule le début de la semaine en cours
+            const startOfWeek = getStartOfWeek(0);
             
+            // On regarde sur 7 jours (une semaine), exactement comme l'affichage calendrier V1
+            const toDate = new Date(startOfWeek); 
+            toDate.setDate(toDate.getDate() + 7);
+            
+            // URL "V1" (sans _t, sans 60 jours)
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}`;
             
             try {
@@ -569,8 +574,8 @@
              
              if(!hasSlots) {
                  const msg = lang==='fr' 
-                    ? "⚠️ Aucun créneau trouvé sur les 2 prochaines semaines.\n\nAssurez-vous d'avoir créé un événement 'RunCall' dans l'agenda connecté." 
-                    : "⚠️ No slots found in the next 2 weeks.\n\nMake sure you created a 'RunCall' event in the connected calendar.";
+                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE." 
+                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK.";
                  alert(msg);
              }
              
@@ -596,7 +601,7 @@
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER (AFFICHAGE) ---
+        // --- CALENDRIER (AFFICHAGE V1) ---
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
