@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
 
     if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
 
-    const debugLog = { step: "Init", calendars_found: 0, events_scanned: 0, runcall_matches: 0, busy_events: 0 };
+    const debugLog = { step: "Start", error: null };
 
     try {
         const expertId = req.query.expert_id;
@@ -39,8 +39,6 @@ module.exports = async (req, res) => {
         const from = new Date(fromParam);
         const to = req.query.to || new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        debugLog.range = { from: from.toISOString(), to: to };
-
         // 2. SUPABASE
         const SUPA_URL = process.env.SUPABASE_URL;
         const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,10 +48,11 @@ module.exports = async (req, res) => {
         });
         const rows = accRes.json();
         
-        if (!rows || !rows.length) return res.status(200).json({ slots: [], debug: "Not connected in DB" });
+        if (!rows || !rows.length) return res.status(200).json({ slots: [], debug: "Not connected in DB (No rows)" });
         
         const account = rows[0];
-        let { access_token, refresh_token, expiry_date } = account;
+        let { access_token, refresh_token, expiry_date, google_email } = account;
+        debugLog.email_in_db = google_email;
 
         // 3. REFRESH TOKEN
         if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
@@ -83,16 +82,20 @@ module.exports = async (req, res) => {
         });
         const calData = calRes.json();
 
-        if (calData.error) return res.status(200).json({ slots: [], debug: "Google List Error", error: calData.error });
+        if (calData.error) return res.status(200).json({ slots: [], debug: "Google API Error", google_error: calData.error });
 
         const calendars = (calData.items || []).filter(c => c.accessRole === 'owner' || c.accessRole === 'writer');
-        debugLog.calendars_found = calendars.length;
-        debugLog.calendar_names = calendars.map(c => c.summary);
+        
+        // RAPPORT SUR LES CALENDRIERS TROUVÉS
+        debugLog.calendars_found = calendars.map(c => ({ id: c.id, summary: c.summary, primary: c.primary }));
 
         const availRanges = [];
-        const busyRanges = [];
+        debugLog.events_analyzed = 0;
+        debugLog.runcall_events_found = 0;
 
         for (const cal of calendars) {
+            // On ne scanne que le calendrier principal pour le test, ou ceux qui s'appellent "RunCall" ou qui contiennent l'email
+            // (Pour éviter de scanner 50 calendriers fériés)
             const evUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?` + 
                 `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
                 `&singleEvents=true&orderBy=startTime&showDeleted=false`;
@@ -101,14 +104,12 @@ module.exports = async (req, res) => {
             const evData = evRes.json();
             const events = evData.items || [];
             
-            debugLog.events_scanned += events.length;
+            debugLog.events_analyzed += events.length;
 
             for (const ev of events) {
                 if (ev.status === 'cancelled') continue;
-                // Important: On gère les événements "Journée entière" (qui n'ont pas de dateTime mais 'date')
                 const startStr = ev.start.dateTime || ev.start.date;
                 const endStr = ev.end.dateTime || ev.end.date;
-                
                 if (!startStr || !endStr) continue;
 
                 const start = new Date(startStr);
@@ -118,55 +119,15 @@ module.exports = async (req, res) => {
                 const isRunCall = /run[\s-]?call/i.test(text);
                 
                 if (isRunCall) {
-                    debugLog.runcall_matches++;
-                    availRanges.push({ start, end });
-                } else if (ev.transparency !== 'transparent') {
-                    // C'est un événement occupé (pas runcall)
-                    debugLog.busy_events++;
-                    busyRanges.push({ start, end });
+                    debugLog.runcall_events_found++;
+                    availRanges.push({ start: start.toISOString(), end: end.toISOString(), calendar: cal.summary });
                 }
             }
         }
 
-        // 5. SLICING
-        const SLOT_MIN = 30;
-        const slots = [];
-        // On enlève le filtre safeNow pour le test, on veut TOUT voir
-        // const safeNow = new Date(now.getTime() + 5 * 60000); 
-
-        for (const range of availRanges) {
-            let cursor = new Date(range.start.getTime());
-            const endMs = range.end.getTime();
-
-            while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
-                const sStart = new Date(cursor);
-                const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
-                
-                let conflict = false;
-                for (const busy of busyRanges) {
-                    // Vérification stricte du conflit
-                    if (sStart < busy.end && busy.start < sEnd) {
-                        conflict = true; break;
-                    }
-                }
-
-                if (!conflict) slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
-                cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
-            }
-        }
-
-        const unique = [];
-        const seen = new Set();
-        for (const s of slots) {
-            const k = s.start + "|" + s.end;
-            if (!seen.has(k)) { seen.add(k); unique.push(s); }
-        }
-        
-        unique.sort((a, b) => new Date(a.start) - new Date(b.start));
-
-        // ON RENVOIE LE RAPPORT DANS LA RÉPONSE
+        // On renvoie directement le rapport brut, sans calcul de slots pour l'instant
         return res.status(200).json({ 
-            slots: unique, 
+            slots: availRanges, // On renvoie les événements bruts comme slots pour voir si on les attrape
             debug_info: debugLog 
         });
 
