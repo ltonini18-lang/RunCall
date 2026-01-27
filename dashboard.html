@@ -110,6 +110,10 @@
     .lang-switch button{ background:none; border:none; cursor:pointer; font-weight:700; color:var(--muted); opacity:0.5; }
     .lang-switch button.active{ opacity:1; color:var(--brand); }
     .step-subtitle { font-size: 0.9rem; color: var(--muted2); margin-top: 2px; font-weight: 500; }
+    
+    /* Helpers */
+    .w-full { width: 100%; }
+    .mb-4 { margin-bottom: 16px; }
 
     @media (max-width: 800px){
         .dash-sidebar{ display:none; }
@@ -363,8 +367,8 @@
                     </button>
                 </div>
                 <div id="dashboardZone" style="display:none;">
-                    <a href="#" id="accessStripeBtn" class="block w-full text-center bg-gray-100 text-gray-800 py-3 rounded font-bold hover:bg-gray-200">
-                        <span data-fr="Accéder à mon portail financier Stripe ↗" data-en="Access my Stripe Financial Portal ↗">Accéder à mon portail financier Stripe ↗</span>
+                    <a href="#" id="accessStripeBtn" class="btn" style="width:100%; justify-content:center; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">
+                        <span>Accéder à mon portail financier Stripe ↗</span>
                     </a>
                 </div>
                 <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
@@ -505,7 +509,7 @@
             return d;
         }
 
-        // --- MOTEUR DE VERIFICATION (FINAL) ---
+        // --- MOTEUR DE VERIFICATION ---
         async function updateHomeState() {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
@@ -513,7 +517,6 @@
             const stripeCard = document.getElementById('stateSetupPayouts');
             const calendarCard = document.getElementById('stateCalendar');
             
-            // Elements dynamiques du calendrier
             const activeBadge = document.getElementById('activeBadge');
             const subReady = document.getElementById('calSubtitleReady');
             const subPreview = document.getElementById('calSubtitlePreview');
@@ -522,6 +525,8 @@
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
                 updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
                 return;
             }
@@ -542,18 +547,19 @@
             if (!hasSlots) {
                 document.getElementById('stateFirstSlots').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
                 updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
                 return;
             }
 
             // 3. Paiements & Affichage
             if (!hasStripe) {
-                // MODE: EN COURS (Onboarding non terminé)
+                // MODE: EN COURS
                 stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
                 updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
                 
-                // Config Calendrier : Mode Aperçu
                 if(activeBadge) activeBadge.classList.add('hidden');
                 if(subReady) subReady.classList.add('hidden');
                 if(subPreview) subPreview.classList.remove('hidden');
@@ -563,13 +569,11 @@
                 stripeCard.classList.add('hidden');
                 progressEl.classList.add('hidden'); 
                 
-                // Config Calendrier : Mode Actif
                 if(activeBadge) activeBadge.classList.remove('hidden');
                 if(subReady) subReady.classList.remove('hidden');
                 if(subPreview) subPreview.classList.add('hidden');
             }
 
-            // Toujours afficher le calendrier à partir de l'étape 3
             calendarCard.classList.remove('hidden');
             
             updateWeekLabel();
@@ -778,7 +782,34 @@
             });
         }
         
+        // --- LOGIQUE PAYOUTS ---
+        const payoutStatus = document.getElementById('payoutStatus');
+        const setupZone = document.getElementById('setupZone');
+        const dashboardZone = document.getElementById('dashboardZone');
+        const accessBtn = document.getElementById('accessStripeBtn');
         const setupBtn = document.getElementById('setupStripeBtn');
+        const countrySel = document.getElementById('countrySelector');
+
+        async function checkStripeStatus() {
+             if (!expertId) return;
+             if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Checking...</p>`;
+             try {
+                const res = await fetch('/api/stripe/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expertId }) });
+                const data = await res.json();
+                if (data.isComplete) {
+                     if(payoutStatus) payoutStatus.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;"><strong>✅ Active</strong></div>`;
+                     if(setupZone) setupZone.style.display = 'none';
+                     if(dashboardZone) dashboardZone.style.display = 'block';
+                     if(accessBtn) accessBtn.onclick = (e) => { e.preventDefault(); window.location.href = data.url; };
+                } else {
+                     if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:10px;">Link bank account required.</p>`;
+                     if(setupZone) setupZone.style.display = 'block';
+                     if(dashboardZone) dashboardZone.style.display = 'none';
+                }
+             } catch (err) { console.error(err); }
+        }
+        checkStripeStatus();
+        
         if (setupBtn) {
             setupBtn.addEventListener('click', async () => {
                 const country = countrySel ? countrySel.value : 'US';
