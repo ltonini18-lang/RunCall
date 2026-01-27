@@ -76,7 +76,7 @@
     .btn-primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
     .btn-primary:hover{ background:#0062eb; box-shadow:0 8px 20px rgba(22,119,255,0.25); }
     
-    /* Petits boutons ronds (Refresh, Copy) */
+    /* Petits boutons ronds */
     .btn-icon {
         width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
         background: #fff; color: var(--muted); display: flex; align-items: center; justify-content: center;
@@ -250,15 +250,20 @@
         <div id="stateCalendar" class="card hidden">
             <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
                 <div>
-                    <div class="badge" style="background:#dcfce7; color:#166534; border-color:#86efac;">
+                    <div id="activeBadge" class="badge hidden" style="background:#dcfce7; color:#166534; border-color:#86efac;">
                         <span class="dot" style="background:#16a34a;"></span> 
                         <span data-fr="Compte Actif" data-en="Account Active"></span>
                     </div>
                     <h1 class="title" data-fr="Tes disponibilités" data-en="Your availability"></h1>
-                    <div class="subtitle" style="margin-top:5px; line-height:1.4;">
+                    
+                    <div id="calSubtitleReady" class="subtitle hidden" style="margin-top:5px; line-height:1.4;">
                         <div data-fr="Tout est prêt. Partage ton lien pour recevoir des réservations." data-en="Everything is ready. Share your link to receive bookings."></div>
                         <div style="font-size:0.9em; opacity:0.8;" data-fr="Ajoute, modifie, supprime des créneaux directement dans ton google agenda" data-en="Add, edit, remove slots directly in your Google Calendar"></div>
                     </div>
+                    <div id="calSubtitlePreview" class="subtitle hidden" style="margin-top:5px; line-height:1.4; color:var(--muted);">
+                        <div data-fr="Aperçu de vos disponibilités détectées." data-en="Preview of your detected availability."></div>
+                    </div>
+
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <a href="https://calendar.google.com/" target="_blank" class="btn">
@@ -421,7 +426,6 @@
 
         if (!expertData) {
             const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-            // PROPRE : On ne force pas la photo Google ici
             const { data: newExpert } = await sb.from('experts').insert([{
                 auth_user_id: session.user.id,
                 email: session.user.email,
@@ -441,15 +445,11 @@
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
             
-            // --- GESTION AVATAR PROPRE (Bleu par défaut) ---
             const topAvatar = document.getElementById('topAvatar');
             const previewAvatar = document.getElementById('previewAvatar');
             const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
 
             let finalAvatar = blueAvatar;
-
-            // On affiche la photo SEULEMENT si elle vient de la base de données (uploadée)
-            // On ignore volontairement l'avatar Google pour éviter le rond rouge
             if (expertData.photo_url && expertData.photo_url.trim() !== "") {
                 finalAvatar = expertData.photo_url;
             }
@@ -465,7 +465,7 @@
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
 
-        // --- PREVISUALISATION PHOTO (Le fix pour ton problème) ---
+        // PREVIEW PHOTO
         const avatarInput = document.getElementById('avatarInput');
         if (avatarInput) {
             avatarInput.addEventListener('change', (e) => {
@@ -473,7 +473,6 @@
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (ev) => {
-                        // Mise à jour immédiate des images
                         document.getElementById('previewAvatar').src = ev.target.result;
                         document.getElementById('topAvatar').src = ev.target.result;
                     };
@@ -482,7 +481,7 @@
             });
         }
 
-        // --- ONBOARDING LOGIC ---
+        // LOGIC
         let hasCalendar = false;
         let hasSlots = false;
         let hasStripe = false;
@@ -496,9 +495,7 @@
             hasStripe = dataS.isComplete;
         } catch(e) { console.error("Stripe check", e); }
 
-        // --- FONCTIONS DATE ---
         let currentWeekOffset = 0;
-        
         function getStartOfWeek(offset) {
             const d = new Date();
             const day = d.getDay(); 
@@ -508,21 +505,23 @@
             return d;
         }
 
-        // --- MOTEUR DE VERIFICATION ---
+        // --- MOTEUR DE VERIFICATION (FINAL) ---
         async function updateHomeState() {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
             const progressEl = document.getElementById('onboardingProgress');
-            const stepCounter = document.getElementById('stepCounter');
             const stripeCard = document.getElementById('stateSetupPayouts');
             const calendarCard = document.getElementById('stateCalendar');
             
+            // Elements dynamiques du calendrier
+            const activeBadge = document.getElementById('activeBadge');
+            const subReady = document.getElementById('calSubtitleReady');
+            const subPreview = document.getElementById('calSubtitlePreview');
+
             // 1. Calendrier
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
                 updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
                 return;
             }
@@ -533,7 +532,6 @@
             toDate.setDate(toDate.getDate() + 7);
             
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
-            
             try {
                 const resSlots = await fetch(apiUrl);
                 const dataSlots = await resSlots.json();
@@ -544,23 +542,34 @@
             if (!hasSlots) {
                 document.getElementById('stateFirstSlots').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
                 updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
                 return;
             }
 
-            // 3. Paiements
+            // 3. Paiements & Affichage
             if (!hasStripe) {
+                // MODE: EN COURS (Onboarding non terminé)
                 stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
                 updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
+                
+                // Config Calendrier : Mode Aperçu
+                if(activeBadge) activeBadge.classList.add('hidden');
+                if(subReady) subReady.classList.add('hidden');
+                if(subPreview) subPreview.classList.remove('hidden');
+
             } else {
+                // MODE: TERMINÉ
                 stripeCard.classList.add('hidden');
                 progressEl.classList.add('hidden'); 
+                
+                // Config Calendrier : Mode Actif
+                if(activeBadge) activeBadge.classList.remove('hidden');
+                if(subReady) subReady.classList.remove('hidden');
+                if(subPreview) subPreview.classList.add('hidden');
             }
 
-            // 4. Terminé
+            // Toujours afficher le calendrier à partir de l'étape 3
             calendarCard.classList.remove('hidden');
             
             updateWeekLabel();
@@ -577,12 +586,9 @@
             });
             const titleEl = document.getElementById('stepTitle');
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
-            
             const counterEl = document.getElementById('stepCounter');
             if(counterEl) counterEl.textContent = stepText;
         }
-
-        // --- ACTIONS ---
 
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             localStorage.setItem('runcall_auth_pending', 'true');
@@ -660,7 +666,6 @@
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER ---
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
@@ -715,24 +720,10 @@
             } catch (e) { console.error(e); }
         }
 
-        // --- NAVIGATION FLÈCHES ---
         const prevBtn = document.getElementById('prevWeek');
         const nextBtn = document.getElementById('nextWeek');
-        
-        if(prevBtn) {
-            prevBtn.addEventListener('click', () => { 
-                currentWeekOffset--; 
-                updateWeekLabel(); 
-                fetchAndRenderSlots(); 
-            });
-        }
-        if(nextBtn) {
-            nextBtn.addEventListener('click', () => { 
-                currentWeekOffset++; 
-                updateWeekLabel(); 
-                fetchAndRenderSlots(); 
-            });
-        }
+        if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
+        if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
 
         document.querySelectorAll('.sb-item').forEach(item => {
             item.addEventListener('click', () => {
@@ -744,10 +735,8 @@
             });
         });
 
-        // INIT
         updateHomeState();
         
-        // --- SAUVEGARDE PROFIL (AVEC UPLOAD PHOTO) ---
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -762,36 +751,23 @@
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    
                     let newPhotoUrl = expertData.photo_url;
                     
-                    // --- UPLOAD PHOTO ---
                     const fileInput = document.getElementById('avatarInput');
                     if (fileInput && fileInput.files.length > 0) {
                         const file = fileInput.files[0];
                         const fileExt = file.name.split('.').pop();
                         const fileName = `${expertId}-${Date.now()}.${fileExt}`;
-                        
                         const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
                         if (uploadError) throw uploadError;
-                        
                         const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
                         newPhotoUrl = publicUrl;
                     }
-
                     const { error } = await sb.from('experts').update({
-                        name: name,
-                        presentation: bio,
-                        price: priceVal,
-                        currency: currencyVal,
-                        photo_url: newPhotoUrl, // On met à jour l'URL (vide ou nouvelle)
-                        updated_at: new Date()
+                        name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
                     }).eq('id', expertId);
-                    
                     if (error) throw error;
                     alert("Profil mis à jour !");
-                    
-                    // Mise à jour de l'affichage local
                     document.getElementById('topTitle').textContent = name;
                     if(newPhotoUrl) {
                         document.getElementById('topAvatar').src = newPhotoUrl;
@@ -802,34 +778,7 @@
             });
         }
         
-        // --- PAYOUTS ---
-        const payoutStatus = document.getElementById('payoutStatus');
-        const setupZone = document.getElementById('setupZone');
-        const dashboardZone = document.getElementById('dashboardZone');
-        const accessBtn = document.getElementById('accessStripeBtn');
         const setupBtn = document.getElementById('setupStripeBtn');
-        const countrySel = document.getElementById('countrySelector');
-
-        async function checkStripeStatus() {
-             if (!expertId) return;
-             if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Checking...</p>`;
-             try {
-                const res = await fetch('/api/stripe/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expertId }) });
-                const data = await res.json();
-                if (data.isComplete) {
-                     if(payoutStatus) payoutStatus.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;"><strong>✅ Active</strong></div>`;
-                     if(setupZone) setupZone.style.display = 'none';
-                     if(dashboardZone) dashboardZone.style.display = 'block';
-                     if(accessBtn) accessBtn.onclick = (e) => { e.preventDefault(); window.location.href = data.url; };
-                } else {
-                     if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:10px;">Link bank account required.</p>`;
-                     if(setupZone) setupZone.style.display = 'block';
-                     if(dashboardZone) dashboardZone.style.display = 'none';
-                }
-             } catch (err) { console.error(err); }
-        }
-        checkStripeStatus();
-        
         if (setupBtn) {
             setupBtn.addEventListener('click', async () => {
                 const country = countrySel ? countrySel.value : 'US';
