@@ -76,6 +76,14 @@
     .btn-primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
     .btn-primary:hover{ background:#0062eb; box-shadow:0 8px 20px rgba(22,119,255,0.25); }
     
+    /* Petits boutons ronds (Refresh, Copy) */
+    .btn-icon {
+        width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+        background: #fff; color: var(--muted); display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all 0.2s;
+    }
+    .btn-icon:hover { color: var(--brand); border-color: var(--brand); background: #eff6ff; }
+
     /* Calendar Grid */
     .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:12px; margin-top:16px; }
     .day-col{ border:1px solid var(--border); border-radius:16px; min-height:220px; background:#fff; display:flex; flex-direction:column; overflow:hidden; }
@@ -101,6 +109,7 @@
     .hidden{ display:none !important; }
     .lang-switch button{ background:none; border:none; cursor:pointer; font-weight:700; color:var(--muted); opacity:0.5; }
     .lang-switch button.active{ opacity:1; color:var(--brand); }
+    .step-subtitle { font-size: 0.9rem; color: var(--muted2); margin-top: 2px; font-weight: 500; }
 
     @media (max-width: 800px){
         .dash-sidebar{ display:none; }
@@ -139,7 +148,10 @@
          <img id="topAvatar" class="avatar-preview" style="width:36px; height:36px;" src="" onerror="this.style.display='none'">
          <h2 id="topTitle" style="margin:0; font-size:1.1rem; font-weight:700;">Dashboard</h2>
       </div>
-      <div>
+      <div style="display:flex; gap: 8px; align-items: center;">
+         <button id="headerCopyBtn" class="btn-icon" title="Copier le lien de ma page">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+         </button>
          <a href="#" id="publicLinkBtn" target="_blank" class="btn">
              <span data-fr="Voir ma page ↗" data-en="View my page ↗"></span>
          </a>
@@ -154,6 +166,7 @@
             <div class="card-body" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
                 <div>
                     <h3 id="stepTitle" class="title" style="font-size:1.2rem; margin:0; font-weight:800;">Configuration...</h3>
+                    <div id="stepCounter" class="step-subtitle">Etape 1/3</div>
                 </div>
                 <div style="display:flex; gap:8px;">
                     <div id="step1-dot" class="dot" style="background:#e2e8f0; width:10px; height:10px;"></div>
@@ -181,8 +194,8 @@
             <div style="max-width:550px; margin:0 auto;">
                 <h2 class="title" style="margin-bottom:10px;" data-fr="Définis tes disponibilités" data-en="Set your availability"></h2>
                 <p class="subtitle" style="margin-bottom:30px;" 
-                   data-fr="RunCall ne voit aucun créneau. Ajoute des disponibilités dans ton agenda."
-                   data-en="RunCall doesn't see any slots. Add availability to your calendar.">
+                   data-fr="RunCall ne voit aucun créneau pour l'instant. Ajoute des disponibilités dans ton agenda."
+                   data-en="RunCall doesn't see any slots yet. Add availability to your calendar.">
                 </p>
                 
                 <div style="background:#f8fafc; border:1px dashed var(--border); border-radius:12px; padding:20px; margin-bottom:30px; text-align:left;">
@@ -193,10 +206,8 @@
                     <div style="display:flex; gap:15px; align-items:start; margin-bottom:12px;">
                         <div style="background:#fff; border:1px solid var(--border); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;">2</div>
                         <div style="font-size:0.95rem; line-height:1.4;">
-                             <span data-fr="Crée un événement nommé :" data-en="Create an event named:"></span><br>
-                             <strong style="color:var(--brand); background:rgba(22,119,255,0.1); padding:2px 6px; border-radius:4px;">RunCall</strong> 
-                             <span style="opacity:0.6; margin:0 4px;" data-fr="ou" data-en="or"></span> 
-                             <strong style="color:var(--brand); background:rgba(22,119,255,0.1); padding:2px 6px; border-radius:4px;">runcall dispo</strong>
+                             <span data-fr="Crée un événement avec écrit 'RunCall' dans le titre." data-en="Create an event with 'RunCall' written in the title."></span><br>
+                             <span style="opacity:0.6; font-size:0.9em;">(Ex: "RunCall" ou "RunCall dispo")</span>
                         </div>
                     </div>
                     <div style="display:flex; gap:15px; align-items:center;">
@@ -244,15 +255,17 @@
                         <span data-fr="Compte Actif" data-en="Account Active"></span>
                     </div>
                     <h1 class="title" data-fr="Tes disponibilités" data-en="Your availability"></h1>
-                    <p class="subtitle" data-fr="Tout est prêt. Partage ton lien pour recevoir des appels." 
-                       data-en="Everything is ready. Share your link to receive calls."></p>
+                    <div class="subtitle" style="margin-top:5px; line-height:1.4;">
+                        <div data-fr="Tout est prêt. Partage ton lien pour recevoir des réservations." data-en="Everything is ready. Share your link to receive bookings."></div>
+                        <div style="font-size:0.9em; opacity:0.8;" data-fr="Ajoute, modifie, supprime des créneaux directement dans ton google agenda" data-en="Add, edit, remove slots directly in your Google Calendar"></div>
+                    </div>
                 </div>
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex; gap:10px; align-items:center;">
                     <a href="https://calendar.google.com/" target="_blank" class="btn">
                         <span data-fr="Agenda Google ↗" data-en="Google Calendar ↗"></span>
                     </a>
-                    <button id="copyLinkAction" class="btn btn-primary">
-                        <span data-fr="Copier mon lien" data-en="Copy my link"></span>
+                    <button id="refreshSlotsBtn" class="btn-icon" title="Rafraîchir les créneaux">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                     </button>
                 </div>
             </div>
@@ -427,11 +440,23 @@
 
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
-            if(expertData.photo_url) {
-                document.getElementById('topAvatar').src = expertData.photo_url;
-                document.getElementById('topAvatar').style.display='block';
-                document.getElementById('previewAvatar').src = expertData.photo_url;
+            
+            // --- GESTION AVATAR INTELLIGENTE ---
+            const avatarUrl = expertData.photo_url || session.user.user_metadata.avatar_url;
+            const topAvatar = document.getElementById('topAvatar');
+            const previewAvatar = document.getElementById('previewAvatar');
+            
+            if (avatarUrl && avatarUrl.trim() !== "") {
+                topAvatar.src = avatarUrl;
+                previewAvatar.src = avatarUrl;
+            } else {
+                // FALLBACK : Image bleue par défaut (SVG Data URI)
+                const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+                topAvatar.src = blueAvatar;
+                previewAvatar.src = blueAvatar;
             }
+            topAvatar.style.display = 'block';
+
             document.getElementById('inputName').value = expertData.name || "";
             document.getElementById('inputBio').value = expertData.presentation || "";
             document.getElementById('inputPrice').value = expertData.price || "";
@@ -465,12 +490,12 @@
             return d;
         }
 
-        // --- MOTEUR DE VERIFICATION (CORRIGÉ & ANTI-CACHE) ---
+        // --- MOTEUR DE VERIFICATION ---
         async function updateHomeState() {
-            // Masquer tout par défaut
-            ['stateConnect', 'stateFirstSlots'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
             const progressEl = document.getElementById('onboardingProgress');
+            const stepCounter = document.getElementById('stepCounter');
             const stripeCard = document.getElementById('stateSetupPayouts');
             const calendarCard = document.getElementById('stateCalendar');
             
@@ -480,16 +505,15 @@
                 progressEl.classList.remove('hidden');
                 stripeCard.classList.add('hidden');
                 calendarCard.classList.add('hidden');
-                updateProgress(0, "Connecte ton agenda", "Connect your calendar");
+                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
                 return;
             }
 
-            // 2. Créneaux (Vérification ANTI-CACHE)
+            // 2. Créneaux
             const startOfWeek = getStartOfWeek(0);
             const toDate = new Date(startOfWeek); 
             toDate.setDate(toDate.getDate() + 7);
             
-            // L'AJOUT CRUCIAL : &_t=... pour forcer une nouvelle réponse
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
             
             try {
@@ -504,28 +528,28 @@
                 progressEl.classList.remove('hidden');
                 stripeCard.classList.add('hidden');
                 calendarCard.classList.add('hidden');
-                updateProgress(1, "Définis tes disponibilités", "Set your availability");
+                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
                 return;
             }
 
-            // 3. Paiements (NON BLOQUANT : Affiche le calendrier en dessous)
+            // 3. Paiements (NON BLOQUANT)
             if (!hasStripe) {
                 stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
-                updateProgress(2, "Active les paiements", "Enable payouts");
+                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
             } else {
                 stripeCard.classList.add('hidden');
                 progressEl.classList.add('hidden'); 
             }
 
-            // 4. Terminé : Affichage Calendrier (TOUJOURS VISIBLE)
+            // 4. Terminé : Affichage Calendrier
             calendarCard.classList.remove('hidden');
             
             updateWeekLabel();
             fetchAndRenderSlots();
         }
 
-        function updateProgress(stepIndex, titleFr, titleEn) {
+        function updateProgress(stepIndex, titleFr, titleEn, stepText) {
             const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
             dots.forEach((id, i) => {
                 const d = document.getElementById(id);
@@ -535,6 +559,9 @@
             });
             const titleEl = document.getElementById('stepTitle');
             if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
+            
+            const counterEl = document.getElementById('stepCounter');
+            if(counterEl) counterEl.textContent = stepText;
         }
 
         // --- ACTIONS ---
@@ -583,6 +610,21 @@
              btn.disabled = false;
         });
 
+        // ACTION DU NOUVEAU BOUTON REFRESH
+        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('refreshSlotsBtn');
+             btn.style.transform = "rotate(360deg)"; // Petite animation
+             setTimeout(() => btn.style.transform = "none", 500);
+             await updateHomeState(); 
+        });
+
+        // ACTION DU BOUTON COPIER HEADER
+        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
+             const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+             navigator.clipboard.writeText(link);
+             alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
+
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
              btn.disabled = true; btn.innerText = "Chargement...";
@@ -601,7 +643,7 @@
             alert(lang==='fr'?"Lien copié !":"Link copied!");
         });
 
-        // --- CALENDRIER (AFFICHAGE V1 + ANTI-CACHE) ---
+        // --- CALENDRIER ---
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
@@ -631,7 +673,6 @@
 
             try {
                 const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 7);
-                // AJOUT ANTI-CACHE ICI AUSSI
                 const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
                 const res = await fetch(apiUrl);
                 const response = await res.json();
@@ -666,7 +707,6 @@
             });
         });
 
-        // INIT
         updateHomeState();
         
         // --- SAUVEGARDE PROFIL ---
