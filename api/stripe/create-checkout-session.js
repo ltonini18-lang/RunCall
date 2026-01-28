@@ -96,8 +96,8 @@ module.exports = async function handler(req, res) {
             currency: currency,
             product_data: { 
                 // ✅ TES NOUVEAUX TEXTES ICI :
-                name: "Échange vidéo RunCall", 
-                description: `Avec ${expert.name || 'un membre RunCall'}` 
+                name: "Visio RunCall", 
+                description: `W ${expert.name || 'un membre RunCall'}` 
             },
             unit_amount: amountCents,
           },
