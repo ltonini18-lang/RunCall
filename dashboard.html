@@ -323,8 +323,8 @@
     <label class="label">
         <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
         <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
-              data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
-              data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
+              data-fr="(Laissez vide pour utiliser les prix par défaut : 29, 49 et 79)" 
+              data-en="(Leave empty to use default prices: 29, 49, and 79)">
         </span>
     </label>
 
@@ -339,19 +339,53 @@
         </select>
     </div>
 
-    <div id="priceSimulator" class="hidden" style="margin-top:12px; background:#f8fafc; padding:12px 16px; border-radius:12px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
-            <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
-            <span id="simTotal" style="font-weight:600;">--</span>
+    <div id="priceSimulator" style="margin-top:12px; background:#f8fafc; padding:12px 16px; border-radius:12px; border:1px solid var(--border);">
+        
+        <div id="simDefault">
+            <div style="margin-bottom:8px; font-size:0.85rem; color:var(--muted); font-weight:600;" 
+                 data-fr="Vos gains nets pour les prix par défaut :" 
+                 data-en="Your net earnings for default prices:">
+                 Vos gains nets pour les prix par défaut :
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:0.8rem; color:#64748b;">29 <span class="cur-sym">$</span></div>
+                    <div style="font-weight:700; color:#16a34a; font-size:0.95rem;">23.20 <span class="cur-sym">$</span></div>
+                </div>
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:0.8rem; color:#64748b;">49 <span class="cur-sym">$</span></div>
+                    <div style="font-weight:700; color:#16a34a; font-size:0.95rem;">39.20 <span class="cur-sym">$</span></div>
+                </div>
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 4px;">
+                    <div style="font-size:0.8rem; color:#64748b;">79 <span class="cur-sym">$</span></div>
+                    <div style="font-weight:700; color:#16a34a; font-size:0.95rem;">63.20 <span class="cur-sym">$</span></div>
+                </div>
+            </div>
+            <div style="margin-top:8px; font-size:0.75rem; color:#94a3b8; text-align:center;">
+                * Commission standard de 20%
+            </div>
         </div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
-            <span data-fr="Frais de plateforme (20%)" data-en="Platform fee (20%)">Frais de plateforme (20%)</span>
-            <span id="simFee">- --</span>
+
+        <div id="simCustom" class="hidden">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
+                <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
+                <span id="simTotal" style="font-weight:600;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
+                <span id="lblFeePct">Frais de plateforme (20%)</span>
+                <span id="simFee">- --</span>
+            </div>
+            
+            <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#d97706; margin-bottom:8px; text-align:right;">
+                🎉 Taux réduit activé !
+            </div>
+
+            <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
+                <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
+            </div>
         </div>
-        <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
-            <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
-        </div>
+
     </div>
 </div>
 
@@ -806,37 +840,86 @@
                 finally { btn.textContent = originalText; btn.disabled = false; }
             });
         }
-        // --- CALCULATEUR DYNAMIQUE PRIX ---
+        // --- CALCULATEUR DYNAMIQUE PRIX (Mode Hybride + Taux Dégressif) ---
     const priceInput = document.getElementById('inputPrice');
     const currencyInput = document.getElementById('inputCurrency');
-    const simulator = document.getElementById('priceSimulator');
+    const simDefault = document.getElementById('simDefault');
+    const simCustom = document.getElementById('simCustom');
+    
+    // Elements Custom
     const elTotal = document.getElementById('simTotal');
     const elFee = document.getElementById('simFee');
     const elNet = document.getElementById('simNet');
+    const lblFeePct = document.getElementById('lblFeePct'); // Le label "Frais (20%)"
+    const msgSuccess = document.getElementById('rateSuccessMsg');
 
     function updateSimulation() {
         const val = parseFloat(priceInput.value);
-        if(!val || val <= 0) {
-            simulator.classList.add('hidden');
-            return;
-        }
-        simulator.classList.remove('hidden');
-
+        
         // Récupération symbole devise
         const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
         const sym = curMap[currencyInput.value] || '$';
 
-        const fee = val * 0.20;
-        const net = val - fee;
+        // Mise à jour des symboles dans le tableau par défaut (si présent)
+        document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
 
-        elTotal.textContent = `${val} ${sym}`;
-        elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
-        elNet.textContent = `${net.toFixed(2)} ${sym}`;
+        // LOGIQUE D'AFFICHAGE
+        if(!val || val <= 0) {
+            // Mode Défaut (Affiche le tableau 29/49/79)
+            if(simDefault) simDefault.classList.remove('hidden');
+            if(simCustom) simCustom.classList.add('hidden');
+        } else {
+            // Mode Custom
+            if(simDefault) simDefault.classList.add('hidden');
+            if(simCustom) simCustom.classList.remove('hidden');
+
+            // --- LOGIQUE DEGRESSIVE (GAMIFICATION) ---
+            let rate = 0.20; // Base
+            let rateText = "20%";
+
+            if (val > 200) {
+                rate = 0.10;
+                rateText = "10%";
+            } else if (val > 100) {
+                rate = 0.15;
+                rateText = "15%";
+            }
+
+            // Calcul
+            const fee = val * rate;
+            const net = val - fee;
+
+            // Mise à jour textes
+            elTotal.textContent = `${val} ${sym}`;
+            elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+            elNet.textContent = `${net.toFixed(2)} ${sym}`;
+            
+            // Mise à jour du label de pourcentage
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+            if(lblFeePct) {
+                lblFeePct.textContent = isFr 
+                    ? `Frais de plateforme (${rateText})` 
+                    : `Platform fee (${rateText})`;
+            }
+
+            // Petit message de succès si taux réduit
+            if (msgSuccess) {
+                if (rate < 0.20) {
+                    msgSuccess.classList.remove('hidden');
+                    msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
+                    elNet.style.color = "#d97706"; // Orange doré pour féliciter
+                } else {
+                    msgSuccess.classList.add('hidden');
+                    elNet.style.color = "#16a34a"; // Vert standard
+                }
+            }
+        }
     }
 
     if(priceInput) priceInput.addEventListener('input', updateSimulation);
     if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
-    // On lance une fois au cas où il y a déjà un prix
+    
+    // Init
     setTimeout(updateSimulation, 800);
         // --- LOGIQUE PAYOUTS ---
         const payoutStatus = document.getElementById('payoutStatus');
