@@ -234,7 +234,7 @@
         <div id="stateSetupPayouts" class="card hidden" style="text-align:center; padding:50px 20px; border-left:4px solid var(--brand); background:#f0f9ff;">
              <h2 class="title" data-fr="Active les paiements" data-en="Enable Payouts"></h2>
              <p class="subtitle" style="max-width:450px; margin:0 auto 30px;"
-                data-fr="Dernière étape ! Connecte ton compte bancaire pour recevoir tes gains."
+                data-fr="Dernière étape ! Connecte ton compte bancaire pour recevoir tes revenus."
                 data-en="Last step! Connect your bank account to receive earnings.">
              </p>
              <div style="max-width:300px; margin:0 auto;">
@@ -343,7 +343,7 @@
         
         <div id="simDefault">
             <div id="toggleDefaultBtn" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#64748b; font-size:0.85rem; user-select:none;">
-                <span data-fr="Voir mes gains nets pour les prix par défaut" data-en="See net earnings for default prices">Voir mes gains nets pour les prix par défaut</span>
+                <span data-fr="Voir mes revenus nets pour les prix par défaut" data-en="See net earnings for default prices">Voir mes revenus nets pour les prix par défaut</span>
                 <svg id="arrowDefault" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </div>
 
@@ -379,7 +379,7 @@
                 <span id="lblFeePct">Frais de plateforme (20%)</span>
                 <span id="simFee">- --</span>
             </div>
-            <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#d97706; margin-bottom:8px; text-align:right;">
+            <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#16a34a; margin-bottom:8px; text-align:right;">
                 🎉 Taux réduit activé !
             </div>
             <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
@@ -924,7 +924,8 @@
                 if (rate < 0.20) {
                     msgSuccess.classList.remove('hidden');
                     msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
-                    elNet.style.color = "#d97706"; 
+                    // MODIF ICI : Je mets le vert (#16a34a) au lieu de l'orange
+                    elNet.style.color = "#16a34a"; 
                 } else {
                     msgSuccess.classList.add('hidden');
                     elNet.style.color = "#16a34a"; 
