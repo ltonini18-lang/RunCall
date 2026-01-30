@@ -790,15 +790,41 @@
         if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
         if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
 
-        document.querySelectorAll('.sb-item').forEach(item => {
-            item.addEventListener('click', () => {
-                document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-                ['viewHome','viewProfile','viewPayouts'].forEach(v => document.getElementById(v).classList.add('hidden'));
-                const t = item.dataset.tab;
-                document.getElementById(t === 'home' ? 'viewHome' : (t === 'profile' ? 'viewProfile' : 'viewPayouts')).classList.remove('hidden');
+        // --- GESTION DES ONGLETS (Instantanée & Sans saut) ---
+        function switchTab(tabName) {
+            // 1. Sauvegarde en mémoire
+            localStorage.setItem('runcall_last_tab', tabName);
+
+            // 2. Gestion Menu (Mise à jour visuelle des boutons)
+            document.querySelectorAll('.sb-item').forEach(i => {
+                const isActive = i.dataset.tab === tabName;
+                i.classList.toggle('active', isActive);
             });
+
+            // 3. Gestion Vues (Cacher tout, montrer la cible)
+            ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => {
+                document.getElementById(v).classList.add('hidden');
+            });
+
+            let targetId = 'viewHome'; // Défaut
+            if (tabName === 'profile') targetId = 'viewProfile';
+            if (tabName === 'payouts') targetId = 'viewPayouts';
+
+            const targetEl = document.getElementById(targetId);
+            if(targetEl) targetEl.classList.remove('hidden');
+        }
+
+        // A. Écouteurs de clics (Quand l'utilisateur clique)
+        document.querySelectorAll('.sb-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
         });
+
+        // B. Restauration IMMÉDIATE (Le secret pour éviter le saut)
+        // On lit la mémoire tout de suite. Si rien en mémoire, on met 'home'.
+        const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
+        
+        // On applique la vue immédiatement
+        switchTab(savedTab);
 
         updateHomeState();
         
@@ -980,22 +1006,7 @@
         }
 
     } catch (err) { console.error("DASH ERROR", err); }
-  // --- MEMOIRE DES ONGLETS (Pour rester sur la page après refresh) ---
-        const tabHome = document.querySelector('.sb-item[data-tab="home"]');
-        const tabProfile = document.querySelector('.sb-item[data-tab="profile"]');
-        const tabPayouts = document.querySelector('.sb-item[data-tab="payouts"]');
-
-        function saveTabState(tabName) { localStorage.setItem('runcall_last_tab', tabName); }
-
-        if (tabHome) tabHome.addEventListener('click', () => saveTabState('home'));
-        if (tabProfile) tabProfile.addEventListener('click', () => saveTabState('profile'));
-        if (tabPayouts) tabPayouts.addEventListener('click', () => saveTabState('payouts'));
-
-        setTimeout(() => {
-            const lastTab = localStorage.getItem('runcall_last_tab');
-            if (lastTab === 'profile' && tabProfile) tabProfile.click();
-            else if (lastTab === 'payouts' && tabPayouts) tabPayouts.click();
-        }, 100);
+  
 })();
 </script>
 </body>
