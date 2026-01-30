@@ -1,6 +1,6 @@
 const https = require('https');
 
-// Helper : Promisify https.request
+// 1. Helper pour faire des requêtes HTTPS propres (Promisified)
 function simpleRequest(url, options = {}) {
     return new Promise((resolve, reject) => {
         const req = https.request(new URL(url), {
@@ -11,8 +11,7 @@ function simpleRequest(url, options = {}) {
             res.on('data', c => data += c);
             res.on('end', () => resolve({
                 json: () => { try { return JSON.parse(data) } catch(e) { return null } },
-                status: res.statusCode,
-                headers: res.headers
+                status: res.statusCode
             }));
         });
         req.on('error', reject);
@@ -21,15 +20,19 @@ function simpleRequest(url, options = {}) {
     });
 }
 
-// Helper : Refresh Token Logic (Factorisée pour être réutilisable)
+// 2. Fonction dédiée pour rafraîchir le token (Séparée pour être réutilisée)
 async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseKey) {
     if (!refreshToken) return null;
     
-    console.log("🔄 Refreshing Token for Expert:", expertId);
-    
+    // On récupère les clés d'environnement (Vercel)
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     
+    if (!clientId || !clientSecret) {
+        console.error("❌ MISSING ENV VARS: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
+        return null;
+    }
+
     const postData = new URLSearchParams({
         client_id: clientId, 
         client_secret: clientSecret, 
@@ -37,6 +40,7 @@ async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseK
         grant_type: "refresh_token"
     }).toString();
 
+    // Demande à Google
     const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
         method: "POST", 
         headers: { "Content-Type": "application/x-www-form-urlencoded" }, 
@@ -47,7 +51,8 @@ async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseK
     
     if (refData && refData.access_token) {
         const newExpiry = Date.now() + (refData.expires_in * 1000);
-        // Mise à jour DB (on attend la réponse pour être sûr)
+        
+        // Sauvegarde immédiate dans Supabase
         await simpleRequest(`${supabaseUrl}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
             method: "PATCH",
             headers: { 
@@ -58,7 +63,7 @@ async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseK
             },
             body: JSON.stringify({ access_token: refData.access_token, expiry_date: newExpiry })
         });
-        console.log("✅ Token Refreshed & Saved");
+        
         return refData.access_token;
     }
     
@@ -67,7 +72,7 @@ async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseK
 }
 
 module.exports = async (req, res) => {
-    // Headers CORS
+    // Headers CORS pour autoriser le Dashboard
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -78,11 +83,11 @@ module.exports = async (req, res) => {
         const expertId = req.query.expert_id;
         if (!expertId) return res.status(200).json([]);
 
-        // 1. CONFIG ENV
+        // Config Supabase
         const SUPA_URL = process.env.SUPABASE_URL;
         const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-        // 2. RECUPERATION DU COMPTE
+        // 1. On récupère le compte en base
         const accRes = await simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}&limit=1`, {
             headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
         });
@@ -93,14 +98,13 @@ module.exports = async (req, res) => {
         const account = rows[0];
         let { access_token, refresh_token, expiry_date } = account;
 
-        // 3. VERIFICATION EXPIRATION (PREVENTIVE)
-        // Si expire dans moins de 2 minutes, on refresh avant même d'essayer
-        if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 120000)) {
+        // 2. Refresh Préventif (Si la date en base dit que c'est périmé)
+        if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
             const newToken = await refreshGoogleToken(refresh_token, expertId, SUPA_URL, SUPA_KEY);
             if (newToken) access_token = newToken;
         }
 
-        // 4. APPEL GOOGLE CALENDAR (AVEC RETRY AUTOMATIQUE)
+        // 3. Appel Google Calendar
         const fromParam = req.query.from || new Date().toISOString();
         const from = new Date(fromParam);
         const to = req.query.to || new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString();
@@ -111,33 +115,35 @@ module.exports = async (req, res) => {
 
         let evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
         
-        // --- LA SECURITE ULTIME : LE RETRY 401 ---
-        // Si Google nous jette (401 Unauthorized), c'est que le token est mort, même si expiry_date disait le contraire.
+        // --- LE FILET DE SÉCURITÉ (C'est ça qui manquait !) ---
+        // Si Google dit "401 Unauthorized", c'est que le token est mort, peu importe la date en base.
+        // On force le refresh et on réessaie UNE fois.
         if (evRes.status === 401 && refresh_token) {
-            console.warn("⚠️ 401 from Google. Forcing refresh...");
+            console.log("⚠️ Token rejected by Google (401). Forcing refresh...");
             const freshToken = await refreshGoogleToken(refresh_token, expertId, SUPA_URL, SUPA_KEY);
             if (freshToken) {
-                // On réessaie UNE fois avec le nouveau token
+                // Retry avec le nouveau token tout neuf
                 evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${freshToken}` } });
             }
         }
+        // -----------------------------------------------------
 
         if (evRes.status !== 200) {
-            // Si ça plante toujours, on renvoie vide plutôt qu'une erreur 500
-            console.error("Google Calendar Error:", evRes.status, evRes.json());
+            // Si ça échoue encore, on renvoie vide (le dashboard affichera "Aucun créneau")
+            // On log l'erreur pour la voir dans Vercel Logs
+            console.error("Calendar API Error:", evRes.status, evRes.json());
             return res.status(200).json([]); 
         }
 
         const evData = evRes.json();
         const events = evData.items || [];
 
-        // 5. PARSING ET SLICING (Logique identique)
+        // 4. Traitement des événements (Ton code existant)
         const availRanges = [];
         const busyRanges = [];
 
         for (const ev of events) {
             if (ev.status === 'cancelled') continue;
-            
             const startStr = ev.start.dateTime || ev.start.date;
             const endStr = ev.end.dateTime || ev.end.date;
             if (!startStr || !endStr) continue;
@@ -149,18 +155,15 @@ module.exports = async (req, res) => {
             const isRunCall = /run[\s-]?call/i.test(text);
             const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
             
-            if (isBooking) {
-                busyRanges.push({ start, end });
-            } else if (isRunCall) {
-                availRanges.push({ start, end });
-            } else if (ev.transparency !== 'transparent') {
-                busyRanges.push({ start, end });
-            }
+            if (isBooking) busyRanges.push({ start, end });
+            else if (isRunCall) availRanges.push({ start, end });
+            else if (ev.transparency !== 'transparent') busyRanges.push({ start, end });
         }
 
+        // 5. Découpage en slots de 30 min
         const SLOT_MIN = 30;
         const slots = [];
-        const safeNow = new Date(Date.now() + 5 * 60000); // Marge 5 min
+        const safeNow = new Date(Date.now() + 5 * 60000); 
 
         for (const range of availRanges) {
             let cursor = new Date(range.start.getTime());
@@ -173,13 +176,9 @@ module.exports = async (req, res) => {
                 if (sStart >= safeNow) {
                     let conflict = false;
                     for (const busy of busyRanges) {
-                        if (sStart < busy.end && busy.start < sEnd) {
-                            conflict = true; break;
-                        }
+                        if (sStart < busy.end && busy.start < sEnd) { conflict = true; break; }
                     }
-                    if (!conflict) {
-                        slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
-                    }
+                    if (!conflict) slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
                 }
                 cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
             }
@@ -187,6 +186,7 @@ module.exports = async (req, res) => {
 
         slots.sort((a, b) => new Date(a.start) - new Date(b.start));
         
+        // Dédoublonnage
         const unique = [];
         const seen = new Set();
         for (const s of slots) {
