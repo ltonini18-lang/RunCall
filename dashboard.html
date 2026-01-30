@@ -554,12 +554,14 @@
                 return;
             }
 
-            // 2. Créneaux
-            const startOfWeek = getStartOfWeek(0);
-            const toDate = new Date(startOfWeek); 
-            toDate.setDate(toDate.getDate() + 7);
+            // 2. Créneaux (CORRECTIF : On vérifie sur 30 jours pour ne pas bloquer l'onboarding)
+            // Au lieu de regarder juste la semaine courante, on regarde le mois à venir.
+            const checkStart = new Date();
+            const checkEnd = new Date();
+            checkEnd.setDate(checkEnd.getDate() + 30); // On regarde 30 jours devant
             
-            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
+            
             try {
                 const resSlots = await fetch(apiUrl);
                 const dataSlots = await resSlots.json();
