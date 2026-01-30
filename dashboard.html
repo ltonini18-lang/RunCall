@@ -980,6 +980,22 @@
         }
 
     } catch (err) { console.error("DASH ERROR", err); }
+  // --- MEMOIRE DES ONGLETS (Pour rester sur la page après refresh) ---
+        const tabHome = document.querySelector('.sb-item[data-tab="home"]');
+        const tabProfile = document.querySelector('.sb-item[data-tab="profile"]');
+        const tabPayouts = document.querySelector('.sb-item[data-tab="payouts"]');
+
+        function saveTabState(tabName) { localStorage.setItem('runcall_last_tab', tabName); }
+
+        if (tabHome) tabHome.addEventListener('click', () => saveTabState('home'));
+        if (tabProfile) tabProfile.addEventListener('click', () => saveTabState('profile'));
+        if (tabPayouts) tabPayouts.addEventListener('click', () => saveTabState('payouts'));
+
+        setTimeout(() => {
+            const lastTab = localStorage.getItem('runcall_last_tab');
+            if (lastTab === 'profile' && tabProfile) tabProfile.click();
+            else if (lastTab === 'payouts' && tabPayouts) tabPayouts.click();
+        }, 100);
 })();
 </script>
 </body>
