@@ -320,30 +320,40 @@
                          <textarea id="inputBio" rows="5" class="textarea"></textarea>
                      </div>
                      <div class="form-group">
-                         <label class="label">
-                             <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
-                             <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
-                                   data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
-                                   data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
-                             </span>
-                         </label>
-                         <div style="display:flex; gap:10px;">
-                             <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
-                             <select id="inputCurrency" class="input" style="flex:1;">
-                                 <option value="usd">USD ($)</option>
-                                 <option value="eur">EUR (€)</option>
-                                 <option value="gbp">GBP (£)</option>
-                                 <option value="chf">CHF (Fr)</option> <option value="cad">CAD ($)</option>
-                             </select>
-                         </div>
-                     </div>
-                     <button type="submit" class="btn btn-primary" id="saveProfileBtn">
-                         <span data-fr="Enregistrer" data-en="Save Changes"></span>
-                     </button>
-                 </form>
-             </div>
+    <label class="label">
+        <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
+        <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
+              data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
+              data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
+        </span>
+    </label>
+
+    <div style="display:flex; gap:10px;">
+        <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
+        <select id="inputCurrency" class="input" style="flex:1;">
+            <option value="usd">USD ($)</option>
+            <option value="eur">EUR (€)</option>
+            <option value="gbp">GBP (£)</option>
+            <option value="chf">CHF (Fr)</option> 
+            <option value="cad">CAD ($)</option>
+        </select>
+    </div>
+
+    <div id="priceSimulator" class="hidden" style="margin-top:12px; background:#f8fafc; padding:12px 16px; border-radius:12px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
+            <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
+            <span id="simTotal" style="font-weight:600;">--</span>
         </div>
-      </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
+            <span data-fr="Frais de plateforme (20%)" data-en="Platform fee (20%)">Frais de plateforme (20%)</span>
+            <span id="simFee">- --</span>
+        </div>
+        <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
+            <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
+        </div>
+    </div>
+</div>
       
       <div id="viewPayouts" class="hidden">
         <div class="card">
@@ -783,7 +793,38 @@
                 finally { btn.textContent = originalText; btn.disabled = false; }
             });
         }
-        
+        // --- CALCULATEUR DYNAMIQUE PRIX ---
+    const priceInput = document.getElementById('inputPrice');
+    const currencyInput = document.getElementById('inputCurrency');
+    const simulator = document.getElementById('priceSimulator');
+    const elTotal = document.getElementById('simTotal');
+    const elFee = document.getElementById('simFee');
+    const elNet = document.getElementById('simNet');
+
+    function updateSimulation() {
+        const val = parseFloat(priceInput.value);
+        if(!val || val <= 0) {
+            simulator.classList.add('hidden');
+            return;
+        }
+        simulator.classList.remove('hidden');
+
+        // Récupération symbole devise
+        const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
+        const sym = curMap[currencyInput.value] || '$';
+
+        const fee = val * 0.20;
+        const net = val - fee;
+
+        elTotal.textContent = `${val} ${sym}`;
+        elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+        elNet.textContent = `${net.toFixed(2)} ${sym}`;
+    }
+
+    if(priceInput) priceInput.addEventListener('input', updateSimulation);
+    if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
+    // On lance une fois au cas où il y a déjà un prix
+    setTimeout(updateSimulation, 800);
         // --- LOGIQUE PAYOUTS ---
         const payoutStatus = document.getElementById('payoutStatus');
         const setupZone = document.getElementById('setupZone');
