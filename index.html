@@ -42,7 +42,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center; /* Vertical */
-      align-items: center;     /* Horizontal */
+      align-items: center;      /* Horizontal */
       padding: 60px;
       overflow: hidden;
     }
@@ -72,7 +72,7 @@
 
     .brand-logo {
       font-size: 2.5rem; font-weight: 900; color: #1677ff;
-      margin-bottom: 40px; display: inline-block; text-decoration: none;
+      margin-bottom: 30px; display: inline-block; text-decoration: none;
     }
 
     .brand-title {
@@ -81,7 +81,17 @@
       line-height: 1.1; margin-bottom: 24px; letter-spacing: -0.03em;
     }
 
-    .brand-desc { font-size: 1.3rem; color: #64748b; line-height: 1.5; }
+    .brand-desc { font-size: 1.3rem; color: #64748b; line-height: 1.5; margin-bottom: 40px; }
+
+    /* --- AJOUT POUR GOOGLE VERIFICATION --- */
+    .features-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+    .feature-item { display: flex; align-items: flex-start; gap: 12px; font-size: 1.05rem; color: #475569; line-height: 1.4; }
+    .f-icon { 
+        min-width: 24px; height: 24px; background: #dbeafe; color: #1677ff; 
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+        font-weight: 800; font-size: 0.8rem; margin-top: 2px; flex-shrink: 0;
+    }
+    /* -------------------------------------- */
 
     /* --- MOITIÉ DROITE (50%) --- */
     .login-side {
@@ -92,7 +102,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center; /* Vertical */
-      align-items: center;     /* Horizontal */
+      align-items: center;      /* Horizontal */
       padding: 40px;
       border-left: 1px solid #f1f5f9;
     }
@@ -163,7 +173,22 @@
         <a href="index.html" class="brand-logo">RunCall</a>
         <h1 class="brand-title" id="txt-hero-title">...</h1>
         <p class="brand-desc" id="txt-hero-desc">...</p>
-      </div>
+        
+        <div class="features-list">
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-1">...</div>
+            </div>
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-2">...</div>
+            </div>
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-3">...</div>
+            </div>
+        </div>
+        </div>
     </div>
 
     <div class="login-side">
@@ -192,6 +217,11 @@
       en: {
         heroTitle: "Share your experience on RunCall.",
         heroDesc: "Schedule your availability and let people ask you questions via video.",
+        // PHRASES VALIDATION GOOGLE (EN)
+        feat1: "Connects with <strong>Google Calendar</strong> to sync your availability.",
+        feat2: "Allows your audience to book 1:1 video calls seamlessly.",
+        feat3: "Prevents double-booking by checking your existing events.",
+        
         loginTitle: "Host Area",
         loginSub: "Log in to access your dashboard or create an account.",
         btn: "Continue with Google"
@@ -199,6 +229,11 @@
       fr: {
         heroTitle: "Partagez votre expérience sur RunCall.",
         heroDesc: "Programmez vos disponibilités et laissez les gens vous poser leurs questions en visio.",
+        // PHRASES VALIDATION GOOGLE (FR)
+        feat1: "Se connecte à <strong>Google Calendar</strong> pour synchroniser vos disponibilités.",
+        feat2: "Permet à votre audience de réserver facilement des visios avec vous.",
+        feat3: "Évite les doubles réservations en vérifiant vos événements existants.",
+        
         loginTitle: "Espace Intervenant",
         loginSub: "Connectez-vous pour accéder à votre tableau de bord ou créer un compte.",
         btn: "Continuer avec Google"
@@ -209,11 +244,17 @@
 
     function setLanguage(lang) {
       currentLang = lang;
-      document.getElementById('txt-hero-title').textContent = translations[lang].heroTitle;
-      document.getElementById('txt-hero-desc').textContent = translations[lang].heroDesc;
-      document.getElementById('txt-login-title').textContent = translations[lang].loginTitle;
-      document.getElementById('txt-login-sub').textContent = translations[lang].loginSub;
-      document.getElementById('txt-btn').textContent = translations[lang].btn;
+      const t = translations[lang];
+      document.getElementById('txt-hero-title').textContent = t.heroTitle;
+      document.getElementById('txt-hero-desc').textContent = t.heroDesc;
+      document.getElementById('txt-login-title').textContent = t.loginTitle;
+      document.getElementById('txt-login-sub').textContent = t.loginSub;
+      document.getElementById('txt-btn').textContent = t.btn;
+
+      // MISE A JOUR DES NOUVELLES PHRASES
+      document.getElementById('feat-1').innerHTML = t.feat1;
+      document.getElementById('feat-2').innerHTML = t.feat2;
+      document.getElementById('feat-3').innerHTML = t.feat3;
 
       document.getElementById('btn-fr').classList.toggle('active', lang === 'fr');
       document.getElementById('btn-en').classList.toggle('active', lang === 'en');
