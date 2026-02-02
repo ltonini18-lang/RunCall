@@ -115,9 +115,47 @@
     .w-full { width: 100%; }
     .mb-4 { margin-bottom: 16px; }
 
+    /* --- MOBILE NAVIGATION --- */
+    .mobile-nav { display: none; } /* Caché par défaut sur PC */
+
     @media (max-width: 800px){
+        /* On cache la sidebar */
         .dash-sidebar{ display:none; }
+        
+        /* On passe la grille en 1 colonne */
         .week-grid{ grid-template-columns: 1fr; }
+
+        /* On affiche la barre du bas */
+        .mobile-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            border-top: 1px solid var(--border);
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom); 
+        }
+
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--muted);
+            gap: 4px;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .mobile-nav-item.active {
+            color: var(--brand);
+            font-weight: 800;
+        }
+
+        /* Espace pour ne pas cacher le contenu */
+        .dash-content { padding-bottom: 100px; }
     }
   </style>
 </head>
@@ -437,6 +475,22 @@
 
     </div>
   </main>
+
+  <nav class="mobile-nav">
+      <div class="mobile-nav-item active" data-tab="home">
+          <span style="font-size:1.2rem;">📅</span>
+          <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+      </div>
+      <div class="mobile-nav-item" data-tab="profile">
+          <span style="font-size:1.2rem;">👤</span>
+          <span data-fr="Profil" data-en="Profile">Profil</span>
+      </div>
+      <div class="mobile-nav-item" data-tab="payouts">
+          <span style="font-size:1.2rem;">💳</span>
+          <span data-fr="Paiements" data-en="Payouts">Paiements</span>
+      </div>
+  </nav>
+
 </div>
 
 <script>
@@ -795,18 +849,22 @@
             // 1. Sauvegarde en mémoire
             localStorage.setItem('runcall_last_tab', tabName);
 
-            // 2. Gestion Menu (Mise à jour visuelle des boutons)
+            // 2. Gestion Menu PC (Sidebar)
             document.querySelectorAll('.sb-item').forEach(i => {
-                const isActive = i.dataset.tab === tabName;
-                i.classList.toggle('active', isActive);
+                i.classList.toggle('active', i.dataset.tab === tabName);
             });
 
-            // 3. Gestion Vues (Cacher tout, montrer la cible)
+            // 3. Gestion Menu Mobile (Bottom Bar) - NOUVEAU !
+            document.querySelectorAll('.mobile-nav-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.tab === tabName);
+            });
+
+            // 4. Gestion Vues (Cacher tout, montrer la cible)
             ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => {
                 document.getElementById(v).classList.add('hidden');
             });
 
-            let targetId = 'viewHome'; // Défaut
+            let targetId = 'viewHome';
             if (tabName === 'profile') targetId = 'viewProfile';
             if (tabName === 'payouts') targetId = 'viewPayouts';
 
@@ -814,8 +872,13 @@
             if(targetEl) targetEl.classList.remove('hidden');
         }
 
-        // A. Écouteurs de clics (Quand l'utilisateur clique)
+        // A. Écouteurs de clics PC
         document.querySelectorAll('.sb-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Écouteurs de clics MOBILE - NOUVEAU !
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
             item.addEventListener('click', () => switchTab(item.dataset.tab));
         });
 
