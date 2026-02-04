@@ -537,13 +537,22 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard - FULL RECOVERY");
+    console.log("🚀 RunCall Dashboard - FINAL + TRANSLATION FIX");
 
-    // --- 1. BOITE DE STATUT (Pour debug mobile) ---
+    // --- 0. DETECTION LANGUE (IMMEDIATE) ---
+    // On le fait tout de suite pour que le premier message soit dans la bonne langue
+    let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
+
+    // --- 1. BOITE DE STATUT ---
     const statusBox = document.createElement('div');
     statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:10px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:13px; font-weight:600; transition:transform 0.3s; transform:translateY(-100%);";
     statusBox.id = "statusBox";
+    
+    // Message initial traduit
+    statusBox.innerHTML = lang === 'fr' ? '⏳ Chargement...' : '⏳ Loading...';
+    
     document.body.appendChild(statusBox);
+
     function setStatus(msg, type='loading') {
         statusBox.style.transform = 'translateY(0)';
         statusBox.innerHTML = (type==='loading'?'⏳ ':'✅ ') + msg;
@@ -551,16 +560,19 @@
         if(type==='success') setTimeout(()=>statusBox.style.transform='translateY(-100%)', 2500);
     }
 
+    // 2. Déblocage Anti-Page Blanche
+    document.documentElement.classList.remove('auth-pending');
+    document.body.style.visibility = 'visible';
+
     try {
-        // --- 2. INIT SUPABASE ---
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
+
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // Langue
-        let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
+        // Application de la langue au reste du site
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
@@ -568,61 +580,48 @@
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
-        setLang(lang);
+        setLang(lang); // Init
 
-        // --- 3. AUTHENTIFICATION BLINDEE ---
+        // --- 3. AUTHENTIFICATION & DONNEES ---
         let sessionFound = false;
         let expertIdGlob = null;
 
         async function onSessionFound(session, manualProviderToken = null) {
             if(sessionFound) return;
             sessionFound = true;
-            
-            // On débloque l'UI
-            document.documentElement.classList.remove('auth-pending'); 
-            document.body.style.visibility = 'visible';
-            setStatus("Connexion réussie...", 'success');
-            
+            // Traduction ici
+            setStatus(lang === 'fr' ? "Connexion réussie..." : "Connection successful...", 'success');
             await checkExpertData(session, manualProviderToken);
         }
 
-        // A. Detection Token URL (Spécial Mobile & Google)
+        // A. Detection Token URL (Spécial Mobile)
         const hash = window.location.hash.substring(1); 
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
-        
-        // C'EST ICI LA CLÉ : On capture le provider_token manuellement
         const manualProviderToken = params.get('provider_token');
 
         if (accessToken) {
-            setStatus("Analyse des accès...", 'loading');
+            setStatus(lang === 'fr' ? "Analyse des accès..." : "Verifying access...", 'loading');
             const { data } = await sb.auth.setSession({
                 access_token: accessToken,
                 refresh_token: params.get('refresh_token')
             });
-            if (data?.session) {
-                // On passe le token manuel !
-                onSessionFound(data.session, manualProviderToken);
-            }
+            if (data?.session) onSessionFound(data.session, manualProviderToken);
         } else {
             // B. Session existante
             const { data: { session } } = await sb.auth.getSession();
             if (session) onSessionFound(session);
-            else {
-                // Si on n'est pas connecté, on enlève quand même le rideau blanc pour ne pas bloquer
-                document.documentElement.classList.remove('auth-pending'); 
-                document.body.style.visibility = 'visible';
+            else if(window.location.search.includes('code=')) {
+                setStatus(lang === 'fr' ? "Finalisation Google..." : "Finishing Google sign-in...", 'loading');
             }
         }
         
-        // C. Ecouteur standard (PC)
         sb.auth.onAuthStateChange((event, session) => {
             if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) onSessionFound(session);
             if (event === 'SIGNED_OUT') window.location.href = "/";
         });
 
-
-        // --- 4. LOGIQUE METIER (EXPERT & CALENDRIER) ---
+        // --- 4. LOGIQUE METIER ---
         async function checkExpertData(session, manualProviderToken) {
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
@@ -643,25 +642,21 @@
             if(!expertData) return;
             expertIdGlob = expertId;
 
-            // 2. SAUVEGARDE GOOGLE (FIX CRITIQUE)
-            // On utilise soit le token manuel (mobile), soit celui de la session (PC)
+            // 2. SAUVEGARDE AGENDA
             const tokenToSave = manualProviderToken || session.provider_token;
-
             if (tokenToSave) {
-                console.log("Saving Google Token:", tokenToSave.substring(0, 10) + "...");
-                setStatus("Sauvegarde Agenda...", 'loading');
-                
+                setStatus(lang === 'fr' ? "Sauvegarde Agenda..." : "Saving Calendar...", 'loading');
                 await sb.from('expert_google_accounts').upsert({
                     expert_id: expertId,
                     google_email: session.user.email,
                     access_token: tokenToSave,
-                    refresh_token: session.provider_refresh_token, // (Peut être null, pas grave)
+                    refresh_token: session.provider_refresh_token,
                     expiry_date: Date.now() + 3500 * 1000
                 });
-                setStatus("Agenda connecté !", 'success');
+                setStatus(lang === 'fr' ? "Agenda connecté !" : "Calendar connected!", 'success');
             }
 
-            // 3. Update UI & URL
+            // 3. UI
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
             newUrl.hash = ''; 
@@ -684,11 +679,10 @@
             updateHomeState(expertId);
         }
 
-        // --- 5. ETAT DU DASHBOARD (Step 1 -> 2 -> 3) ---
+        // --- 5. DASHBOARD STATE ---
         async function updateHomeState(expertId) {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // Check Calendar
             const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
             
             if (!gAccount) {
@@ -698,10 +692,11 @@
                 return;
             }
 
-            // Check Slots
+            // Check Slots (00h00 fix)
             let hasSlots = false;
             try {
-                const start = new Date(); const end = new Date(); end.setDate(end.getDate() + 30);
+                const start = new Date(); start.setHours(0, 0, 0, 0); 
+                const end = new Date(); end.setDate(end.getDate() + 60); 
                 const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${start.toISOString()}&to=${end.toISOString()}&_t=${Date.now()}`);
                 const data = await res.json();
                 const slots = Array.isArray(data) ? data : (data.slots || []);
@@ -741,15 +736,40 @@
             fetchAndRenderSlots(expertId);
         }
 
-        // --- 6. TOUTES LES AUTRES FONCTIONS (Profil, Upload, Prix, etc.) ---
-        
-        // Sauvegarde Profil
+        // --- UI HELPERS ---
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             const original = btn.innerHTML;
+             btn.innerHTML = lang === 'fr' ? "Vérification..." : "Checking...";
+             btn.disabled = true;
+             await updateHomeState(expertIdGlob);
+             if(!document.getElementById('stateFirstSlots').classList.contains('hidden')) {
+                 alert(lang === 'fr' 
+                    ? "⚠️ Toujours aucun créneau.\nAssurez-vous que l'événement s'appelle 'RunCall' dans votre agenda."
+                    : "⚠️ Still no slots.\nEnsure the event is named 'RunCall' in your calendar.");
+             }
+             btn.innerHTML = original; btn.disabled = false;
+        });
+
+        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
+            const redirect = window.location.origin + window.location.pathname;
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { 
+                    redirectTo: redirect,
+                    scopes: 'https://www.googleapis.com/auth/calendar.events',
+                    queryParams: { access_type: 'offline', prompt: 'consent' }
+                }
+            });
+        });
+
         document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             if(!expertIdGlob) return;
             const btn = document.getElementById('saveProfileBtn');
             const originalText = btn.textContent;
-            btn.textContent = "Sauvegarde..."; btn.disabled = true;
+            btn.textContent = lang === 'fr' ? "Sauvegarde..." : "Saving..."; 
+            btn.disabled = true;
             try {
                 const name = document.getElementById('inputName').value;
                 const bio = document.getElementById('inputBio').value;
@@ -773,11 +793,10 @@
                 if(error) throw error;
                 alert(lang==='fr'?"Profil mis à jour !":"Profile updated!");
                 document.getElementById('topTitle').textContent = name;
-            } catch(err) { alert("Erreur: " + err.message); }
+            } catch(err) { alert("Error: " + err.message); }
             finally { btn.textContent = originalText; btn.disabled = false; }
         });
 
-        // Photo Preview
         document.getElementById('avatarInput')?.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -787,7 +806,6 @@
             }
         });
 
-        // Calculateur Prix
         const priceInput = document.getElementById('inputPrice');
         const currencyInput = document.getElementById('inputCurrency');
         function updateSimulation() {
@@ -815,22 +833,22 @@
              document.getElementById('contentDefault').classList.toggle('hidden');
         });
 
-        // Stripe
         function updatePayoutsView(isActive, stripeUrl) {
             const statusDiv = document.getElementById('payoutStatus');
             const setupZone = document.getElementById('setupZone');
             const dashZone = document.getElementById('dashboardZone');
             if(isActive) {
-                statusDiv.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399;">✅ <strong>Active</strong></div>`;
+                statusDiv.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399;">✅ <strong>${lang==='fr'?'Active':'Active'}</strong></div>`;
                 setupZone.style.display = 'none';
                 dashZone.style.display = 'block';
                 document.getElementById('accessStripeBtn').href = stripeUrl;
             } else {
-                statusDiv.innerHTML = `<p style="color:#666;">Connexion bancaire requise.</p>`;
+                statusDiv.innerHTML = `<p style="color:#666;">${lang==='fr'?'Connexion bancaire requise.':'Bank connection required.'}</p>`;
                 setupZone.style.display = 'block';
                 dashZone.style.display = 'none';
             }
         }
+
         const stripeHandler = async (btnId) => {
             const btn = document.getElementById(btnId);
             if(!btn) return;
@@ -842,13 +860,12 @@
                     const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId: expertIdGlob, country }) });
                     const d = await res.json();
                     if(d.url) window.location.href = d.url; else alert("Erreur URL Stripe");
-                } catch(e) { alert("Erreur Stripe: "+e.message); btn.disabled = false; }
+                } catch(e) { alert("Error: "+e.message); btn.disabled = false; }
             });
         };
         stripeHandler('homeSetupStripeBtn');
         stripeHandler('setupStripeBtn');
 
-        // Calendrier & Navigation
         let currentWeekOffset = 0;
         async function fetchAndRenderSlots(expertId) {
             if(!expertId) return;
@@ -890,31 +907,10 @@
             const loc = lang === 'fr' ? 'fr-FR' : 'en-US';
             document.getElementById('weekLabel').textContent = `${startOfWeek.toLocaleDateString(loc, {day:'numeric', month:'short'})} - ${endLabel.toLocaleDateString(loc, {day:'numeric', month:'short'})}`;
         }
-
         document.getElementById('prevWeek').addEventListener('click', () => { currentWeekOffset--; fetchAndRenderSlots(expertIdGlob); });
         document.getElementById('nextWeek').addEventListener('click', () => { currentWeekOffset++; fetchAndRenderSlots(expertIdGlob); });
         document.getElementById('refreshSlotsBtn')?.addEventListener('click', () => fetchAndRenderSlots(expertIdGlob));
-        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
-             const btn = document.getElementById('checkSlotsBtn');
-             btn.innerHTML = "Vérification...";
-             await updateHomeState(expertIdGlob);
-             btn.innerHTML = lang==='fr' ? "🔄 Vérifier mes créneaux" : "🔄 Check my slots";
-        });
 
-        // Connexion Bouton
-        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            const redirect = window.location.origin + window.location.pathname;
-            await sb.auth.signInWithOAuth({
-                provider: 'google',
-                options: { 
-                    redirectTo: redirect,
-                    scopes: 'https://www.googleapis.com/auth/calendar.events',
-                    queryParams: { access_type: 'offline', prompt: 'consent' }
-                }
-            });
-        });
-
-        // Tabs
         function switchTab(tabName) {
             localStorage.setItem('runcall_last_tab', tabName);
             document.querySelectorAll('.sb-item, .mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
