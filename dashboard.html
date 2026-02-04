@@ -560,77 +560,97 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // AUTH (VERSION ROBUSTE MOBILE)
-        let { data: { session }, error: authError } = await sb.auth.getSession();
+        // --- AUTHENTIFICATION ROBUSTE (Event Listener) ---
+        let sessionChecked = false;
 
-        // Si pas de session, mais qu'on revient de Google (hash présent), on attend !
-        if (!session && window.location.hash && window.location.hash.includes('access_token')) {
-            console.log("⏳ Retour Google détecté, attente de la session...");
-            // On attend 2 secondes le temps que le téléphone traite l'URL
-            await new Promise(r => setTimeout(r, 2000)); 
-            // On revérifie si la session est là
-            const { data: { session: sessionRetry } } = await sb.auth.getSession();
-            session = sessionRetry;
-        }
+        // 1. On écoute le signal officiel "Je suis connecté" de Supabase
+        const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+            // Si on est connecté (via Login ou Session existante)
+            if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
+                sessionChecked = true;
+                clearTimeout(safetyTimer);
+                document.documentElement.classList.remove('auth-pending');
+                
+                // C'est ICI qu'on lance la récupération des données Expert
+                await checkExpertData(session); 
+            } 
+            else if (event === 'SIGNED_OUT') {
+                window.location.replace("/");
+            }
+        });
 
-        // Si TOUJOURS pas de session après l'attente, là on éjecte
-        if (authError || !session) { 
-            window.location.replace("/"); 
-            return; 
-        }
+        // 2. Filet de sécurité (Si au bout de 4 sec, rien ne se passe)
+        setTimeout(() => {
+            if (!sessionChecked) {
+                // On vérifie si l'URL contient des traces de connexion (code ou hash)
+                const inAuthFlow = window.location.hash.includes('access_token') || 
+                                   window.location.search.includes('code') ||
+                                   window.location.search.includes('error');
+                
+                // Si ce n'est pas une tentative de connexion, on redirige vers l'accueil
+                if (!inAuthFlow) {
+                    window.location.replace("/");
+                }
+                // Sinon, on laisse tourner (connexion lente sur mobile)
+            }
+        }, 4000);
 
-        // SUCCÈS : On a la session, on affiche la page
-        clearTimeout(safetyTimer);
-        document.documentElement.classList.remove('auth-pending');
+        // --- FONCTION: DONNÉES EXPERT & UI (Appelée une fois connecté) ---
+        async function checkExpertData(session) {
+            let expertId = new URLSearchParams(window.location.search).get('expert_id');
+            let expertData = null;
 
-        // EXPERT
-        let expertId = new URLSearchParams(window.location.search).get('expert_id');
-        let expertData = null;
-
-        if (!expertData) {
-            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-            if (data) { expertData = data; expertId = data.id; }
-        }
-
-        if (!expertData) {
-            const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-            const { data: newExpert } = await sb.from('experts').insert([{
-                auth_user_id: session.user.id,
-                email: session.user.email,
-                name: googleName,
-                presentation: "",
-                photo_url: "" 
-            }]).select().single();
-            if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
-        }
-
-        if(expertId) {
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('expert_id', expertId);
-            window.history.pushState({}, '', newUrl);
-        }
-
-        if (expertData) {
-            document.getElementById('topTitle').textContent = expertData.name;
-            
-            const topAvatar = document.getElementById('topAvatar');
-            const previewAvatar = document.getElementById('previewAvatar');
-            const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-
-            let finalAvatar = blueAvatar;
-            if (expertData.photo_url && expertData.photo_url.trim() !== "") {
-                finalAvatar = expertData.photo_url;
+            // 1. Récupération ou Création Expert
+            if (!expertData) {
+                const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+                if (data) { expertData = data; expertId = data.id; }
             }
 
-            topAvatar.src = finalAvatar;
-            previewAvatar.src = finalAvatar;
-            topAvatar.style.display = 'block';
+            if (!expertData) {
+                const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
+                const { data: newExpert } = await sb.from('experts').insert([{
+                    auth_user_id: session.user.id,
+                    email: session.user.email,
+                    name: googleName,
+                    presentation: "",
+                    photo_url: "" 
+                }]).select().single();
+                if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
+            }
 
-            document.getElementById('inputName').value = expertData.name || "";
-            document.getElementById('inputBio').value = expertData.presentation || "";
-            document.getElementById('inputPrice').value = expertData.price || "";
-            document.getElementById('inputCurrency').value = expertData.currency || "usd";
-            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            // Mettre l'ID dans l'URL proprement
+            if(expertId) {
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('expert_id', expertId);
+                window.history.pushState({}, '', newUrl);
+            }
+
+            // 2. Mise à jour de l'interface (UI)
+            if (expertData) {
+                document.getElementById('topTitle').textContent = expertData.name;
+                
+                const topAvatar = document.getElementById('topAvatar');
+                const previewAvatar = document.getElementById('previewAvatar');
+                // Avatar bleu par défaut
+                let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+                
+                if (expertData.photo_url && expertData.photo_url.trim() !== "") {
+                    finalAvatar = expertData.photo_url;
+                }
+
+                topAvatar.src = finalAvatar;
+                previewAvatar.src = finalAvatar;
+                topAvatar.style.display = 'block';
+
+                document.getElementById('inputName').value = expertData.name || "";
+                document.getElementById('inputBio').value = expertData.presentation || "";
+                document.getElementById('inputPrice').value = expertData.price || "";
+                document.getElementById('inputCurrency').value = expertData.currency || "usd";
+                document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            }
+            
+            // On lance le reste des vérifications (Stripe, Calendrier...)
+            updateHomeState();
         }
 
         // PREVIEW PHOTO
