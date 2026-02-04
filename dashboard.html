@@ -11,6 +11,7 @@
   <style>html.auth-pending body { visibility: hidden; }</style>
   <script>
     document.documentElement.classList.add('auth-pending');
+    // Sécurité anti-page blanche
     setTimeout(() => { document.documentElement.classList.remove('auth-pending'); document.body.style.visibility='visible'; }, 2000);
   </script>
 
