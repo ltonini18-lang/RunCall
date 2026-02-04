@@ -551,18 +551,11 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard RUN CALL - FINAL MOBILE FIX");
+    console.log("🚀 Dashboard UX Unicorn init...");
 
-    // 1. SECURITE ANTI-PAGE BLANCHE : On affiche le site TOUT DE SUITE.
-    // On n'attend pas l'auth pour retirer le masque, pour éviter de rester bloqué.
-    document.documentElement.classList.remove('auth-pending');
-    document.body.style.visibility = 'visible';
-
-    // Timer de secours pour le loader bleu (max 5 secondes)
-    setTimeout(() => {
-        const l = document.getElementById('globalLoader');
-        if(l) l.style.display = 'none';
-    }, 5000);
+    const safetyTimer = setTimeout(() => {
+        document.documentElement.classList.remove('auth-pending');
+    }, 2000);
 
     try {
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
@@ -584,111 +577,113 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- AUTHENTIFICATION (MODE PATIENT) ---
-        // Sur mobile, Supabase met du temps à lire l'URL. On lui laisse 3 secondes.
+        // AUTH - FIX MOBILE
         let session = null;
-        for(let i=0; i<6; i++) { // 6 essais de 500ms
+
+        // 1. Priorité ABSOLUE : On regarde si Google nous a donné le token dans l'URL (Hash)
+        // C'est ça qui manquait et qui faisait échouer le mobile
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+            // Si on voit le token, on FORCE l'ouverture de la session immédiatement
+            const { data } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+            session = data.session;
+        } else {
+            // 2. Sinon, méthode classique (PC ou déjà connecté)
             const { data } = await sb.auth.getSession();
-            if(data.session) {
-                session = data.session;
-                break; // On a la session, on sort !
-            }
-            // Si on a un token dans l'URL, on attend un peu que Supabase le traite
-            if(window.location.hash.includes('access_token')) {
-                console.log("⏳ Token détecté, attente de Supabase... " + (i+1));
-                await new Promise(r => setTimeout(r, 500));
-            } else {
-                break; // Pas de token, pas de session, on arrête d'attendre.
-            }
+            session = data.session;
         }
 
-        // Si après l'attente on n'a toujours rien, et qu'on n'est pas en train de revenir de Google...
+        // 3. Verdict final
         if (!session) { 
-            if (!window.location.hash.includes('access_token') && !window.location.search.includes('code=')) {
+            // Sécurité ultime : si on voit un "?code=" (retour Google Login classique), on ne redirige pas
+            if (!window.location.search.includes('code=')) {
                 window.location.replace("/"); 
                 return; 
             }
-            // Si on est là, c'est qu'il y a un token mais que ça charge encore. On laisse la page s'afficher.
-            console.log("⚠️ Session non établie malgré le token. L'utilisateur devra peut-être rafraîchir.");
         }
+        clearTimeout(safetyTimer);
+        document.documentElement.classList.remove('auth-pending');
 
-        // --- GESTION EXPERT ---
+        // EXPERT
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
         let expertData = null;
 
-        if (session) {
-            // 1. Récupération ou Création Expert
+        if (!expertData) {
             const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-            if (data) { 
-                expertData = data; expertId = data.id; 
-            } else {
-                const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-                const { data: newExpert } = await sb.from('experts').insert([{
-                    auth_user_id: session.user.id,
-                    email: session.user.email,
-                    name: googleName,
-                    presentation: "",
-                    photo_url: "" 
-                }]).select().single();
-                if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
-            }
-
-            // 2. Nettoyage URL
-            if(expertId) {
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.set('expert_id', expertId);
-                // On ne vide le hash que si on a bien tout chargé pour éviter de perdre le token si refresh
-                // window.history.pushState({}, '', newUrl); 
-            }
-
-            // 3. Remplissage UI
-            if (expertData) {
-                document.getElementById('topTitle').textContent = expertData.name;
-                const topAvatar = document.getElementById('topAvatar');
-                const previewAvatar = document.getElementById('previewAvatar');
-                let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                
-                topAvatar.src = finalAvatar;
-                previewAvatar.src = finalAvatar;
-                topAvatar.style.display = 'block';
-
-                document.getElementById('inputName').value = expertData.name || "";
-                document.getElementById('inputBio').value = expertData.presentation || "";
-                document.getElementById('inputPrice').value = expertData.price || "";
-                document.getElementById('inputCurrency').value = expertData.currency || "usd";
-                document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
-            }
-
-            // --- 4. SAUVEGARDE AGENDA (Le fix de l'étape 1) ---
-            // On parse le Hash manuellement pour être sûr de choper le provider_token
-            const hashString = window.location.hash.substring(1); // Enlève le #
-            const urlParams = new URLSearchParams(hashString);
-            const providerToken = urlParams.get('provider_token'); // La clé Google
-            const refreshToken = urlParams.get('refresh_token'); // Le refresh token
-
-            // Si on trouve la clé Google, on l'enregistre !
-            if (providerToken && expertId) {
-                console.log("💾 Sauvegarde Agenda...");
-                await sb.from('expert_google_accounts').upsert({
-                    expert_id: expertId,
-                    google_email: session.user.email,
-                    access_token: providerToken,
-                    refresh_token: refreshToken || session.provider_refresh_token, // Fallback
-                    expiry_date: Date.now() + 3500 * 1000,
-                    updated_at: new Date()
-                });
-                console.log("✅ Agenda OK");
-            }
+            if (data) { expertData = data; expertId = data.id; }
         }
 
-        // FIN DU CHARGEMENT : On cache le loader
-        const loader = document.getElementById('globalLoader');
-        if(loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => loader.style.display = 'none', 500);
+        if (!expertData) {
+            const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
+            const { data: newExpert } = await sb.from('experts').insert([{
+                auth_user_id: session.user.id,
+                email: session.user.email,
+                name: googleName,
+                presentation: "",
+                photo_url: "" 
+            }]).select().single();
+            if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
-        // --- RESTE DU CODE (Listeners, Logic...) ---
+        if(expertId) {
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('expert_id', expertId);
+            window.history.pushState({}, '', newUrl);
+        }
+
+        if (expertData) {
+            document.getElementById('topTitle').textContent = expertData.name;
+            
+            const topAvatar = document.getElementById('topAvatar');
+            const previewAvatar = document.getElementById('previewAvatar');
+            const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+
+            let finalAvatar = blueAvatar;
+            if (expertData.photo_url && expertData.photo_url.trim() !== "") {
+                finalAvatar = expertData.photo_url;
+            }
+
+            topAvatar.src = finalAvatar;
+            previewAvatar.src = finalAvatar;
+            topAvatar.style.display = 'block';
+
+            document.getElementById('inputName').value = expertData.name || "";
+            document.getElementById('inputBio').value = expertData.presentation || "";
+            document.getElementById('inputPrice').value = expertData.price || "";
+            document.getElementById('inputCurrency').value = expertData.currency || "usd";
+            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+        }
+
+      // --- FIX ETAPE 1 : SAUVEGARDE AGENDA ---
+        // Ce code capture la clé Google et l'enregistre. C'est ça qui valide l'étape 1.
+        const urlHash = window.location.hash.substring(1);
+        const urlParams = new URLSearchParams(urlHash);
+        const googleToken = urlParams.get('provider_token') || session.provider_token;
+        const refreshToken = urlParams.get('refresh_token') || session.provider_refresh_token;
+
+        if (googleToken && expertId) {
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: googleToken,
+                refresh_token: refreshToken,
+                expiry_date: Date.now() + 3500 * 1000
+            });
+        }
+
+      
+      // --- AJOUTER CETTE LIGNE ICI ---
+        // On cache le loader car les données sont chargées
+        document.getElementById('globalLoader').style.opacity = '0';
+        setTimeout(() => document.getElementById('globalLoader').style.display = 'none', 500);
+
         // PREVIEW PHOTO
         const avatarInput = document.getElementById('avatarInput');
         if (avatarInput) {
@@ -710,16 +705,14 @@
         let hasSlots = false;
         let hasStripe = false;
 
-        if(expertId) {
-            const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
-            hasCalendar = !!gAccount;
+        const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
+        hasCalendar = !!gAccount;
 
-            try {
-                const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
-                const dataS = await resS.json();
-                hasStripe = dataS.isComplete;
-            } catch(e) { console.error("Stripe check", e); }
-        }
+        try {
+            const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
+            const dataS = await resS.json();
+            hasStripe = dataS.isComplete;
+        } catch(e) { console.error("Stripe check", e); }
 
         let currentWeekOffset = 0;
         function getStartOfWeek(offset) {
@@ -733,7 +726,6 @@
 
         // --- MOTEUR DE VERIFICATION ---
         async function updateHomeState() {
-            if(!expertId) return;
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
             const progressEl = document.getElementById('onboardingProgress');
@@ -754,10 +746,11 @@
                 return;
             }
 
-            // 2. Créneaux
+            // 2. Créneaux (CORRECTIF : On vérifie sur 30 jours pour ne pas bloquer l'onboarding)
+            // Au lieu de regarder juste la semaine courante, on regarde le mois à venir.
             const checkStart = new Date();
             const checkEnd = new Date();
-            checkEnd.setDate(checkEnd.getDate() + 30); 
+            checkEnd.setDate(checkEnd.getDate() + 30); // On regarde 30 jours devant
             
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
             
@@ -831,8 +824,7 @@
             });
         });
 
-        // Upsert pending from localstorage (Fallback PC)
-        if (session && localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
             await sb.from('expert_google_accounts').upsert({
                 expert_id: expertId,
                 google_email: session.user.email,
@@ -954,99 +946,53 @@
         if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
         if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
 
-        // --- GESTION DES ONGLETS ---
+        // --- GESTION DES ONGLETS (Instantanée & Sans saut) ---
         function switchTab(tabName) {
+            // 1. Sauvegarde en mémoire
             localStorage.setItem('runcall_last_tab', tabName);
+
+            // 2. Gestion Menu PC (Sidebar)
             document.querySelectorAll('.sb-item').forEach(i => {
                 i.classList.toggle('active', i.dataset.tab === tabName);
             });
+
+            // 3. Gestion Menu Mobile (Bottom Bar) - NOUVEAU !
             document.querySelectorAll('.mobile-nav-item').forEach(i => {
                 i.classList.toggle('active', i.dataset.tab === tabName);
             });
+
+            // 4. Gestion Vues (Cacher tout, montrer la cible)
             ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => {
                 document.getElementById(v).classList.add('hidden');
             });
+
             let targetId = 'viewHome';
             if (tabName === 'profile') targetId = 'viewProfile';
             if (tabName === 'payouts') targetId = 'viewPayouts';
+
             const targetEl = document.getElementById(targetId);
             if(targetEl) targetEl.classList.remove('hidden');
         }
 
-        document.querySelectorAll('.sb-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
-        document.querySelectorAll('.mobile-nav-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
+        // A. Écouteurs de clics PC
+        document.querySelectorAll('.sb-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
 
+        // B. Écouteurs de clics MOBILE - NOUVEAU !
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Restauration IMMÉDIATE (Le secret pour éviter le saut)
+        // On lit la mémoire tout de suite. Si rien en mémoire, on met 'home'.
         const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
-        switchTab(savedTab);
         
-        // --- CALCULATEUR DYNAMIQUE PRIX ---
-        const priceInput = document.getElementById('inputPrice');
-        const currencyInput = document.getElementById('inputCurrency');
-        const simDefault = document.getElementById('simDefault');
-        const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
-        const contentDefault = document.getElementById('contentDefault');
-        const arrowDefault = document.getElementById('arrowDefault');
-        const simCustom = document.getElementById('simCustom');
-        const elTotal = document.getElementById('simTotal');
-        const elFee = document.getElementById('simFee');
-        const elNet = document.getElementById('simNet');
-        const lblFeePct = document.getElementById('lblFeePct');
-        const msgSuccess = document.getElementById('rateSuccessMsg');
+        // On applique la vue immédiatement
+        switchTab(savedTab);
 
-        if(toggleDefaultBtn) {
-            toggleDefaultBtn.addEventListener('click', () => {
-                const isHidden = contentDefault.classList.contains('hidden');
-                if(isHidden) {
-                    contentDefault.classList.remove('hidden');
-                    arrowDefault.style.transform = "rotate(180deg)";
-                } else {
-                    contentDefault.classList.add('hidden');
-                    arrowDefault.style.transform = "rotate(0deg)";
-                }
-            });
-        }
-
-        function updateSimulation() {
-            const val = parseFloat(priceInput.value);
-            const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
-            const sym = curMap[currencyInput.value] || '$';
-            document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
-
-            if(!val || val <= 0) {
-                if(simDefault) simDefault.classList.remove('hidden');
-                if(simCustom) simCustom.classList.add('hidden');
-            } else {
-                if(simDefault) simDefault.classList.add('hidden');
-                if(simCustom) simCustom.classList.remove('hidden');
-                let rate = 0.20; 
-                let rateText = "20%";
-                if (val >= 200) { rate = 0.10; rateText = "10%"; } 
-                else if (val >= 100) { rate = 0.15; rateText = "15%"; }
-                const fee = val * rate;
-                const net = val - fee;
-                elTotal.textContent = `${val} ${sym}`;
-                elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
-                elNet.textContent = `${net.toFixed(2)} ${sym}`;
-                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
-                if(lblFeePct) lblFeePct.textContent = isFr ? `Frais de plateforme (${rateText})` : `Platform fee (${rateText})`;
-                if (msgSuccess) {
-                    if (rate < 0.20) {
-                        msgSuccess.classList.remove('hidden');
-                        msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
-                        elNet.style.color = "#16a34a"; 
-                    } else {
-                        msgSuccess.classList.add('hidden');
-                        elNet.style.color = "#16a34a"; 
-                    }
-                }
-            }
-        }
-
-        if(priceInput) priceInput.addEventListener('input', updateSimulation);
-        if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
-        setTimeout(updateSimulation, 800);
-
-        // --- FORMULAIRE PROFIL ---
+        updateHomeState();
+        
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
@@ -1061,7 +1007,7 @@
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    let newPhotoUrl = expertData ? expertData.photo_url : "";
+                    let newPhotoUrl = expertData.photo_url;
                     
                     const fileInput = document.getElementById('avatarInput');
                     if (fileInput && fileInput.files.length > 0) {
@@ -1087,8 +1033,103 @@
                 finally { btn.textContent = originalText; btn.disabled = false; }
             });
         }
+        // --- CALCULATEUR DYNAMIQUE PRIX (Mode Hybride v2) ---
+    const priceInput = document.getElementById('inputPrice');
+    const currencyInput = document.getElementById('inputCurrency');
+    
+    // Mode Default (Accordéon)
+    const simDefault = document.getElementById('simDefault');
+    const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
+    const contentDefault = document.getElementById('contentDefault');
+    const arrowDefault = document.getElementById('arrowDefault');
 
-        // --- PAYOUTS LOGIC ---
+    // Mode Custom
+    const simCustom = document.getElementById('simCustom');
+    const elTotal = document.getElementById('simTotal');
+    const elFee = document.getElementById('simFee');
+    const elNet = document.getElementById('simNet');
+    const lblFeePct = document.getElementById('lblFeePct');
+    const msgSuccess = document.getElementById('rateSuccessMsg');
+
+    // Gestion de l'accordéon (Clic sur la phrase grise)
+    if(toggleDefaultBtn) {
+        toggleDefaultBtn.addEventListener('click', () => {
+            const isHidden = contentDefault.classList.contains('hidden');
+            if(isHidden) {
+                contentDefault.classList.remove('hidden');
+                arrowDefault.style.transform = "rotate(180deg)";
+            } else {
+                contentDefault.classList.add('hidden');
+                arrowDefault.style.transform = "rotate(0deg)";
+            }
+        });
+    }
+
+    function updateSimulation() {
+        const val = parseFloat(priceInput.value);
+        
+        // Symboles
+        const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
+        const sym = curMap[currencyInput.value] || '$';
+        document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
+
+        // LOGIQUE D'AFFICHAGE
+        if(!val || val <= 0) {
+            // Afficher le bloc par défaut
+            if(simDefault) simDefault.classList.remove('hidden');
+            if(simCustom) simCustom.classList.add('hidden');
+        } else {
+            // Afficher le bloc custom
+            if(simDefault) simDefault.classList.add('hidden');
+            if(simCustom) simCustom.classList.remove('hidden');
+
+            // --- LOGIQUE PALIERS (CORRIGÉE : A partir de 100 inclus) ---
+            let rate = 0.20; 
+            let rateText = "20%";
+
+            if (val >= 200) { // Supérieur OU EGAL à 200
+                rate = 0.10;
+                rateText = "10%";
+            } else if (val >= 100) { // Supérieur OU EGAL à 100
+                rate = 0.15;
+                rateText = "15%";
+            }
+
+            const fee = val * rate;
+            const net = val - fee;
+
+            elTotal.textContent = `${val} ${sym}`;
+            elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+            elNet.textContent = `${net.toFixed(2)} ${sym}`;
+            
+            // Textes
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+            if(lblFeePct) {
+                lblFeePct.textContent = isFr 
+                    ? `Frais de plateforme (${rateText})` 
+                    : `Platform fee (${rateText})`;
+            }
+
+            // Message succès
+            if (msgSuccess) {
+                if (rate < 0.20) {
+                    msgSuccess.classList.remove('hidden');
+                    msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
+                    // MODIF ICI : Je mets le vert (#16a34a) au lieu de l'orange
+                    elNet.style.color = "#16a34a"; 
+                } else {
+                    msgSuccess.classList.add('hidden');
+                    elNet.style.color = "#16a34a"; 
+                }
+            }
+        }
+    }
+
+    if(priceInput) priceInput.addEventListener('input', updateSimulation);
+    if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
+    
+    setTimeout(updateSimulation, 800);
+        // --- LOGIQUE PAYOUTS ---
         const payoutStatus = document.getElementById('payoutStatus');
         const setupZone = document.getElementById('setupZone');
         const dashboardZone = document.getElementById('dashboardZone');
@@ -1131,8 +1172,10 @@
 
     } catch (err) { 
         console.error("DASH ERROR", err);
-        const l = document.getElementById('globalLoader');
-        if(l) l.style.display = 'none';
+        // On cache le loader même s'il y a une erreur pour ne pas bloquer l'écran
+        if(document.getElementById('globalLoader')) {
+            document.getElementById('globalLoader').style.display = 'none'; 
+        }
         alert("Une erreur est survenue pendant le chargement.");
     }
   
