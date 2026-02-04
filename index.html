@@ -274,10 +274,15 @@
     document.getElementById('googleBtn').addEventListener('click', async function(){
       this.style.opacity = 0.7; 
       this.querySelector('span').innerText = currentLang === 'fr' ? "Connexion..." : "Loading...";
+      
+      // ON FORCE L'URL EXACTE (Celle déclarée dans Supabase)
+      // Assure-toi que cette URL exacte est bien dans ta liste "Redirect URLs" Supabase
+      const targetURL = "https://www.run-call.com/dashboard.html"; 
+
       await sb.auth.signInWithOAuth({
         provider: 'google',
         options: { 
-            redirectTo: window.location.origin + CONFIG.URLS.dashboard,
+            redirectTo: targetURL,
             queryParams: { prompt: 'select_account' }
         }
       });
