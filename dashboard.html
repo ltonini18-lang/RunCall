@@ -534,45 +534,26 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard Mobile ZEN Mode");
+    console.log("🚀 Dashboard ATOMIC Mode");
 
-    // 1. AFFICHAGE IMMEDIAT (Pas de page blanche)
+    // 1. DÉBLOCAGE & STATUT
     document.documentElement.classList.remove('auth-pending');
     document.body.style.visibility = 'visible';
 
-    // 2. BARRE DE STATUT (Pour savoir ce qui se passe sans être éjecté)
     const statusBox = document.createElement('div');
     statusBox.id = 'statusBox';
-    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#f8fafc; color:#334155; padding:12px; z-index:99999; text-align:center; border-bottom:1px solid #e2e8f0; font-size:14px; font-weight:500; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); transition:all 0.3s;";
-    statusBox.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite; margin-right:8px;">⏳</span> Connexion à Google...`;
-    
-    // Style pour l'animation
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = "@keyframes spin { 100% { transform: rotate(360deg); } }";
-    document.head.appendChild(styleSheet);
+    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:15px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:14px; font-weight:600; box-shadow:0 4px 10px rgba(0,0,0,0.1);";
+    statusBox.innerHTML = `⏳ Analyse du lien de connexion...`;
     document.body.appendChild(statusBox);
 
-    function setStatus(msg, type='loading') {
-        let icon = '<span style="display:inline-block; animation:spin 1s linear infinite; margin-right:8px;">⏳</span>';
-        let bg = '#f8fafc'; let col = '#334155';
-
-        if(type === 'success') { icon = '✅ '; bg = '#dcfce7'; col = '#166534'; }
-        if(type === 'error') { icon = '❌ '; bg = '#fee2e2'; col = '#991b1b'; }
-        if(type === 'warning') { icon = '⚠️ '; bg = '#fef9c3'; col = '#854d0e'; }
-
-        statusBox.innerHTML = icon + msg;
+    function setStatus(msg, color='#333', bg='#fff') {
+        statusBox.innerHTML = msg;
+        statusBox.style.color = color;
         statusBox.style.background = bg;
-        statusBox.style.color = col;
-
-        if(type === 'success') setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 2000);
+        if(color === '#166534') setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 2000);
     }
 
     try {
-        if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') {
-            setStatus("Erreur: Supabase non chargé. Rechargez la page.", 'error');
-            throw new Error("Deps missing");
-        }
-
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
@@ -587,47 +568,50 @@
         }
         setLang(lang);
 
-        // --- GESTION DE SESSION ---
+        // --- C'EST ICI QUE TOUT SE JOUE ---
         let sessionFound = false;
 
         async function onSessionFound(session) {
             if(sessionFound) return;
             sessionFound = true;
-            setStatus("Compte trouvé ! Chargement...", 'success');
+            setStatus("✅ Connexion réussie ! Chargement...", '#166534', '#dcfce7');
             await checkExpertData(session);
         }
 
-        // 1. Écouteur passif (La méthode douce)
-        sb.auth.onAuthStateChange((event, session) => {
-            console.log("Auth Event:", event);
-            if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
-                onSessionFound(session);
-            }
-            // NOTE: On ignore SIGNED_OUT pour ne pas éjecter l'utilisateur par erreur
-        });
+        // 1. MÉTHODE "MANUELLE" (On lit ton URL géante)
+        // On récupère tout ce qu'il y a après le #
+        const hash = window.location.hash.substring(1); 
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
 
-        // 2. Vérification active (Au cas où l'event ne part pas)
-        setTimeout(async () => {
-            if(!sessionFound) {
-                const { data: { session } } = await sb.auth.getSession();
-                if(session) {
-                    onSessionFound(session);
-                } else {
-                    // Analyse de l'URL : Est-ce qu'on revient de Google ?
-                    const inAuthFlow = window.location.hash.includes('access_token') || 
-                                       window.location.search.includes('code');
-                    
-                    if(inAuthFlow) {
-                        setStatus("Finalisation de la connexion... (Patience)", 'warning');
-                        // On ne fait RIEN. On laisse Supabase finir son travail.
-                    } else {
-                        // Vraiment rien. On propose de réessayer au lieu d'éjecter.
-                        statusBox.innerHTML = `⚠️ Pas de connexion détectée. <button onclick="window.location.href='/'" style="margin-left:10px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; background:#fff; cursor:pointer;">Réessayer</button>`;
-                        statusBox.style.background = '#f1f5f9';
-                    }
-                }
+        if (accessToken && refreshToken) {
+            setStatus("🔐 Clés détectées. Connexion forcée...", '#854d0e', '#fef9c3');
+            
+            // ON FORCE LA SESSION DANS SUPABASE
+            const { data, error } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+
+            if (data?.session) {
+                // VICTOIRE !
+                onSessionFound(data.session);
+            } else if (error) {
+                setStatus("Erreur Token: " + error.message, 'red');
             }
-        }, 2000); // On vérifie après 2s, mais on ne tue pas le processus.
+        } 
+        // 2. MÉTHODE CLASSIQUE (Si déjà connecté avant)
+        else {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                onSessionFound(session);
+            } else {
+                // Vraiment rien ?
+                setStatus("⚠️ Non connecté.", '#991b1b', '#fee2e2');
+                statusBox.innerHTML += ` <button onclick="window.location.href='/'" style="padding:5px 10px; margin-left:10px;">Retour Accueil</button>`;
+            }
+        }
 
         // --- DONNEES EXPERT ---
         async function checkExpertData(session) {
@@ -642,42 +626,33 @@
             } else {
                 // Création
                 const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-                const { data: newExpert, error } = await sb.from('experts').insert([{
+                const { data: newExpert } = await sb.from('experts').insert([{
                     auth_user_id: session.user.id,
                     email: session.user.email,
                     name: googleName,
                     presentation: "",
                     photo_url: "" 
                 }]).select().single();
-                
-                if(newExpert) {
-                    expertData = newExpert;
-                    expertId = newExpert.id;
-                } else if (error) {
-                     setStatus("Erreur DB: " + error.message, 'error');
-                     return;
-                }
+                if(newExpert) { expertData = newExpert; expertId = newExpert.id; }
             }
 
-            // UI UPDATE
             if(expertId && expertData) {
+                // Nettoyage URL (On enlève le gros token moche)
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.set('expert_id', expertId);
-                window.history.pushState({}, '', newUrl);
+                newUrl.hash = ''; // Hop, on efface le hash
+                window.history.replaceState({}, '', newUrl);
 
                 document.getElementById('topTitle').textContent = expertData.name;
                 document.getElementById('inputName').value = expertData.name || "";
                 
                 let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                if (expertData.photo_url && expertData.photo_url.trim() !== "") finalAvatar = expertData.photo_url;
+                if (expertData.photo_url) finalAvatar = expertData.photo_url;
                 
                 const topAvatar = document.getElementById('topAvatar');
                 if(topAvatar) { topAvatar.src = finalAvatar; topAvatar.style.display = 'block'; }
                 const previewAvatar = document.getElementById('previewAvatar');
                 if(previewAvatar) previewAvatar.src = finalAvatar;
-
-                // On cache la barre de chargement car c'est fini
-                setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 500);
 
                 updateHomeState(expertId);
             }
@@ -701,7 +676,6 @@
             }
         }
 
-        // --- HELPERS ---
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             const cleanRedirect = window.location.origin + window.location.pathname;
             await sb.auth.signInWithOAuth({
@@ -718,9 +692,8 @@
         function updateProgress(){}
 
     } catch (err) {
-        setStatus("Crash JS: " + err.message, 'error');
+        setStatus("Crash JS: " + err.message, 'red');
     }
 })();
-</script>
 </body>
 </html>
