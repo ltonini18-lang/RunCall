@@ -577,13 +577,36 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // AUTH
-        const { data: { session }, error: authError } = await sb.auth.getSession();
-        if (authError || !session) { 
-            // .replace() remplace la page actuelle dans l'historique
-            // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
-            window.location.replace("/"); 
-            return; 
+        // AUTH - FIX MOBILE
+        let session = null;
+
+        // 1. Priorité ABSOLUE : On regarde si Google nous a donné le token dans l'URL (Hash)
+        // C'est ça qui manquait et qui faisait échouer le mobile
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+            // Si on voit le token, on FORCE l'ouverture de la session immédiatement
+            const { data } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+            session = data.session;
+        } else {
+            // 2. Sinon, méthode classique (PC ou déjà connecté)
+            const { data } = await sb.auth.getSession();
+            session = data.session;
+        }
+
+        // 3. Verdict final
+        if (!session) { 
+            // Sécurité ultime : si on voit un "?code=" (retour Google Login classique), on ne redirige pas
+            if (!window.location.search.includes('code=')) {
+                window.location.replace("/"); 
+                return; 
+            }
         }
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
