@@ -560,14 +560,26 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // AUTH
-        const { data: { session }, error: authError } = await sb.auth.getSession();
+        // AUTH (VERSION ROBUSTE MOBILE)
+        let { data: { session }, error: authError } = await sb.auth.getSession();
+
+        // Si pas de session, mais qu'on revient de Google (hash présent), on attend !
+        if (!session && window.location.hash && window.location.hash.includes('access_token')) {
+            console.log("⏳ Retour Google détecté, attente de la session...");
+            // On attend 2 secondes le temps que le téléphone traite l'URL
+            await new Promise(r => setTimeout(r, 2000)); 
+            // On revérifie si la session est là
+            const { data: { session: sessionRetry } } = await sb.auth.getSession();
+            session = sessionRetry;
+        }
+
+        // Si TOUJOURS pas de session après l'attente, là on éjecte
         if (authError || !session) { 
-            // .replace() remplace la page actuelle dans l'historique
-            // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
             window.location.replace("/"); 
             return; 
         }
+
+        // SUCCÈS : On a la session, on affiche la page
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
 
