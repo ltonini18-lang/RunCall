@@ -660,6 +660,25 @@
             document.getElementById('inputCurrency').value = expertData.currency || "usd";
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
+
+      // --- FIX ETAPE 1 : SAUVEGARDE AGENDA ---
+        // Ce code capture la clé Google et l'enregistre. C'est ça qui valide l'étape 1.
+        const urlHash = window.location.hash.substring(1);
+        const urlParams = new URLSearchParams(urlHash);
+        const googleToken = urlParams.get('provider_token') || session.provider_token;
+        const refreshToken = urlParams.get('refresh_token') || session.provider_refresh_token;
+
+        if (googleToken && expertId) {
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: googleToken,
+                refresh_token: refreshToken,
+                expiry_date: Date.now() + 3500 * 1000
+            });
+        }
+
+      
       // --- AJOUTER CETTE LIGNE ICI ---
         // On cache le loader car les données sont chargées
         document.getElementById('globalLoader').style.opacity = '0';
