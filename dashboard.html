@@ -534,30 +534,42 @@
 
 <script>
 (async function() {
-    console.log("🚀 Mobile Dashboard vFinal...");
+    console.log("🚀 Dashboard Mobile ZEN Mode");
 
-    // 1. DÉBLOCAGE IMMÉDIAT (Fini la page blanche)
-    // On enlève le rideau tout de suite pour ne pas frustrer l'utilisateur
+    // 1. AFFICHAGE IMMEDIAT (Pas de page blanche)
     document.documentElement.classList.remove('auth-pending');
     document.body.style.visibility = 'visible';
 
-    // On ajoute un petit indicateur visuel de chargement en haut
+    // 2. BARRE DE STATUT (Pour savoir ce qui se passe sans être éjecté)
     const statusBox = document.createElement('div');
     statusBox.id = 'statusBox';
-    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:10px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:14px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
-    statusBox.innerHTML = "⏳ Connexion sécurisée en cours...";
+    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#f8fafc; color:#334155; padding:12px; z-index:99999; text-align:center; border-bottom:1px solid #e2e8f0; font-size:14px; font-weight:500; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); transition:all 0.3s;";
+    statusBox.innerHTML = `<span style="display:inline-block; animation:spin 1s linear infinite; margin-right:8px;">⏳</span> Connexion à Google...`;
+    
+    // Style pour l'animation
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = "@keyframes spin { 100% { transform: rotate(360deg); } }";
+    document.head.appendChild(styleSheet);
     document.body.appendChild(statusBox);
 
-    // Fonction pour mettre à jour le statut
-    function setStatus(msg, type='neutral') {
-        statusBox.innerHTML = msg;
-        if(type === 'success') { statusBox.style.background = '#dcfce7'; statusBox.style.color = '#166534'; setTimeout(() => statusBox.remove(), 2000); }
-        if(type === 'error') { statusBox.style.background = '#fee2e2'; statusBox.style.color = '#991b1b'; }
+    function setStatus(msg, type='loading') {
+        let icon = '<span style="display:inline-block; animation:spin 1s linear infinite; margin-right:8px;">⏳</span>';
+        let bg = '#f8fafc'; let col = '#334155';
+
+        if(type === 'success') { icon = '✅ '; bg = '#dcfce7'; col = '#166534'; }
+        if(type === 'error') { icon = '❌ '; bg = '#fee2e2'; col = '#991b1b'; }
+        if(type === 'warning') { icon = '⚠️ '; bg = '#fef9c3'; col = '#854d0e'; }
+
+        statusBox.innerHTML = icon + msg;
+        statusBox.style.background = bg;
+        statusBox.style.color = col;
+
+        if(type === 'success') setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 2000);
     }
 
     try {
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') {
-            setStatus("❌ Erreur: Supabase non chargé", 'error');
+            setStatus("Erreur: Supabase non chargé. Rechargez la page.", 'error');
             throw new Error("Deps missing");
         }
 
@@ -575,113 +587,102 @@
         }
         setLang(lang);
 
-        // --- AUTH LOGIQUE ---
-        let isAuthProcessing = false;
+        // --- GESTION DE SESSION ---
+        let sessionFound = false;
 
-        async function handleSession(session) {
-            if(isAuthProcessing) return; 
-            isAuthProcessing = true;
-            
-            setStatus("✅ Connexion réussie ! Chargement profil...", 'success');
+        async function onSessionFound(session) {
+            if(sessionFound) return;
+            sessionFound = true;
+            setStatus("Compte trouvé ! Chargement...", 'success');
             await checkExpertData(session);
         }
 
-        // A. Écouteur d'événements (Méthode principale)
-        const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
-            console.log("Event:", event);
+        // 1. Écouteur passif (La méthode douce)
+        sb.auth.onAuthStateChange((event, session) => {
+            console.log("Auth Event:", event);
             if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
-                handleSession(session);
-            } else if (event === 'SIGNED_OUT') {
-                // On ne redirige pas tout de suite si on est en train de traiter un code dans l'URL
-                const hasCode = window.location.search.includes('code');
-                if(!hasCode) window.location.replace("/");
+                onSessionFound(session);
             }
+            // NOTE: On ignore SIGNED_OUT pour ne pas éjecter l'utilisateur par erreur
         });
 
-        // B. Vérification Manuelle (Filet de sécurité)
-        // Si l'event listener a raté le coche, on vérifie manuellement
+        // 2. Vérification active (Au cas où l'event ne part pas)
         setTimeout(async () => {
-            if(!isAuthProcessing) {
+            if(!sessionFound) {
                 const { data: { session } } = await sb.auth.getSession();
-                if (session) {
-                    handleSession(session);
+                if(session) {
+                    onSessionFound(session);
                 } else {
-                    // Analyse de l'URL pour voir si on attend un code
-                    const hasCode = window.location.search.includes('code=');
-                    if (hasCode) {
-                        setStatus("⏳ Traitement du code Google (ça peut être long)...");
-                        // On laisse Supabase travailler, ne rien faire
+                    // Analyse de l'URL : Est-ce qu'on revient de Google ?
+                    const inAuthFlow = window.location.hash.includes('access_token') || 
+                                       window.location.search.includes('code');
+                    
+                    if(inAuthFlow) {
+                        setStatus("Finalisation de la connexion... (Patience)", 'warning');
+                        // On ne fait RIEN. On laisse Supabase finir son travail.
                     } else {
-                        // Vraiment pas connecté -> Redirection
-                        // window.location.replace("/"); // (Commenté pour le debug: reste sur la page)
-                        setStatus("⚠️ Non connecté. Redirection...", 'error');
-                        setTimeout(() => window.location.replace("/"), 1000);
+                        // Vraiment rien. On propose de réessayer au lieu d'éjecter.
+                        statusBox.innerHTML = `⚠️ Pas de connexion détectée. <button onclick="window.location.href='/'" style="margin-left:10px; padding:4px 8px; border-radius:4px; border:1px solid #ccc; background:#fff; cursor:pointer;">Réessayer</button>`;
+                        statusBox.style.background = '#f1f5f9';
                     }
                 }
             }
-        }, 1500); // On lance la vérif manuelle après 1.5s
+        }, 2000); // On vérifie après 2s, mais on ne tue pas le processus.
 
-        // --- RECUPERATION DONNEES ---
+        // --- DONNEES EXPERT ---
         async function checkExpertData(session) {
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
 
-            // 1. Chercher Expert
-            const { data, error } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-            
+            // Lecture
+            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
             if (data) {
                 expertData = data;
                 expertId = data.id;
             } else {
-                // 2. Créer Expert
-                setStatus("Création de votre fiche...", 'neutral');
+                // Création
                 const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-                const { data: newExpert, error: insertError } = await sb.from('experts').insert([{
+                const { data: newExpert, error } = await sb.from('experts').insert([{
                     auth_user_id: session.user.id,
                     email: session.user.email,
                     name: googleName,
                     presentation: "",
                     photo_url: "" 
                 }]).select().single();
-
-                if (newExpert) {
+                
+                if(newExpert) {
                     expertData = newExpert;
                     expertId = newExpert.id;
-                } else if (insertError) {
-                    setStatus("❌ Erreur Création: " + insertError.message, 'error');
-                    alert("Erreur DB: " + insertError.message);
-                    return;
+                } else if (error) {
+                     setStatus("Erreur DB: " + error.message, 'error');
+                     return;
                 }
             }
 
-            // 3. Update URL & UI
-            if(expertId) {
+            // UI UPDATE
+            if(expertId && expertData) {
                 const newUrl = new URL(window.location);
                 newUrl.searchParams.set('expert_id', expertId);
                 window.history.pushState({}, '', newUrl);
+
+                document.getElementById('topTitle').textContent = expertData.name;
+                document.getElementById('inputName').value = expertData.name || "";
                 
-                // Lancement de l'affichage final
-                if (expertData) {
-                    document.getElementById('topTitle').textContent = expertData.name;
-                    document.getElementById('inputName').value = expertData.name || "";
-                    
-                    let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                    if (expertData.photo_url && expertData.photo_url.trim() !== "") finalAvatar = expertData.photo_url;
-                    
-                    const topAvatar = document.getElementById('topAvatar');
-                    if(topAvatar) { topAvatar.src = finalAvatar; topAvatar.style.display = 'block'; }
-                    const previewAvatar = document.getElementById('previewAvatar');
-                    if(previewAvatar) previewAvatar.src = finalAvatar;
-                    
-                    // On masque le statut box car tout est bon
-                    setStatus("Chargement terminé !", 'success');
-                    
-                    updateHomeState(expertId);
-                }
+                let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+                if (expertData.photo_url && expertData.photo_url.trim() !== "") finalAvatar = expertData.photo_url;
+                
+                const topAvatar = document.getElementById('topAvatar');
+                if(topAvatar) { topAvatar.src = finalAvatar; topAvatar.style.display = 'block'; }
+                const previewAvatar = document.getElementById('previewAvatar');
+                if(previewAvatar) previewAvatar.src = finalAvatar;
+
+                // On cache la barre de chargement car c'est fini
+                setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 500);
+
+                updateHomeState(expertId);
             }
         }
 
-        // --- LOGIQUE METIER ---
         async function updateHomeState(expertId) {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => {
                 const el = document.getElementById(id);
@@ -700,7 +701,7 @@
             }
         }
 
-        // --- HELPER BOUTON ---
+        // --- HELPERS ---
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             const cleanRedirect = window.location.origin + window.location.pathname;
             await sb.auth.signInWithOAuth({
@@ -713,12 +714,11 @@
             });
         });
         
-        // Fonctions vides pour éviter erreurs si manquantes
         async function fetchAndRenderSlots(id){}
         function updateProgress(){}
 
     } catch (err) {
-        setStatus("CRASH JS: " + err.message, 'error');
+        setStatus("Crash JS: " + err.message, 'error');
     }
 })();
 </script>
