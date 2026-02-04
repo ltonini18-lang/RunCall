@@ -600,13 +600,16 @@
             session = data.session;
         }
 
-        // 3. Verdict final
         if (!session) { 
-            // Sécurité ultime : si on voit un "?code=" (retour Google Login classique), on ne redirige pas
-            if (!window.location.search.includes('code=')) {
+            // FIX PAGE BLANCHE : On ne redirige pas si on a un token dans l'URL (hash) ou un code !
+            const hasToken = window.location.hash.includes('access_token');
+            const hasCode = window.location.search.includes('code=');
+            
+            if (!hasToken && !hasCode) {
                 window.location.replace("/"); 
                 return; 
             }
+            // Si on a un token, on laisse le script continuer (le loader restera affiché le temps que Supabase traite le token)
         }
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
