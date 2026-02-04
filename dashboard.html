@@ -9,12 +9,16 @@
   <script src="js/config.js"></script>
   
   <style>html.auth-pending body { visibility: hidden; }</style>
-  <script>document.documentElement.classList.add('auth-pending');</script>
+  <script>
+    document.documentElement.classList.add('auth-pending');
+    // Sécurité: Si le JS plante, on affiche quand même la page au bout de 2s
+    setTimeout(() => { document.documentElement.classList.remove('auth-pending'); document.body.style.visibility='visible'; }, 2000);
+  </script>
 
   <link rel="stylesheet" href="style.css" />
   
   <style>
-    /* --- DESIGN SYSTEM --- */
+    /* --- DESIGN SYSTEM (Ton style d'origine) --- */
     :root{
       --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
       --muted:#475569; --muted2:#64748b; --brand:#1677ff; 
@@ -382,84 +386,83 @@
                          <textarea id="inputBio" rows="5" class="textarea"></textarea>
                      </div>
                      <div class="form-group">
-    <label class="label">
-        <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
-        <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
-              data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
-              data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
-        </span>
-    </label>
+                        <label class="label">
+                            <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
+                            <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
+                                  data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
+                                  data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
+                            </span>
+                        </label>
 
-    <div style="display:flex; gap:10px;">
-        <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
-        <select id="inputCurrency" class="input" style="flex:1;">
-            <option value="usd">USD ($)</option>
-            <option value="eur">EUR (€)</option>
-            <option value="gbp">GBP (£)</option>
-            <option value="chf">CHF (Fr)</option> 
-            <option value="cad">CAD ($)</option>
-        </select>
-    </div>
+                        <div style="display:flex; gap:10px;">
+                            <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
+                            <select id="inputCurrency" class="input" style="flex:1;">
+                                <option value="usd">USD ($)</option>
+                                <option value="eur">EUR (€)</option>
+                                <option value="gbp">GBP (£)</option>
+                                <option value="chf">CHF (Fr)</option> 
+                                <option value="cad">CAD ($)</option>
+                            </select>
+                        </div>
 
-    <div id="priceSimulator" style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:12px; border:1px solid var(--border);">
-        
-        <div id="simDefault">
-            <div id="toggleDefaultBtn" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#64748b; font-size:0.85rem; user-select:none;">
-                <span data-fr="Voir mes revenus nets pour les prix par défaut" data-en="See net earnings for default prices">Voir mes revenus nets pour les prix par défaut</span>
-                <svg id="arrowDefault" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
+                        <div id="priceSimulator" style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:12px; border:1px solid var(--border);">
+                            
+                            <div id="simDefault">
+                                <div id="toggleDefaultBtn" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#64748b; font-size:0.85rem; user-select:none;">
+                                    <span data-fr="Voir mes revenus nets pour les prix par défaut" data-en="See net earnings for default prices">Voir mes revenus nets pour les prix par défaut</span>
+                                    <svg id="arrowDefault" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                </div>
 
-            <div id="contentDefault" class="hidden" style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
-                        <div style="font-size:0.75rem; color:#64748b;">29 <span class="cur-sym">$</span></div>
-                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">23.20 <span class="cur-sym">$</span></div>
+                                <div id="contentDefault" class="hidden" style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
+                                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                                            <div style="font-size:0.75rem; color:#64748b;">29 <span class="cur-sym">$</span></div>
+                                            <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">23.20 <span class="cur-sym">$</span></div>
+                                        </div>
+                                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                                            <div style="font-size:0.75rem; color:#64748b;">49 <span class="cur-sym">$</span></div>
+                                            <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">39.20 <span class="cur-sym">$</span></div>
+                                        </div>
+                                        <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                                            <div style="font-size:0.75rem; color:#64748b;">79 <span class="cur-sym">$</span></div>
+                                            <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">63.20 <span class="cur-sym">$</span></div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:8px; font-size:0.75rem; color:#94a3b8; text-align:center;"
+                                         data-fr="* Commission standard de 20%" 
+                                         data-en="* Standard 20% commission">
+                                        * Commission standard de 20%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="simCustom" class="hidden">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
+                                    <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
+                                    <span id="simTotal" style="font-weight:600;">--</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
+                                    <span id="lblFeePct">Frais de plateforme (20%)</span>
+                                    <span id="simFee">- --</span>
+                                </div>
+                                <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#16a34a; margin-bottom:8px; text-align:right;">
+                                    🎉 Taux réduit activé !
+                                </div>
+                                <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
+                                    <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
-                        <div style="font-size:0.75rem; color:#64748b;">49 <span class="cur-sym">$</span></div>
-                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">39.20 <span class="cur-sym">$</span></div>
+
+                    <div style="margin-top:20px;">
+                        <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+                            <span data-fr="Enregistrer" data-en="Save Changes"></span>
+                        </button>
                     </div>
-                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
-                        <div style="font-size:0.75rem; color:#64748b;">79 <span class="cur-sym">$</span></div>
-                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">63.20 <span class="cur-sym">$</span></div>
-                    </div>
-                </div>
-                <div style="margin-top:8px; font-size:0.75rem; color:#94a3b8; text-align:center;"
-                     data-fr="* Commission standard de 20%" 
-                     data-en="* Standard 20% commission">
-                    * Commission standard de 20%
-                </div>
-            </div>
-        </div>
-
-        <div id="simCustom" class="hidden">
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
-                <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
-                <span id="simTotal" style="font-weight:600;">--</span>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
-                <span id="lblFeePct">Frais de plateforme (20%)</span>
-                <span id="simFee">- --</span>
-            </div>
-            <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#16a34a; margin-bottom:8px; text-align:right;">
-                🎉 Taux réduit activé !
-            </div>
-            <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
-                <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
-            </div>
-        </div>
-
-    </div>
-</div>
-
-<div style="margin-top:20px;">
-    <button type="submit" class="btn btn-primary" id="saveProfileBtn">
-        <span data-fr="Enregistrer" data-en="Save Changes"></span>
-    </button>
-</div>
-
-</form>
+                 </form>
             </div>
         </div>
       </div>
@@ -534,13 +537,9 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard SYSTEM RESTORED + MOBILE FIX");
+    console.log("🚀 Dashboard - FULL RECOVERY");
 
-    // 1. Déblocage Anti-Page Blanche
-    document.documentElement.classList.remove('auth-pending');
-    document.body.style.visibility = 'visible';
-
-    // Status Box pour diagnostic rapide
+    // --- 1. BOITE DE STATUT (Pour debug mobile) ---
     const statusBox = document.createElement('div');
     statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:10px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:13px; font-weight:600; transition:transform 0.3s; transform:translateY(-100%);";
     statusBox.id = "statusBox";
@@ -553,14 +552,14 @@
     }
 
     try {
+        // --- 2. INIT SUPABASE ---
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
-
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // LANGUE
+        // Langue
         let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
@@ -571,45 +570,64 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- AUTHENTIFICATION & DONNEES ---
+        // --- 3. AUTHENTIFICATION BLINDEE ---
         let sessionFound = false;
         let expertIdGlob = null;
 
-        async function onSessionFound(session) {
+        async function onSessionFound(session, manualProviderToken = null) {
             if(sessionFound) return;
             sessionFound = true;
+            
+            // On débloque l'UI
+            document.documentElement.classList.remove('auth-pending'); 
+            document.body.style.visibility = 'visible';
             setStatus("Connexion réussie...", 'success');
-            await checkExpertData(session);
+            
+            await checkExpertData(session, manualProviderToken);
         }
 
-        // A. Detection Token URL (Spécial Mobile)
+        // A. Detection Token URL (Spécial Mobile & Google)
         const hash = window.location.hash.substring(1); 
         const params = new URLSearchParams(hash);
-        if (params.get('access_token')) {
-            setStatus("Authentification...", 'loading');
+        const accessToken = params.get('access_token');
+        
+        // C'EST ICI LA CLÉ : On capture le provider_token manuellement
+        const manualProviderToken = params.get('provider_token');
+
+        if (accessToken) {
+            setStatus("Analyse des accès...", 'loading');
             const { data } = await sb.auth.setSession({
-                access_token: params.get('access_token'),
+                access_token: accessToken,
                 refresh_token: params.get('refresh_token')
             });
-            if (data?.session) onSessionFound(data.session);
+            if (data?.session) {
+                // On passe le token manuel !
+                onSessionFound(data.session, manualProviderToken);
+            }
         } else {
             // B. Session existante
             const { data: { session } } = await sb.auth.getSession();
             if (session) onSessionFound(session);
-            else if(window.location.search.includes('code=')) setStatus("Finalisation Google...", 'loading');
+            else {
+                // Si on n'est pas connecté, on enlève quand même le rideau blanc pour ne pas bloquer
+                document.documentElement.classList.remove('auth-pending'); 
+                document.body.style.visibility = 'visible';
+            }
         }
         
+        // C. Ecouteur standard (PC)
         sb.auth.onAuthStateChange((event, session) => {
             if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) onSessionFound(session);
             if (event === 'SIGNED_OUT') window.location.href = "/";
         });
 
-        // --- C'EST ICI LE FIX DE LA BOUCLE ---
-        async function checkExpertData(session) {
+
+        // --- 4. LOGIQUE METIER (EXPERT & CALENDRIER) ---
+        async function checkExpertData(session, manualProviderToken) {
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
 
-            // 1. Expert Profile
+            // 1. Profil Expert
             const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
             if (data) {
                 expertData = data; expertId = data.id;
@@ -625,22 +643,25 @@
             if(!expertData) return;
             expertIdGlob = expertId;
 
-            // 2. SAUVEGARDE GOOGLE (LE POINT CRITIQUE)
-            // Si on revient de Google, on a un provider_token. ON DOIT LE SAUVER.
-            if (session.provider_token) {
-                console.log("Saving Google Token...");
+            // 2. SAUVEGARDE GOOGLE (FIX CRITIQUE)
+            // On utilise soit le token manuel (mobile), soit celui de la session (PC)
+            const tokenToSave = manualProviderToken || session.provider_token;
+
+            if (tokenToSave) {
+                console.log("Saving Google Token:", tokenToSave.substring(0, 10) + "...");
                 setStatus("Sauvegarde Agenda...", 'loading');
+                
                 await sb.from('expert_google_accounts').upsert({
                     expert_id: expertId,
                     google_email: session.user.email,
-                    access_token: session.provider_token,
-                    refresh_token: session.provider_refresh_token,
+                    access_token: tokenToSave,
+                    refresh_token: session.provider_refresh_token, // (Peut être null, pas grave)
                     expiry_date: Date.now() + 3500 * 1000
                 });
                 setStatus("Agenda connecté !", 'success');
             }
 
-            // 3. UI & URL
+            // 3. Update UI & URL
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
             newUrl.hash = ''; 
@@ -663,10 +684,11 @@
             updateHomeState(expertId);
         }
 
-        // --- DASHBOARD ETAT ---
+        // --- 5. ETAT DU DASHBOARD (Step 1 -> 2 -> 3) ---
         async function updateHomeState(expertId) {
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
+            // Check Calendar
             const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
             
             if (!gAccount) {
@@ -676,6 +698,7 @@
                 return;
             }
 
+            // Check Slots
             let hasSlots = false;
             try {
                 const start = new Date(); const end = new Date(); end.setDate(end.getDate() + 30);
@@ -692,6 +715,7 @@
                 return;
             }
 
+            // Check Stripe
             let hasStripe = false;
             try {
                 const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
@@ -717,7 +741,9 @@
             fetchAndRenderSlots(expertId);
         }
 
-        // --- UI HELPERS ---
+        // --- 6. TOUTES LES AUTRES FONCTIONS (Profil, Upload, Prix, etc.) ---
+        
+        // Sauvegarde Profil
         document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             if(!expertIdGlob) return;
@@ -751,6 +777,7 @@
             finally { btn.textContent = originalText; btn.disabled = false; }
         });
 
+        // Photo Preview
         document.getElementById('avatarInput')?.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -760,6 +787,7 @@
             }
         });
 
+        // Calculateur Prix
         const priceInput = document.getElementById('inputPrice');
         const currencyInput = document.getElementById('inputCurrency');
         function updateSimulation() {
@@ -787,6 +815,7 @@
              document.getElementById('contentDefault').classList.toggle('hidden');
         });
 
+        // Stripe
         function updatePayoutsView(isActive, stripeUrl) {
             const statusDiv = document.getElementById('payoutStatus');
             const setupZone = document.getElementById('setupZone');
@@ -802,7 +831,6 @@
                 dashZone.style.display = 'none';
             }
         }
-
         const stripeHandler = async (btnId) => {
             const btn = document.getElementById(btnId);
             if(!btn) return;
@@ -820,6 +848,7 @@
         stripeHandler('homeSetupStripeBtn');
         stripeHandler('setupStripeBtn');
 
+        // Calendrier & Navigation
         let currentWeekOffset = 0;
         async function fetchAndRenderSlots(expertId) {
             if(!expertId) return;
@@ -872,6 +901,7 @@
              btn.innerHTML = lang==='fr' ? "🔄 Vérifier mes créneaux" : "🔄 Check my slots";
         });
 
+        // Connexion Bouton
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
             const redirect = window.location.origin + window.location.pathname;
             await sb.auth.signInWithOAuth({
@@ -884,6 +914,7 @@
             });
         });
 
+        // Tabs
         function switchTab(tabName) {
             localStorage.setItem('runcall_last_tab', tabName);
             document.querySelectorAll('.sb-item, .mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
