@@ -660,6 +660,32 @@
             document.getElementById('inputCurrency').value = expertData.currency || "usd";
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
+
+      // --- FIX : SAUVEGARDE DE L'AGENDA ---
+        // On relit l'URL ici car ton ancien code ne le faisait pas au début
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        // On récupère les clés
+        const providerToken = hashParams.get('provider_token') || session.provider_token;
+        const refreshToken = hashParams.get('refresh_token') || session.provider_refresh_token;
+
+        // Si on a la clé, on sauvegarde !
+        if (providerToken) {
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: providerToken,
+                refresh_token: refreshToken,
+                expiry_date: Date.now() + 3500 * 1000
+            });
+        }
+        
+        // Gestion du loader (si tu l'as ajouté)
+        if(document.getElementById('globalLoader')) {
+             document.getElementById('globalLoader').style.opacity = '0';
+             setTimeout(() => document.getElementById('globalLoader').style.display = 'none', 500);
+        }
+      
       // --- AJOUTER CETTE LIGNE ICI ---
         // On cache le loader car les données sont chargées
         document.getElementById('globalLoader').style.opacity = '0';
