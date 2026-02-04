@@ -167,12 +167,12 @@
 
 <body>
 
-  <div id="globalLoader" style="position:fixed; inset:0; background:#ffffff; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s ease;">
+<div id="globalLoader" style="position:fixed; inset:0; background:#ffffff; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s ease;">
     <style>
         .spinner-ring {
             width: 50px; height: 50px;
             border: 4px solid #f1f5f9;
-            border-top: 4px solid #1677ff; /* Bleu RunCall */
+            border-top: 4px solid #1677ff; 
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -551,13 +551,14 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard RUN CALL - FINAL ROBUST VERSION");
+    console.log("🚀 Dashboard RUN CALL - FINAL VERSION 1.0");
 
-    // 1. SECURITE ANTI-PAGE BLANCHE
+    // 1. SECURITE : AFFICHAGE IMMEDIAT (Anti Page Blanche)
+    // On retire le masque de protection immédiatement pour que le site soit visible quoi qu'il arrive
     document.documentElement.classList.remove('auth-pending');
     document.body.style.visibility = 'visible';
 
-    // Timer de secours : si dans 5s le loader est encore là, on le tue
+    // Timer de secours pour le loader bleu (au cas où le script planterait)
     setTimeout(() => {
         const l = document.getElementById('globalLoader');
         if(l) l.style.display = 'none';
@@ -571,102 +572,7 @@
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // --- A. ANALYSE URL (CRUCIAL POUR MOBILE) ---
-        // On récupère les tokens AVANT TOUT le reste
-        const hashStr = window.location.hash.substring(1);
-        const urlParams = new URLSearchParams(hashStr);
-        const accessToken = urlParams.get('access_token');
-        const refreshToken = urlParams.get('refresh_token');
-        const providerToken = urlParams.get('provider_token'); // La clé Google Agenda
-
-        // --- B. AUTHENTIFICATION ---
-        let session = null;
-
-        if (accessToken) {
-            // Cas 1 : Retour de Google (On force la session avec le token de l'URL)
-            const { data } = await sb.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-            });
-            session = data.session;
-        } else {
-            // Cas 2 : Déjà connecté (PC ou après reload)
-            const { data } = await sb.auth.getSession();
-            session = data.session;
-        }
-
-        // Si toujours pas de session, on redirige (sauf si code en cours)
-        if (!session) {
-            if (!window.location.search.includes('code=')) {
-                window.location.replace("/");
-            }
-            return; // Stop script
-        }
-
-        // --- C. GESTION EXPERT ---
-        let expertId = new URLSearchParams(window.location.search).get('expert_id');
-        let expertData = null;
-
-        // Récupération ou Création Expert
-        const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-        if (data) { 
-            expertData = data; expertId = data.id; 
-        } else {
-            const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-            const { data: newExpert } = await sb.from('experts').insert([{
-                auth_user_id: session.user.id,
-                email: session.user.email,
-                name: googleName,
-                presentation: "",
-                photo_url: "" 
-            }]).select().single();
-            if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
-        }
-
-        // --- D. SAUVEGARDE AGENDA (LE FIX DE LA BOUCLE ETAPE 1) ---
-        // Si on a récupéré un provider_token dans l'URL (Etape A), on l'enregistre MAINTENANT.
-        if (providerToken && expertId) {
-            console.log("💾 Sauvegarde Token Google...");
-            await sb.from('expert_google_accounts').upsert({
-                expert_id: expertId,
-                google_email: session.user.email,
-                access_token: providerToken,
-                refresh_token: refreshToken || session.provider_refresh_token,
-                expiry_date: Date.now() + 3500 * 1000,
-                updated_at: new Date()
-            });
-            // Petit délai pour laisser Supabase écrire avant de recharger l'état
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        // --- E. MISE A JOUR URL (Nettoyage) ---
-        if(expertId) {
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('expert_id', expertId);
-            if(accessToken) newUrl.hash = ''; // On nettoie le hash moche
-            window.history.replaceState({}, '', newUrl);
-        }
-
-        // --- F. REMPLISSAGE UI (Header) ---
-        if (expertData) {
-            document.getElementById('topTitle').textContent = expertData.name;
-            const topAvatar = document.getElementById('topAvatar');
-            const previewAvatar = document.getElementById('previewAvatar');
-            let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-            
-            topAvatar.src = finalAvatar;
-            previewAvatar.src = finalAvatar;
-            topAvatar.style.display = 'block';
-
-            document.getElementById('inputName').value = expertData.name || "";
-            document.getElementById('inputBio').value = expertData.presentation || "";
-            document.getElementById('inputPrice').value = expertData.price || "";
-            document.getElementById('inputCurrency').value = expertData.currency || "usd";
-            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
-        }
-
-        // --- G. LANCEMENT DE L'INTERFACE (LE FIX DE L'ECRAN BLANC) ---
-        // 1. Initialiser le système de langue
+        // LANGUE
         let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
@@ -678,13 +584,110 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // 2. Gestion des onglets
+        // --- AUTHENTIFICATION (FIX MOBILE) ---
+        let session = null;
+
+        // A. Detection Token URL (Hash)
+        // On récupère TOUT DE SUITE les clés dans l'URL avant que Supabase ne les efface
+        const hashStr = window.location.hash.substring(1);
+        const urlParams = new URLSearchParams(hashStr);
+        const accessToken = urlParams.get('access_token');
+        const refreshToken = urlParams.get('refresh_token');
+        const providerToken = urlParams.get('provider_token'); // Clé Google Agenda
+
+        if (accessToken && refreshToken) {
+            // Mobile : On force la session avec le token de l'URL
+            const { data } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+            session = data.session;
+        } else {
+            // PC / Déjà connecté
+            const { data } = await sb.auth.getSession();
+            session = data.session;
+        }
+
+        // B. Verdict : Si pas de session, on redirige (sauf si code Google en cours)
+        if (!session) {
+            // Si on a 'code=' dans l'URL, c'est que Google travaille, on ne redirige pas
+            if (!window.location.search.includes('code=') && !accessToken) {
+                window.location.replace("/");
+                return;
+            }
+            // Si on a un code ou un token, on laisse continuer (le loader tourne)
+        }
+
+        // --- GESTION EXPERT ---
+        let expertId = new URLSearchParams(window.location.search).get('expert_id');
+        let expertData = null;
+
+        if (session) {
+            // 1. Récupération ou Création
+            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+            if (data) { 
+                expertData = data; expertId = data.id; 
+            } else {
+                const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
+                const { data: newExpert } = await sb.from('experts').insert([{
+                    auth_user_id: session.user.id,
+                    email: session.user.email,
+                    name: googleName,
+                    presentation: "",
+                    photo_url: "" 
+                }]).select().single();
+                if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
+            }
+
+            // 2. Nettoyage URL
+            if(expertId) {
+                const newUrl = new URL(window.location);
+                newUrl.searchParams.set('expert_id', expertId);
+                // On nettoie le hash (access token) pour faire propre
+                if(accessToken) newUrl.hash = ''; 
+                window.history.replaceState({}, '', newUrl);
+            }
+
+            // 3. Remplissage UI
+            if (expertData) {
+                document.getElementById('topTitle').textContent = expertData.name;
+                const topAvatar = document.getElementById('topAvatar');
+                const previewAvatar = document.getElementById('previewAvatar');
+                let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+                
+                topAvatar.src = finalAvatar;
+                previewAvatar.src = finalAvatar;
+                topAvatar.style.display = 'block';
+
+                document.getElementById('inputName').value = expertData.name || "";
+                document.getElementById('inputBio').value = expertData.presentation || "";
+                document.getElementById('inputPrice').value = expertData.price || "";
+                document.getElementById('inputCurrency').value = expertData.currency || "usd";
+                document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            }
+
+            // --- 4. FIX ETAPE 1 (Agenda) ---
+            // C'est ici qu'on capture la clé Google pour la sauvegarder
+            // On le fait UNIQUEMENT si on a détecté un provider_token dans l'URL au début
+            if (providerToken && expertId) {
+                console.log("💾 Sauvegarde Agenda...");
+                await sb.from('expert_google_accounts').upsert({
+                    expert_id: expertId,
+                    google_email: session.user.email,
+                    access_token: providerToken,
+                    refresh_token: refreshToken || session.provider_refresh_token,
+                    expiry_date: Date.now() + 3500 * 1000,
+                    updated_at: new Date()
+                });
+            }
+        }
+
+        // --- GESTION AFFICHAGE (Onglets) ---
+        // On s'assure d'afficher quelque chose à la fin du chargement
         function switchTab(tabName) {
             localStorage.setItem('runcall_last_tab', tabName);
-            // Menus
             document.querySelectorAll('.sb-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
             document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
-            // Vues
             ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => document.getElementById(v).classList.add('hidden'));
             
             let targetId = 'viewHome';
@@ -697,26 +700,23 @@
         document.querySelectorAll('.sb-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
         document.querySelectorAll('.mobile-nav-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
 
-        // 3. Forcer l'affichage du premier onglet
         const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
         switchTab(savedTab);
 
-        // --- H. FIN DU CHARGEMENT ---
+        // On lance la logique de l'onglet Home
+        // IMPORTANT : await ici pour être sûr que tout est chargé avant de cacher le loader
+        if(expertId) await updateHomeState(); 
+
+        // On cache le loader (tout est prêt)
         const loader = document.getElementById('globalLoader');
         if(loader) {
             loader.style.opacity = '0';
             setTimeout(() => loader.style.display = 'none', 500);
         }
 
-        // --- I. LOGIQUE METIER (Simulateur, Slots, etc...) ---
-        // Mise à jour UI initiale
-        updateHomeState();
-
-        // Fonctions auxiliaires
+        // --- LOGIQUE METIER (Simulateur, Slots, etc.) ---
         const priceInput = document.getElementById('inputPrice');
         const currencyInput = document.getElementById('inputCurrency');
-        
-        // --- LOGIQUE SIMULATEUR EXACTE DU FICHIER ORIGINAL ---
         const simDefault = document.getElementById('simDefault');
         const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
         const contentDefault = document.getElementById('contentDefault');
@@ -1015,12 +1015,16 @@
              try {
                  const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
                  const d = await res.json();
-                 if(d.url) window.location.href = d.url;
-                 else throw new Error("Erreur URL");
+                 if(d.url) window.location.href = d.url; else throw new Error("Erreur URL");
              } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
         };
         if(setupStripeBtn) setupStripeBtn.addEventListener('click', () => setupHandler(setupStripeBtn));
         if(homeSetupStripeBtn) homeSetupStripeBtn.addEventListener('click', () => setupHandler(homeSetupStripeBtn));
+        document.getElementById('copyLinkAction')?.addEventListener('click', () => {
+            const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            navigator.clipboard.writeText(link);
+            alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
 
     } catch (err) { 
         console.error("DASH ERROR", err);
@@ -1028,7 +1032,6 @@
         if(l) l.style.display = 'none';
         alert("Une erreur est survenue.");
     }
-  
 })();
 </script>
 </body>
