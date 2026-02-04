@@ -11,14 +11,13 @@
   <style>html.auth-pending body { visibility: hidden; }</style>
   <script>
     document.documentElement.classList.add('auth-pending');
-    // Sécurité: Si le JS plante, on affiche quand même la page au bout de 2s
     setTimeout(() => { document.documentElement.classList.remove('auth-pending'); document.body.style.visibility='visible'; }, 2000);
   </script>
 
   <link rel="stylesheet" href="style.css" />
   
   <style>
-    /* --- DESIGN SYSTEM (Ton style d'origine) --- */
+    /* --- DESIGN SYSTEM --- */
     :root{
       --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
       --muted:#475569; --muted2:#64748b; --brand:#1677ff; 
@@ -537,20 +536,16 @@
 
 <script>
 (async function() {
-    console.log("🚀 RunCall Dashboard - FINAL + TRANSLATION FIX");
+    console.log("🚀 Dashboard - FINAL + TRANSLATION FIX + FLEXIBLE CHECK");
 
     // --- 0. DETECTION LANGUE (IMMEDIATE) ---
-    // On le fait tout de suite pour que le premier message soit dans la bonne langue
     let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
 
     // --- 1. BOITE DE STATUT ---
     const statusBox = document.createElement('div');
     statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:10px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:13px; font-weight:600; transition:transform 0.3s; transform:translateY(-100%);";
     statusBox.id = "statusBox";
-    
-    // Message initial traduit
     statusBox.innerHTML = lang === 'fr' ? '⏳ Chargement...' : '⏳ Loading...';
-    
     document.body.appendChild(statusBox);
 
     function setStatus(msg, type='loading') {
@@ -560,10 +555,6 @@
         if(type==='success') setTimeout(()=>statusBox.style.transform='translateY(-100%)', 2500);
     }
 
-    // 2. Déblocage Anti-Page Blanche
-    document.documentElement.classList.remove('auth-pending');
-    document.body.style.visibility = 'visible';
-
     try {
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
 
@@ -572,7 +563,6 @@
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
         );
 
-        // Application de la langue au reste du site
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
@@ -589,12 +579,10 @@
         async function onSessionFound(session, manualProviderToken = null) {
             if(sessionFound) return;
             sessionFound = true;
-            // Traduction ici
             setStatus(lang === 'fr' ? "Connexion réussie..." : "Connection successful...", 'success');
             await checkExpertData(session, manualProviderToken);
         }
 
-        // A. Detection Token URL (Spécial Mobile)
         const hash = window.location.hash.substring(1); 
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
@@ -608,7 +596,6 @@
             });
             if (data?.session) onSessionFound(data.session, manualProviderToken);
         } else {
-            // B. Session existante
             const { data: { session } } = await sb.auth.getSession();
             if (session) onSessionFound(session);
             else if(window.location.search.includes('code=')) {
@@ -626,7 +613,6 @@
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
 
-            // 1. Profil Expert
             const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
             if (data) {
                 expertData = data; expertId = data.id;
@@ -642,7 +628,6 @@
             if(!expertData) return;
             expertIdGlob = expertId;
 
-            // 2. SAUVEGARDE AGENDA
             const tokenToSave = manualProviderToken || session.provider_token;
             if (tokenToSave) {
                 setStatus(lang === 'fr' ? "Sauvegarde Agenda..." : "Saving Calendar...", 'loading');
@@ -656,7 +641,6 @@
                 setStatus(lang === 'fr' ? "Agenda connecté !" : "Calendar connected!", 'success');
             }
 
-            // 3. UI
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
             newUrl.hash = ''; 
@@ -692,11 +676,12 @@
                 return;
             }
 
-            // Check Slots (00h00 fix)
+            // Check Slots (NOW)
             let hasSlots = false;
             try {
-                const start = new Date(); start.setHours(0, 0, 0, 0); 
-                const end = new Date(); end.setDate(end.getDate() + 60); 
+                const start = new Date(); 
+                const end = new Date(); end.setDate(end.getDate() + 90); 
+
                 const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${start.toISOString()}&to=${end.toISOString()}&_t=${Date.now()}`);
                 const data = await res.json();
                 const slots = Array.isArray(data) ? data : (data.slots || []);
@@ -744,9 +729,10 @@
              btn.disabled = true;
              await updateHomeState(expertIdGlob);
              if(!document.getElementById('stateFirstSlots').classList.contains('hidden')) {
+                 // MESSAGE GENÉRIQUE (Le "flexible" que tu voulais)
                  alert(lang === 'fr' 
-                    ? "⚠️ Toujours aucun créneau.\nAssurez-vous que l'événement s'appelle 'RunCall' dans votre agenda."
-                    : "⚠️ Still no slots.\nEnsure the event is named 'RunCall' in your calendar.");
+                    ? "Aucun créneau détecté pour l'instant.\n\nAssurez-vous d'avoir créé un événement 'RunCall' (ou 'Run-Call') dans les jours à venir."
+                    : "No slots detected yet.\n\nPlease ensure you created a 'RunCall' event in your calendar.");
              }
              btn.innerHTML = original; btn.disabled = false;
         });
