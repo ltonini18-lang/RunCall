@@ -534,26 +534,32 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard ATOMIC Mode");
+    console.log("🚀 RunCall Dashboard - ORIGINAL + MOBILE FIX");
 
-    // 1. DÉBLOCAGE & STATUT
+    // --- 1. CONFIG & INIT VISUELLE ---
     document.documentElement.classList.remove('auth-pending');
     document.body.style.visibility = 'visible';
 
+    // Status Box (Indispensable pour mobile pour voir l'avancement)
     const statusBox = document.createElement('div');
     statusBox.id = 'statusBox';
-    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:15px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:14px; font-weight:600; box-shadow:0 4px 10px rgba(0,0,0,0.1);";
-    statusBox.innerHTML = `⏳ Analyse du lien de connexion...`;
+    statusBox.style.cssText = "position:fixed; top:0; left:0; right:0; background:#fff; color:#333; padding:10px; z-index:99999; text-align:center; border-bottom:1px solid #eee; font-size:13px; font-weight:600; box-shadow:0 2px 10px rgba(0,0,0,0.1); transition:transform 0.5s;";
+    statusBox.innerHTML = `⏳ Chargement...`;
+    statusBox.style.transform = 'translateY(-100%)';
     document.body.appendChild(statusBox);
 
-    function setStatus(msg, color='#333', bg='#fff') {
+    function setStatus(msg, type='loading') {
+        statusBox.style.transform = 'translateY(0)';
+        let bg='#fff', col='#333';
+        if(type==='success'){ bg='#dcfce7'; col='#166534'; setTimeout(()=>statusBox.style.transform='translateY(-100%)', 2500); }
+        if(type==='error'){ bg='#fee2e2'; col='#991b1b'; }
+        statusBox.style.background = bg; statusBox.style.color = col;
         statusBox.innerHTML = msg;
-        statusBox.style.color = color;
-        statusBox.style.background = bg;
-        if(color === '#166534') setTimeout(() => { statusBox.style.transform = 'translateY(-100%)'; }, 2000);
     }
 
     try {
+        if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Dependances manquantes");
+
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
             "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
@@ -564,135 +570,391 @@
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
+            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
+        document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- C'EST ICI QUE TOUT SE JOUE ---
+
+        // --- 2. AUTHENTIFICATION ROBUSTE (LE FIX MOBILE EST ICI) ---
         let sessionFound = false;
 
         async function onSessionFound(session) {
             if(sessionFound) return;
             sessionFound = true;
-            setStatus("✅ Connexion réussie ! Chargement...", '#166534', '#dcfce7');
+            setStatus("✅ Connexion réussie", 'success');
             await checkExpertData(session);
         }
 
-        // 1. MÉTHODE "MANUELLE" (On lit ton URL géante)
-        // On récupère tout ce qu'il y a après le #
+        // A. Detection Token URL (Priorité absolue pour mobile)
         const hash = window.location.hash.substring(1); 
         const params = new URLSearchParams(hash);
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-
-        if (accessToken && refreshToken) {
-            setStatus("🔐 Clés détectées. Connexion forcée...", '#854d0e', '#fef9c3');
-            
-            // ON FORCE LA SESSION DANS SUPABASE
-            const { data, error } = await sb.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
+        if (params.get('access_token')) {
+            setStatus("🔐 Validation des accès...", 'loading');
+            const { data } = await sb.auth.setSession({
+                access_token: params.get('access_token'),
+                refresh_token: params.get('refresh_token')
             });
-
-            if (data?.session) {
-                // VICTOIRE !
-                onSessionFound(data.session);
-            } else if (error) {
-                setStatus("Erreur Token: " + error.message, 'red');
-            }
-        } 
-        // 2. MÉTHODE CLASSIQUE (Si déjà connecté avant)
-        else {
+            if (data?.session) onSessionFound(data.session);
+        } else {
+            // B. Detection Session existante
             const { data: { session } } = await sb.auth.getSession();
-            if (session) {
-                onSessionFound(session);
-            } else {
-                // Vraiment rien ?
-                setStatus("⚠️ Non connecté.", '#991b1b', '#fee2e2');
-                statusBox.innerHTML += ` <button onclick="window.location.href='/'" style="padding:5px 10px; margin-left:10px;">Retour Accueil</button>`;
+            if (session) onSessionFound(session);
+            else {
+                if(window.location.search.includes('code=')) setStatus("Finalisation...", 'loading'); 
             }
         }
+        
+        // C. Ecouteur standard
+        sb.auth.onAuthStateChange((event, session) => {
+            if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) onSessionFound(session);
+            if (event === 'SIGNED_OUT') window.location.href = "/";
+        });
 
-        // --- DONNEES EXPERT ---
+
+        // --- 3. LOGIQUE METIER (TON CODE D'ORIGINE) ---
+        let expertIdGlob = null; 
+
         async function checkExpertData(session) {
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
 
-            // Lecture
+            // 1. Récupération Expert
             const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
             if (data) {
-                expertData = data;
-                expertId = data.id;
+                expertData = data; expertId = data.id;
             } else {
                 // Création
                 const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
                 const { data: newExpert } = await sb.from('experts').insert([{
-                    auth_user_id: session.user.id,
-                    email: session.user.email,
-                    name: googleName,
-                    presentation: "",
-                    photo_url: "" 
+                    auth_user_id: session.user.id, email: session.user.email, name: googleName,
+                    presentation: "", photo_url: "" 
                 }]).select().single();
                 if(newExpert) { expertData = newExpert; expertId = newExpert.id; }
             }
 
-            if(expertId && expertData) {
-                // Nettoyage URL (On enlève le gros token moche)
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.set('expert_id', expertId);
-                newUrl.hash = ''; // Hop, on efface le hash
-                window.history.replaceState({}, '', newUrl);
+            if(!expertData) return;
+            expertIdGlob = expertId; 
 
-                document.getElementById('topTitle').textContent = expertData.name;
-                document.getElementById('inputName').value = expertData.name || "";
-                
-                let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                if (expertData.photo_url) finalAvatar = expertData.photo_url;
-                
-                const topAvatar = document.getElementById('topAvatar');
-                if(topAvatar) { topAvatar.src = finalAvatar; topAvatar.style.display = 'block'; }
-                const previewAvatar = document.getElementById('previewAvatar');
-                if(previewAvatar) previewAvatar.src = finalAvatar;
-
-                updateHomeState(expertId);
+            // 2. SAUVEGARDE CALENDRIER (Si retour de Google)
+            if (session.provider_token) {
+                setStatus("Liaison Agenda...", 'loading');
+                await sb.from('expert_google_accounts').upsert({
+                    expert_id: expertId,
+                    google_email: session.user.email,
+                    access_token: session.provider_token,
+                    refresh_token: session.provider_refresh_token,
+                    expiry_date: Date.now() + 3500 * 1000
+                });
+                setStatus("Agenda connecté !", 'success');
             }
+
+            // 3. UI Update
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('expert_id', expertId);
+            newUrl.hash = ''; // Important: on nettoie l'URL
+            window.history.replaceState({}, '', newUrl);
+
+            // Remplissage Formulaire Profil
+            document.getElementById('topTitle').textContent = expertData.name;
+            document.getElementById('inputName').value = expertData.name || "";
+            document.getElementById('inputBio').value = expertData.presentation || "";
+            document.getElementById('inputPrice').value = expertData.price || "";
+            document.getElementById('inputCurrency').value = expertData.currency || "usd";
+            
+            let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+            if (expertData.photo_url) finalAvatar = expertData.photo_url;
+            document.getElementById('topAvatar').src = finalAvatar;
+            document.getElementById('previewAvatar').src = finalAvatar;
+            document.getElementById('topAvatar').style.display = 'block';
+            
+            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+
+            // 4. Lancement Calculateur & Dashboard
+            updateSimulation(); 
+            updateHomeState(expertId);
         }
 
+        // --- 4. DASHBOARD STATE ENGINE ---
+        
         async function updateHomeState(expertId) {
-            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.classList.add('hidden');
-            });
+            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
+            // Check Calendar
             const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
             
             if (!gAccount) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 document.getElementById('onboardingProgress').classList.remove('hidden');
+                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
+                return;
+            }
+
+            // Check Slots
+            let hasSlots = false;
+            try {
+                const start = new Date(); const end = new Date(); end.setDate(end.getDate() + 30);
+                const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${start.toISOString()}&to=${end.toISOString()}&_t=${Date.now()}`);
+                const data = await res.json();
+                const slots = Array.isArray(data) ? data : (data.slots || []);
+                hasSlots = slots.length > 0;
+            } catch(e) {}
+
+            if (!hasSlots) {
+                document.getElementById('stateFirstSlots').classList.remove('hidden');
+                document.getElementById('onboardingProgress').classList.remove('hidden');
+                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
+                return;
+            }
+
+            // Check Stripe
+            let hasStripe = false;
+            try {
+                const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
+                const d = await res.json();
+                hasStripe = d.isComplete;
+                updatePayoutsView(hasStripe, d.url);
+            } catch(e) {}
+
+            if (!hasStripe) {
+                document.getElementById('stateSetupPayouts').classList.remove('hidden');
+                document.getElementById('onboardingProgress').classList.remove('hidden');
+                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
+                
+                document.getElementById('stateCalendar').classList.remove('hidden');
+                document.getElementById('calSubtitlePreview').classList.remove('hidden');
+                document.getElementById('activeBadge').classList.add('hidden');
             } else {
                 document.getElementById('stateCalendar').classList.remove('hidden');
                 document.getElementById('onboardingProgress').classList.add('hidden');
-                fetchAndRenderSlots(expertId);
+                document.getElementById('activeBadge').classList.remove('hidden');
+                document.getElementById('calSubtitleReady').classList.remove('hidden');
+                document.getElementById('calSubtitlePreview').classList.add('hidden');
+            }
+            fetchAndRenderSlots(expertId);
+        }
+
+
+        // --- 5. FONCTIONS INTERACTIVES ---
+
+        // A. Sauvegarde Profil
+        document.getElementById('profileForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if(!expertIdGlob) return;
+            const btn = document.getElementById('saveProfileBtn');
+            const originalText = btn.textContent;
+            btn.textContent = "Sauvegarde..."; btn.disabled = true;
+
+            try {
+                const name = document.getElementById('inputName').value;
+                const bio = document.getElementById('inputBio').value;
+                const price = document.getElementById('inputPrice').value ? parseInt(document.getElementById('inputPrice').value) : null;
+                const currency = document.getElementById('inputCurrency').value;
+                let photoUrl = document.getElementById('previewAvatar').src;
+
+                // Upload Photo
+                const fileInput = document.getElementById('avatarInput');
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const ext = file.name.split('.').pop();
+                    const fileName = `${expertIdGlob}-${Date.now()}.${ext}`;
+                    const { error: upErr } = await sb.storage.from('avatars').upload(fileName, file);
+                    if(upErr) throw upErr;
+                    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
+                    photoUrl = publicUrl;
+                }
+
+                // Update DB
+                const { error } = await sb.from('experts').update({
+                    name, presentation: bio, price, currency, photo_url: photoUrl
+                }).eq('id', expertIdGlob);
+
+                if(error) throw error;
+                
+                alert(lang==='fr'?"Profil mis à jour !":"Profile updated!");
+                document.getElementById('topTitle').textContent = name;
+                document.getElementById('topAvatar').src = photoUrl;
+                document.getElementById('previewAvatar').src = photoUrl;
+
+            } catch(err) { alert("Erreur: " + err.message); }
+            finally { btn.textContent = originalText; btn.disabled = false; }
+        });
+
+        // B. Preview Photo
+        document.getElementById('avatarInput')?.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => document.getElementById('previewAvatar').src = ev.target.result;
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // C. Calculateur Prix
+        const priceInput = document.getElementById('inputPrice');
+        const currencyInput = document.getElementById('inputCurrency');
+        
+        function updateSimulation() {
+            const val = parseFloat(priceInput.value);
+            const sym = {'usd':'$','eur':'€','gbp':'£','chf':'CHF'}[currencyInput.value] || '$';
+            document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
+
+            const simDefault = document.getElementById('simDefault');
+            const simCustom = document.getElementById('simCustom');
+            
+            if(!val || val <= 0) {
+                simDefault.classList.remove('hidden'); simCustom.classList.add('hidden');
+            } else {
+                simDefault.classList.add('hidden'); simCustom.classList.remove('hidden');
+                let rate = 0.20;
+                if (val >= 200) rate = 0.10; else if (val >= 100) rate = 0.15;
+                
+                const fee = val * rate;
+                document.getElementById('simTotal').textContent = `${val} ${sym}`;
+                document.getElementById('simFee').textContent = `- ${fee.toFixed(2)} ${sym}`;
+                document.getElementById('simNet').textContent = `${(val - fee).toFixed(2)} ${sym}`;
+                document.getElementById('rateSuccessMsg').classList.toggle('hidden', rate >= 0.20);
+            }
+        }
+        priceInput?.addEventListener('input', updateSimulation);
+        currencyInput?.addEventListener('change', updateSimulation);
+        document.getElementById('toggleDefaultBtn')?.addEventListener('click', () => {
+             document.getElementById('contentDefault').classList.toggle('hidden');
+        });
+
+
+        // D. Stripe & Payouts Views
+        function updatePayoutsView(isActive, stripeUrl) {
+            const statusDiv = document.getElementById('payoutStatus');
+            const setupZone = document.getElementById('setupZone');
+            const dashZone = document.getElementById('dashboardZone');
+            
+            if(isActive) {
+                statusDiv.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399;">✅ <strong>Active</strong></div>`;
+                setupZone.style.display = 'none';
+                dashZone.style.display = 'block';
+                document.getElementById('accessStripeBtn').href = stripeUrl;
+            } else {
+                statusDiv.innerHTML = `<p style="color:#666;">Connexion bancaire requise.</p>`;
+                setupZone.style.display = 'block';
+                dashZone.style.display = 'none';
             }
         }
 
+        const stripeHandler = async (btnId) => {
+            const btn = document.getElementById(btnId);
+            if(!btn) return;
+            btn.addEventListener('click', async () => {
+                if(!expertIdGlob) return;
+                btn.disabled = true; btn.innerText = "...";
+                const country = document.getElementById('homeCountrySelector')?.value || document.getElementById('countrySelector')?.value || 'FR';
+                try {
+                    const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId: expertIdGlob, country }) });
+                    const d = await res.json();
+                    if(d.url) window.location.href = d.url; else alert("Erreur URL Stripe");
+                } catch(e) { alert("Erreur Stripe: "+e.message); btn.disabled = false; }
+            });
+        };
+        stripeHandler('homeSetupStripeBtn');
+        stripeHandler('setupStripeBtn');
+
+
+        // --- 6. NAVIGATION & CALENDRIER ---
+        
+        let currentWeekOffset = 0;
+        async function fetchAndRenderSlots(expertId) {
+            if(!expertId) return;
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            document.getElementById('loadingSlots').classList.remove('hidden');
+            document.getElementById('emptyStateMsg').classList.add('hidden');
+
+            const d = new Date();
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (currentWeekOffset * 7);
+            const startOfWeek = new Date(d.setDate(diff)); startOfWeek.setHours(0,0,0,0);
+            
+            const dayNames = lang === 'fr' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            for (let i = 0; i < 7; i++) {
+                const curr = new Date(startOfWeek); curr.setDate(curr.getDate() + i);
+                const col = document.createElement('div'); col.className = 'day-col';
+                const dateKey = curr.toLocaleDateString('en-CA');
+                col.innerHTML = `<div class="day-head">${dayNames[i]} <span style="font-weight:400">${curr.getDate()}</span></div><div class="slots" id="slots-${dateKey}"></div>`;
+                grid.appendChild(col);
+            }
+
+            try {
+                const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(endOfWeek.getDate() + 7);
+                const res = await fetch(`/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${endOfWeek.toISOString()}&_t=${Date.now()}`);
+                const slots = await res.json();
+                const cleanSlots = Array.isArray(slots) ? slots : (slots.slots || []);
+                
+                document.getElementById('loadingSlots').classList.add('hidden');
+                if(cleanSlots.length === 0) document.getElementById('emptyStateMsg').classList.remove('hidden');
+
+                cleanSlots.forEach(slot => {
+                    const dKey = new Date(slot.start).toLocaleDateString('en-CA');
+                    const container = document.getElementById(`slots-${dKey}`);
+                    if (container) {
+                        const div = document.createElement('div'); div.className = 'slot';
+                        const loc = lang==='fr'?'fr-FR':'en-US';
+                        div.textContent = `${new Date(slot.start).toLocaleTimeString(loc, {hour:'2-digit', minute:'2-digit'})} - ${new Date(slot.end).toLocaleTimeString(loc, {hour:'2-digit', minute:'2-digit'})}`;
+                        container.appendChild(div);
+                    }
+                });
+            } catch(e){}
+            
+            const endLabel = new Date(startOfWeek); endLabel.setDate(endLabel.getDate()+6);
+            const loc = lang === 'fr' ? 'fr-FR' : 'en-US';
+            document.getElementById('weekLabel').textContent = `${startOfWeek.toLocaleDateString(loc, {day:'numeric', month:'short'})} - ${endLabel.toLocaleDateString(loc, {day:'numeric', month:'short'})}`;
+        }
+
+        document.getElementById('prevWeek').addEventListener('click', () => { currentWeekOffset--; fetchAndRenderSlots(expertIdGlob); });
+        document.getElementById('nextWeek').addEventListener('click', () => { currentWeekOffset++; fetchAndRenderSlots(expertIdGlob); });
+        
+        document.getElementById('refreshSlotsBtn')?.addEventListener('click', () => fetchAndRenderSlots(expertIdGlob));
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             btn.innerHTML = "Vérification...";
+             await updateHomeState(expertIdGlob);
+             btn.innerHTML = lang==='fr' ? "🔄 Vérifier mes créneaux" : "🔄 Check my slots";
+        });
+
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            const cleanRedirect = window.location.origin + window.location.pathname;
+            const redirect = window.location.origin + window.location.pathname;
             await sb.auth.signInWithOAuth({
                 provider: 'google',
                 options: { 
-                    redirectTo: cleanRedirect,
+                    redirectTo: redirect,
                     scopes: 'https://www.googleapis.com/auth/calendar.events',
                     queryParams: { access_type: 'offline', prompt: 'consent' }
                 }
             });
         });
+
+        // Tabs Logic
+        function switchTab(tabName) {
+            localStorage.setItem('runcall_last_tab', tabName);
+            document.querySelectorAll('.sb-item, .mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
+            ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            
+            const target = tabName === 'profile' ? 'viewProfile' : (tabName === 'payouts' ? 'viewPayouts' : 'viewHome');
+            document.getElementById(target).classList.remove('hidden');
+            if(tabName === 'home' && expertIdGlob) fetchAndRenderSlots(expertIdGlob);
+        }
+        document.querySelectorAll('.sb-item, .mobile-nav-item').forEach(i => i.addEventListener('click', () => switchTab(i.dataset.tab)));
+        switchTab(localStorage.getItem('runcall_last_tab') || 'home');
         
-        async function fetchAndRenderSlots(id){}
-        function updateProgress(){}
+        // Helpers
+        function updateProgress(idx, fr, en, txt) {
+            ['step1-dot','step2-dot','step3-dot'].forEach((id, i) => document.getElementById(id).style.background = i <= idx ? '#1677ff' : '#e2e8f0');
+            document.getElementById('stepTitle').textContent = lang==='fr'?fr:en;
+            document.getElementById('stepCounter').textContent = txt;
+        }
 
     } catch (err) {
-        setStatus("Crash JS: " + err.message, 'red');
+        setStatus("Crash: " + err.message, 'error');
     }
 })();
 </script>
