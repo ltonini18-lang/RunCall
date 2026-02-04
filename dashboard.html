@@ -167,6 +167,23 @@
 
 <body>
 
+  <div id="globalLoader" style="position:fixed; inset:0; background:#ffffff; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s ease;">
+    <style>
+        .spinner-ring {
+            width: 50px; height: 50px;
+            border: 4px solid #f1f5f9;
+            border-top: 4px solid #1677ff; /* Bleu RunCall */
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+    <div class="spinner-ring"></div>
+    <div style="margin-top:20px; font-family:-apple-system, sans-serif; color:#64748b; font-size:0.9rem; font-weight:500;">
+        Chargement...
+    </div>
+</div>
+  
 <div class="dash-shell">
   <aside class="dash-sidebar">
     <div class="sb-brand">RunCall <span style="font-size:0.7em; opacity:0.6; font-weight:400;">Dashboard</span></div>
@@ -620,6 +637,10 @@
             document.getElementById('inputCurrency').value = expertData.currency || "usd";
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
+      // --- AJOUTER CETTE LIGNE ICI ---
+        // On cache le loader car les données sont chargées
+        document.getElementById('globalLoader').style.opacity = '0';
+        setTimeout(() => document.getElementById('globalLoader').style.display = 'none', 500);
 
         // PREVIEW PHOTO
         const avatarInput = document.getElementById('avatarInput');
@@ -1107,7 +1128,14 @@
             });
         }
 
-    } catch (err) { console.error("DASH ERROR", err); }
+    } catch (err) { 
+        console.error("DASH ERROR", err);
+        // On cache le loader même s'il y a une erreur pour ne pas bloquer l'écran
+        if(document.getElementById('globalLoader')) {
+            document.getElementById('globalLoader').style.display = 'none'; 
+        }
+        alert("Une erreur est survenue pendant le chargement.");
+    }
   
 })();
 </script>
