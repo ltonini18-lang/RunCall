@@ -534,20 +534,26 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard Debug Mode...");
+    console.log("🚀 Dashboard Diagnostic Mode");
 
-    // 1. Protection Anti-Page Blanche (On force l'affichage si erreur JS)
-    window.onerror = function(msg, url, line) {
-       alert("ERREUR CRITIQUE JS :\n" + msg + "\nLigne : " + line);
-       document.body.innerHTML = '<div style="padding:20px; text-align:center;"><h1>Erreur Technique</h1><p>'+msg+'</p></div>';
-    };
+    // 1. Création d'une zone de logs visible sur l'écran (pour déboguer le mobile)
+    const logBox = document.createElement('div');
+    logBox.style.cssText = "position:fixed; top:60px; left:10px; right:10px; background:rgba(0,0,0,0.8); color:#0f0; font-family:monospace; font-size:12px; padding:10px; z-index:9999; border-radius:8px; pointer-events:none;";
+    logBox.innerHTML = "DEMARRAGE DIAGNOSTIC...<br>";
+    document.body.appendChild(logBox);
+
+    function log(msg) {
+        logBox.innerHTML += ">> " + msg + "<br>";
+        console.log(msg);
+    }
 
     const safetyTimer = setTimeout(() => {
         document.documentElement.classList.remove('auth-pending');
+        log("⚠️ Timeout sécurité atteint (3s)");
     }, 3000);
 
     try {
-        if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
+        if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Dépendances manquantes (Config/Supabase)");
 
         const sb = window.supabase.createClient(
             "https://bflptoazeqfcultpukkh.supabase.co",
@@ -559,60 +565,61 @@
         function setLang(l) {
             lang = l; localStorage.setItem('runcall_lang', l);
             document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
-            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
-            if(typeof updateHomeState === 'function') updateHomeState(); 
             if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
         }
-        document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- AUTH EVENT LISTENER (DEBUG) ---
+        // --- AUTH EVENT LISTENER ---
         let sessionChecked = false;
 
-        const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
-            console.log("Auth Event:", event);
+        sb.auth.onAuthStateChange(async (event, session) => {
+            log("Auth Event: " + event);
             
             if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
                 sessionChecked = true;
                 clearTimeout(safetyTimer);
                 document.documentElement.classList.remove('auth-pending');
+                log("✅ Session trouvée: " + session.user.email);
                 
-                // Lancement avec DEBUG
                 await checkExpertData(session); 
             } 
             else if (event === 'SIGNED_OUT') {
+                log("Déconnecté -> Redirection");
                 window.location.replace("/");
             }
         });
 
-        // Timeout Sécurité
-        setTimeout(() => {
-            if (!sessionChecked) {
-                const inAuthFlow = window.location.hash.includes('access_token') || window.location.search.includes('code');
-                if (!inAuthFlow) window.location.replace("/");
-            }
-        }, 5000);
-
-        // --- FONCTION VITALE AVEC ALERTES ---
+        // --- FONCTION VITALE ---
         async function checkExpertData(session) {
             let expertId = new URLSearchParams(window.location.search).get('expert_id');
             let expertData = null;
 
             try {
                 // 1. Lecture
-                if (!expertData) {
-                    const { data, error } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-                    if (error) alert("Erreur Lecture Profil: " + JSON.stringify(error));
-                    if (data) { expertData = data; expertId = data.id; }
+                log("🔍 Recherche profil dans DB...");
+                // On force auth_user_id en string pour matcher la DB text
+                const userIdStr = String(session.user.id);
+                
+                const { data, error } = await sb.from('experts').select('*').eq('auth_user_id', userIdStr).maybeSingle();
+                
+                if (error) {
+                    log("❌ Erreur Lecture: " + error.message);
+                    return;
                 }
 
-                // 2. Création (C'est surement ICI que ça plante)
+                if (data) { 
+                    expertData = data; expertId = data.id; 
+                    log("✅ Profil existant trouvé ID: " + expertId);
+                } else {
+                    log("⚠️ Pas de profil, tentative de création...");
+                }
+
+                // 2. Création
                 if (!expertData) {
                     const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
                     
-                    // ON TENTE L'INSERTION
                     const { data: newExpert, error: insertError } = await sb.from('experts').insert([{
-                        auth_user_id: session.user.id,
+                        auth_user_id: userIdStr,
                         email: session.user.email,
                         name: googleName,
                         presentation: "",
@@ -620,155 +627,61 @@
                     }]).select().single();
 
                     if (insertError) {
-                        // LE MOUCHARD : C'est cette alerte qui va nous sauver
-                        alert("ERREUR CREATION COMPTE :\nCode: " + insertError.code + "\nMsg: " + insertError.message + "\nDetails: " + insertError.details);
-                        return; // On arrête tout pour ne pas avoir une page blanche bugguée
+                        log("❌ CRASH INSERT: " + insertError.message);
+                        log("Code: " + insertError.code);
+                        return; 
                     }
 
                     if (newExpert) { 
                         expertData = newExpert; 
                         expertId = newExpert.id; 
+                        log("🎉 Profil CRÉÉ avec succès !");
                     }
                 }
 
-                if(expertId) {
-                    const newUrl = new URL(window.location);
-                    newUrl.searchParams.set('expert_id', expertId);
-                    window.history.pushState({}, '', newUrl);
-                }
-
-                // 3. UI
+                // 3. Mise à jour UI
                 if (expertData) {
+                    log("Mise à jour interface...");
                     document.getElementById('topTitle').textContent = expertData.name;
-                    
-                    const topAvatar = document.getElementById('topAvatar');
-                    const previewAvatar = document.getElementById('previewAvatar');
-                    let finalAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                    
-                    if (expertData.photo_url && expertData.photo_url.trim() !== "") finalAvatar = expertData.photo_url;
-
-                    topAvatar.src = finalAvatar;
-                    previewAvatar.src = finalAvatar;
-                    topAvatar.style.display = 'block';
-
+                    // (Reste du code UI standard...)
                     document.getElementById('inputName').value = expertData.name || "";
-                    document.getElementById('inputBio').value = expertData.presentation || "";
-                    document.getElementById('inputPrice').value = expertData.price || "";
-                    document.getElementById('inputCurrency').value = expertData.currency || "usd";
-                    document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+                    // Si on a l'ID, on lance l'affichage des cartes
+                    updateHomeState(expertId);
                 }
-                
-                // 4. Suite logique
-                updateHomeState(expertId); // On passe l'ID explicitement
 
             } catch (err) {
-                alert("CRASH CHECK DATA: " + err.message);
+                log("💥 CRASH JS GLOBAL: " + err.message);
             }
         }
 
-        // --- SUITE LOGIQUE (Modifiée pour éviter les crashs si expertId est null) ---
-        async function updateHomeState(forcedExpertId) {
-            let expertId = forcedExpertId || new URLSearchParams(window.location.search).get('expert_id');
+        async function updateHomeState(expertId) {
+            if (!expertId) {
+                log("⛔ Stop: Pas d'Expert ID pour charger l'état");
+                return;
+            }
+            log("Chargement état final...");
             
-            // Si pas d'expert ID, on arrête là pour éviter le crash API
-            if (!expertId) return;
-
+            // On cache tout d'abord
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            const progressEl = document.getElementById('onboardingProgress');
-            const stripeCard = document.getElementById('stateSetupPayouts');
-            const calendarCard = document.getElementById('stateCalendar');
-            const activeBadge = document.getElementById('activeBadge');
-            const subReady = document.getElementById('calSubtitleReady');
-            const subPreview = document.getElementById('calSubtitlePreview');
-
-            // 1. Calendar Check
-            let hasCalendar = false;
-            try {
-                const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
-                hasCalendar = !!gAccount;
-            } catch(e) { console.error(e); }
-
-            if (!hasCalendar) {
-                document.getElementById('stateConnect').classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
-                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
-                return;
-            }
-
-            // 2. Slots Check
-            let hasSlots = false;
-            const checkStart = new Date();
-            const checkEnd = new Date();
-            checkEnd.setDate(checkEnd.getDate() + 30);
+            // Logique simplifiée pour le test
+            // On vérifie le calendrier
+            const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
             
-            try {
-                const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
-                const resSlots = await fetch(apiUrl);
-                const dataSlots = await resSlots.json();
-                const slots = Array.isArray(dataSlots) ? dataSlots : (dataSlots.slots || []);
-                hasSlots = slots.length > 0;
-            } catch(err) { hasSlots = false; }
-
-            if (!hasSlots) {
-                document.getElementById('stateFirstSlots').classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
-                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
-                return;
-            }
-
-            // 3. Stripe Check
-            let hasStripe = false;
-            try {
-                const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
-                const dataS = await resS.json();
-                hasStripe = dataS.isComplete;
-            } catch(e) { console.error("Stripe check", e); }
-
-            if (!hasStripe) {
-                stripeCard.classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
-                if(activeBadge) activeBadge.classList.add('hidden');
-                if(subReady) subReady.classList.add('hidden');
-                if(subPreview) subPreview.classList.remove('hidden');
+            if (!gAccount) {
+                log("État: Connecter Agenda");
+                document.getElementById('stateConnect').classList.remove('hidden');
+                document.getElementById('onboardingProgress').classList.remove('hidden');
             } else {
-                stripeCard.classList.add('hidden');
-                progressEl.classList.add('hidden'); 
-                if(activeBadge) activeBadge.classList.remove('hidden');
-                if(subReady) subReady.classList.remove('hidden');
-                if(subPreview) subPreview.classList.add('hidden');
+                log("État: Agenda OK, vérification slots...");
+                // (Ici on simplifie pour voir si au moins le premier écran s'affiche)
+                document.getElementById('stateCalendar').classList.remove('hidden');
             }
-
-            calendarCard.classList.remove('hidden');
-            updateWeekLabel();
-            fetchAndRenderSlots(expertId);
         }
 
-        function updateProgress(stepIndex, titleFr, titleEn, stepText) {
-            const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
-            dots.forEach((id, i) => {
-                const d = document.getElementById(id);
-                if(d) {
-                    if (i < stepIndex) d.style.background = '#1677ff'; 
-                    else if (i === stepIndex) d.style.background = '#1677ff'; 
-                    else d.style.background = '#e2e8f0'; 
-                }
-            });
-            const titleEl = document.getElementById('stepTitle');
-            if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
-            const counterEl = document.getElementById('stepCounter');
-            if(counterEl) counterEl.textContent = stepText;
-        }
-
-        // --- HELPERS ---
+        // --- HELPERS (Boutons) ---
         document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            // ... (reste du code bouton inchangé, simplifé pour le script debug)
-            localStorage.setItem('runcall_auth_pending', 'true');
+            log("Clic bouton connexion Google...");
             const cleanRedirect = window.location.origin + window.location.pathname;
             await sb.auth.signInWithOAuth({
                 provider: 'google',
@@ -780,16 +693,12 @@
             });
         });
 
-        // RESTE DU CODE UI (Check slots, refresh, etc...)
-        // (Pour alléger le debug, je laisse les fonctions globales, assure toi de garder tes event listeners existants s'ils sont hors du bloc)
-        
-        // --- FIN DU SCRIPT DE DEBUG ---
-
-    } catch (err) { alert("GLOBAL ERROR: " + err.message); }
+    } catch (err) { 
+        if(logBox) logBox.innerHTML += "<br>CRASH TOTAL: " + err.message;
+        alert("CRASH TOTAL: " + err.message); 
+    }
   
 })();
-// FONCTIONS GLOBALES (Hors du scope async pour être accessibles)
-// (Tu peux les laisser telles quelles si elles sont déjà dans ton code, sinon copie les helpers fetchAndRenderSlots ici)
 </script>
 </body>
 </html>
