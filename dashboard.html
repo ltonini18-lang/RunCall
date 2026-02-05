@@ -618,6 +618,36 @@
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
+// --- FIX BOUCLE ETAPE 1 : SAUVEGARDE CONDITIONNELLE ---
+    const urlHash = new URLSearchParams(window.location.hash.substring(1));
+    const googleToken = urlHash.get('provider_token');
+    
+    // VERIFICATION CRUCIALE : On ne sauvegarde QUE si l'utilisateur a demandé l'auth Agenda
+    // C'est ce "if" qui empêche l'étape 1 de sauter toute seule à la connexion
+    const isWaitingForCalendar = localStorage.getItem('runcall_auth_pending') === 'true';
+
+    if (isWaitingForCalendar && googleToken && expertId) {
+        console.log("💾 Retour Agenda détecté, sauvegarde...");
+        await sb.from('expert_google_accounts').upsert({
+            expert_id: expertId,
+            google_email: session.user.email,
+            access_token: googleToken,
+            refresh_token: session.provider_refresh_token,
+            expiry_date: Date.now() + 3500 * 1000,
+            updated_at: new Date()
+        });
+        // On enlève le drapeau pour ne pas le refaire au prochain reload
+        localStorage.removeItem('runcall_auth_pending');
+        
+        // Petite pause technique
+        await new Promise(r => setTimeout(r, 200));
+        
+        // On force la mise à jour de l'affichage pour passer à l'étape 2 tout de suite
+        hasCalendar = true; 
+    }
+    // --------------------------------------------------
+
+      
         if(expertId) {
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
