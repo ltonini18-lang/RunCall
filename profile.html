@@ -122,33 +122,41 @@
     .p-title{ margin: 10px 0 6px; font-size: 1.65rem; line-height:1.2; letter-spacing:-.03em; color:var(--rc-text); }
     .p-subtitle{ margin:0; color:#475569; line-height:1.6; font-size:1.0rem; max-width: 80ch; }
     
-    /* BIO TOGGLE FIX (Caché sur PC par défaut) */
-    .p-bio-wrap{ position: relative; margin-top: 2px; }
+    /* BOUTON BIO DISCRET (Correctif Affichage PC/Mobile) */
+    .p-bio-wrap { position: relative; margin-top: 2px; }
 
-    .p-bio-toggle{
-        display: none; /* Caché sur PC */
-        position: absolute; 
-        left: 50%; 
-        transform: translateX(-50%); /* Centrage parfait */
-        bottom: -5px; 
-        width: 40px; height: 30px; 
-        background: transparent; /* Fond transparent */
-        border: none; 
+    .p-bio-toggle {
+        display: none; /* <--- 1. CACHÉ PAR DÉFAUT (PC) */
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -5px;
+        width: 40px; height: 30px;
+        background: transparent;
+        border: none;
         cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
         z-index: 10;
         transition: transform 0.2s ease;
         -webkit-tap-highlight-color: transparent;
+        
+        /* On prépare l'alignement pour quand il sera visible */
+        align-items: center; 
+        justify-content: center;
     }
 
-    .p-bio-toggle svg{ 
-        width: 24px; height: 24px; 
-        fill: var(--rc-blue); 
+    .p-bio-toggle svg {
+        width: 24px; height: 24px;
+        fill: var(--rc-blue);
         opacity: 0.8;
-        filter: drop-shadow(0 1px 2px #ffffff); /* Petit halo blanc pour la lisibilité */
+        filter: drop-shadow(0 1px 2px #ffffff);
     }
 
-    /* Force le maintien du centrage quand c'est ouvert */
+    /* 2. AFFICHAGE MOBILE UNIQUEMENT */
+    @media (max-width: 640px) {
+        .p-bio-toggle { display: flex; } 
+    }
+
+    /* État Ouvert */
     .p-bio-wrap.is-open .p-bio-toggle {
         transform: translateX(-50%) rotate(180deg) !important;
         bottom: -25px;
