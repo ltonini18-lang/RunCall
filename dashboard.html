@@ -905,8 +905,20 @@
 
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
+             const sel = document.getElementById('homeCountrySelector');
+             const country = sel ? sel.value : 'FR';
+
+             // --- SÉCURITÉ ANTI-ERREUR ---
+             const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+             const msg = isFr 
+                ? `Vous avez choisi le pays "${country}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                : `You selected "${country}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+
+             if (!confirm(msg)) return; // Si l'utilisateur clique "Annuler", on ne fait rien.
+             // ---------------------------
+
              btn.disabled = true; btn.innerText = "Chargement...";
-             const country = document.getElementById('homeCountrySelector').value;
+             
              try {
                  const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
                  const d = await res.json();
