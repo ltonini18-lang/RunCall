@@ -911,8 +911,8 @@
              // --- SÉCURITÉ ANTI-ERREUR ---
              const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
              const msg = isFr 
-                ? `Vous avez choisi le pays "${country}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
-                : `You selected "${country}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+                ? `Vous avez choisi le pays "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
 
              if (!confirm(msg)) return; // Si l'utilisateur clique "Annuler", on ne fait rien.
              // ---------------------------
