@@ -15,6 +15,25 @@
   
   <style>
     /* --- DESIGN SYSTEM --- */
+
+    /* --- LOADER 3 POINTS (Style Profile) --- */
+    .rc-loader-overlay {
+        position: fixed; inset: 0; background: #ffffff; z-index: 99999;
+        display: flex; justify-content: center; align-items: center;
+        transition: opacity 0.4s ease;
+    }
+    .rc-dots { display: flex; gap: 8px; }
+    .rc-dot {
+        width: 12px; height: 12px; background: #1677ff; border-radius: 50%;
+        animation: rcBounce 0.6s infinite alternate;
+    }
+    .rc-dot:nth-child(2) { animation-delay: 0.2s; }
+    .rc-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes rcBounce {
+        to { transform: translateY(-10px); opacity: 0.7; }
+    }
+    
     :root{
       --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
       --muted:#475569; --muted2:#64748b; --brand:#1677ff; 
@@ -166,6 +185,14 @@
 </head>
 
 <body>
+
+  <div id="globalLoader" class="rc-loader-overlay">
+    <div class="rc-dots">
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+    </div>
+</div>
 
 <div class="dash-shell">
   <aside class="dash-sidebar">
@@ -347,7 +374,13 @@
                     <button id="nextWeek" class="btn">›</button>
                 </div>
                 <div id="calendarGrid" class="week-grid"></div>
-                <div id="loadingSlots" style="text-align:center; padding:40px; color:var(--muted);">Chargement...</div>
+                <div id="loadingSlots" style="display:flex; justify-content:center; padding:40px;">
+    <div class="rc-dots">
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+    </div>
+</div>
                 <div id="emptyStateMsg" class="hidden" style="text-align:center; padding:40px; color:var(--muted); background:#f8fafc; border-radius:12px; margin-top:10px;">
                     <p data-fr="Aucun créneau 'RunCall' cette semaine." data-en="No 'RunCall' slots this week."></p>
                 </div>
