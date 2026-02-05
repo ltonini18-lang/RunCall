@@ -560,16 +560,42 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // AUTH
-        const { data: { session }, error: authError } = await sb.auth.getSession();
-        if (authError || !session) { 
-            // .replace() remplace la page actuelle dans l'historique
-            // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
-            window.location.replace("/"); 
-            return; 
+        // --- AUTH & FIX MOBILE ---
+        let session = null;
+        
+        // 1. Analyse de l'URL pour le Mobile (On capture le token avant Supabase)
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+            // Cas Mobile : On a les clés dans l'URL -> On force la session manuellement
+            const { data } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+            session = data.session;
+        } else {
+            // Cas PC / Cache : On demande gentiment à Supabase
+            const { data } = await sb.auth.getSession();
+            session = data.session;
         }
+
+        // 2. Verdict de sécurité
+        if (!session) { 
+            // On ne redirige PAS si on voit un code Google ou un token dans l'URL
+            // (Ça veut dire que ça charge encore)
+            if (!window.location.search.includes('code=') && !accessToken) {
+                window.location.replace("/"); 
+                return; 
+            }
+        }
+
+        // 3. Déblocage de l'écran (Anti Page Blanche)
         clearTimeout(safetyTimer);
         document.documentElement.classList.remove('auth-pending');
+        document.body.style.visibility = 'visible';
 
         // EXPERT
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
