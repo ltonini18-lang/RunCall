@@ -917,8 +917,8 @@
              // --- SÉCURITÉ ANTI-ERREUR ---
              const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
              const msg = isFr 
-                ? `Attention : Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
-                : `Warning: You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+                ? `Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
 
              if (!confirm(msg)) return; 
              // ---------------------------
@@ -1220,8 +1220,8 @@
                 // --- SÉCURITÉ ANTI-ERREUR ---
                 const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
                 const msg = isFr 
-                   ? `Attention : Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
-                   : `Warning: You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+                   ? `Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                   : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
 
                 if (!confirm(msg)) return; 
                 // ---------------------------
