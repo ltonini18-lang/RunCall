@@ -1052,45 +1052,64 @@
         updateHomeState();
         
         const pForm = document.getElementById('profileForm');
-        if(pForm) {
-            pForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = document.getElementById('saveProfileBtn');
-                const originalText = btn.textContent;
-                btn.textContent = "Sauvegarde...";
-                btn.disabled = true;
-                try {
-                    const name = document.getElementById('inputName').value;
-                    const bio = document.getElementById('inputBio').value;
-                    const rawPrice = document.getElementById('inputPrice').value;
-                    const priceVal = rawPrice ? parseInt(rawPrice) : null;
-                    const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    let newPhotoUrl = expertData.photo_url;
-                    
-                    const fileInput = document.getElementById('avatarInput');
-                    if (fileInput && fileInput.files.length > 0) {
-                        const file = fileInput.files[0];
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${expertId}-${Date.now()}.${fileExt}`;
-                        const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
-                        if (uploadError) throw uploadError;
-                        const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
-                        newPhotoUrl = publicUrl;
-                    }
-                    const { error } = await sb.from('experts').update({
-                        name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
-                    }).eq('id', expertId);
-                    if (error) throw error;
-                    alert("Profil mis à jour !");
-                    document.getElementById('topTitle').textContent = name;
-                    if(newPhotoUrl) {
-                        document.getElementById('topAvatar').src = newPhotoUrl;
-                        document.getElementById('previewAvatar').src = newPhotoUrl;
-                    }
-                } catch (err) { alert("Erreur : " + err.message); } 
-                finally { btn.textContent = originalText; btn.disabled = false; }
-            });
-        }
+    if(pForm) {
+        pForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 1. Détection de la langue
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+
+            const btn = document.getElementById('saveProfileBtn');
+            const originalText = btn.textContent;
+            
+            // 2. Texte du bouton pendant le chargement (FR/EN)
+            btn.textContent = isFr ? "Sauvegarde..." : "Saving...";
+            btn.disabled = true;
+
+            try {
+                const name = document.getElementById('inputName').value;
+                const bio = document.getElementById('inputBio').value;
+                const rawPrice = document.getElementById('inputPrice').value;
+                const priceVal = rawPrice ? parseInt(rawPrice) : null;
+                const currencyVal = document.getElementById('inputCurrency').value || 'usd';
+                let newPhotoUrl = expertData.photo_url;
+                
+                const fileInput = document.getElementById('avatarInput');
+                if (fileInput && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${expertId}-${Date.now()}.${fileExt}`;
+                    const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
+                    if (uploadError) throw uploadError;
+                    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
+                    newPhotoUrl = publicUrl;
+                }
+
+                const { error } = await sb.from('experts').update({
+                    name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
+                }).eq('id', expertId);
+
+                if (error) throw error;
+
+                // 3. Alerte de succès (FR/EN)
+                alert(isFr ? "Profil mis à jour !" : "Profile updated!");
+
+                document.getElementById('topTitle').textContent = name;
+                if(newPhotoUrl) {
+                    document.getElementById('topAvatar').src = newPhotoUrl;
+                    document.getElementById('previewAvatar').src = newPhotoUrl;
+                }
+            } catch (err) { 
+                // 4. Alerte d'erreur (FR/EN)
+                const prefix = isFr ? "Erreur : " : "Error: ";
+                alert(prefix + err.message); 
+            } 
+            finally { 
+                btn.textContent = originalText; 
+                btn.disabled = false; 
+            }
+        });
+    }
         // --- CALCULATEUR DYNAMIQUE PRIX (Mode Hybride v2) ---
     const priceInput = document.getElementById('inputPrice');
     const currencyInput = document.getElementById('inputCurrency');
