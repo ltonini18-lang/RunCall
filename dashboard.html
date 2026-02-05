@@ -551,7 +551,7 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard RUN CALL - FINAL ROBUST VERSION");
+    console.log("🚀 Dashboard RUN CALL - FINAL SEQUENTIAL 3.0");
 
     // 1. SECURITE : AFFICHAGE IMMEDIAT (Anti Page Blanche)
     document.documentElement.classList.remove('auth-pending');
@@ -583,120 +583,128 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- AUTHENTIFICATION (FIX MOBILE) ---
+        // --- ETAPE 1 : AUTHENTIFICATION ---
         let session = null;
+        let accessToken = null, refreshToken = null, providerToken = null;
 
-        // A. Detection Token URL (Hash)
-        // IMPORTANT : Si on n'a PAS de token dans l'URL, on nettoie la mémoire "pending"
-        // C'est ce qui force l'étape 1 à réapparaître si on rafraîchit sans revenir de Google
-        const hashStr = window.location.hash.substring(1);
-        const urlParams = new URLSearchParams(hashStr);
-        const accessToken = urlParams.get('access_token');
-        const refreshToken = urlParams.get('refresh_token');
-        const providerToken = urlParams.get('provider_token'); // Clé Google Agenda
+        // Lecture sécurisée des hash/search params
+        if (window.location.hash) {
+            const hashStr = window.location.hash.substring(1);
+            const urlParams = new URLSearchParams(hashStr);
+            accessToken = urlParams.get('access_token');
+            refreshToken = urlParams.get('refresh_token');
+            providerToken = urlParams.get('provider_token'); // Clé Agenda
+        }
 
+        // --- FIX FANTÔME (Anti saut étape 1) ---
+        // Si on n'a PAS de token dans l'URL (on recharge la page juste), on efface la mémoire "pending"
+        // Cela force le site à revérifier la vraie base de données au lieu de croire le navigateur
         if (!accessToken) {
-            localStorage.removeItem('runcall_auth_pending');
+             localStorage.removeItem('runcall_auth_pending');
         }
 
         if (accessToken && refreshToken) {
-            // Mobile : On force la session avec le token de l'URL
+            // Mobile/Redirection : On force la session avec le token de l'URL
             const { data } = await sb.auth.setSession({
                 access_token: accessToken,
                 refresh_token: refreshToken
             });
             session = data.session;
         } else {
-            // PC / Déjà connecté
+            // Cas classique : Déjà connecté
             const { data } = await sb.auth.getSession();
             session = data.session;
         }
 
-        // B. Verdict : Si pas de session, on redirige (sauf si code Google en cours)
+        // VERDICT AUTH
         if (!session) {
+            // Si pas de session et pas de code Google en cours, on redirige
             if (!window.location.search.includes('code=')) {
                 window.location.replace("/");
             }
-            return;
+            return; // Stop script ici si pas connecté
         }
 
-        // --- GESTION EXPERT ---
+        // --- ETAPE 2 : GESTION EXPERT ---
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
         let expertData = null;
 
-        if (session) {
-            // 1. Récupération ou Création
-            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-            if (data) { 
-                expertData = data; expertId = data.id; 
-            } else {
-                const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
-                const { data: newExpert } = await sb.from('experts').insert([{
-                    auth_user_id: session.user.id,
-                    email: session.user.email,
-                    name: googleName,
-                    presentation: "",
-                    photo_url: "" 
-                }]).select().single();
-                if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
-            }
-
-            // 2. Nettoyage URL
-            if(expertId) {
-                const newUrl = new URL(window.location);
-                newUrl.searchParams.set('expert_id', expertId);
-                // On nettoie le hash (access token) pour faire propre
-                if(accessToken) newUrl.hash = ''; 
-                window.history.replaceState({}, '', newUrl);
-            }
-
-            // 3. Remplissage UI
-            if (expertData) {
-                document.getElementById('topTitle').textContent = expertData.name;
-                const topAvatar = document.getElementById('topAvatar');
-                const previewAvatar = document.getElementById('previewAvatar');
-                let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-                
-                topAvatar.src = finalAvatar;
-                previewAvatar.src = finalAvatar;
-                topAvatar.style.display = 'block';
-
-                document.getElementById('inputName').value = expertData.name || "";
-                document.getElementById('inputBio').value = expertData.presentation || "";
-                document.getElementById('inputPrice').value = expertData.price || "";
-                document.getElementById('inputCurrency').value = expertData.currency || "usd";
-                document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
-            }
-
-            // --- 4. FIX ETAPE 1 (Agenda - Logique Anti-Saut) ---
-            // On ne sauvegarde QUE si on a explicitement demandé l'auth agenda (flag 'pending')
-            // OU si on a reçu un provider_token clair
-            if (localStorage.getItem('runcall_auth_pending') === 'true' && providerToken && expertId) {
-                console.log("💾 Sauvegarde Agenda...");
-                await sb.from('expert_google_accounts').upsert({
-                    expert_id: expertId,
-                    google_email: session.user.email,
-                    access_token: providerToken,
-                    refresh_token: refreshToken || session.provider_refresh_token,
-                    expiry_date: Date.now() + 3500 * 1000,
-                    updated_at: new Date()
-                });
-                localStorage.removeItem('runcall_auth_pending');
-            }
+        const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+        if (data) { 
+            expertData = data; expertId = data.id; 
+        } else {
+            const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
+            const { data: newExpert } = await sb.from('experts').insert([{
+                auth_user_id: session.user.id,
+                email: session.user.email,
+                name: googleName,
+                presentation: "",
+                photo_url: "" 
+            }]).select().single();
+            if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
-        // --- GESTION AFFICHAGE (Onglets) ---
+        // --- ETAPE 3 : SAUVEGARDE AGENDA (Anti-Boucle) ---
+        // Si on a capturé une clé Google au début (Etape 1), on l'enregistre maintenant
+        if (providerToken && expertId) {
+            console.log("💾 Sauvegarde Agenda...");
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: providerToken,
+                refresh_token: refreshToken || session.provider_refresh_token,
+                expiry_date: Date.now() + 3500 * 1000,
+                updated_at: new Date()
+            });
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        // Nettoyage URL
+        if(expertId) {
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('expert_id', expertId);
+            if(accessToken) newUrl.hash = ''; 
+            window.history.replaceState({}, '', newUrl);
+        }
+
+        // --- ETAPE 4 : AFFICHAGE UI ---
+        
+        // A. Remplissage Header
+        if (expertData) {
+            document.getElementById('topTitle').textContent = expertData.name;
+            const topAvatar = document.getElementById('topAvatar');
+            const previewAvatar = document.getElementById('previewAvatar');
+            let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+            topAvatar.src = finalAvatar; previewAvatar.src = finalAvatar; topAvatar.style.display = 'block';
+            document.getElementById('inputName').value = expertData.name || "";
+            document.getElementById('inputBio').value = expertData.presentation || "";
+            document.getElementById('inputPrice').value = expertData.price || "";
+            document.getElementById('inputCurrency').value = expertData.currency || "usd";
+            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+        }
+
+        // B. Initialisation Variables Globales
+        let hasCalendar = false, hasSlots = false, hasStripe = false;
+        let currentWeekOffset = 0;
+
+        // C. Fetch Initial des Status
+        if(expertId) {
+            const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
+            hasCalendar = !!gAccount; 
+            try {
+                const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
+                const dataS = await resS.json();
+                hasStripe = dataS.isComplete;
+            } catch(e) {}
+        }
+
+        // D. Lancement Visuel
         function switchTab(tabName) {
             localStorage.setItem('runcall_last_tab', tabName);
             document.querySelectorAll('.sb-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
             document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
             ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            
-            let targetId = 'viewHome';
-            if (tabName === 'profile') targetId = 'viewProfile';
-            if (tabName === 'payouts') targetId = 'viewPayouts';
-            
-            const targetEl = document.getElementById(targetId);
+            const targetEl = document.getElementById(tabName === 'profile' ? 'viewProfile' : (tabName === 'payouts' ? 'viewPayouts' : 'viewHome'));
             if(targetEl) targetEl.classList.remove('hidden');
         }
         document.querySelectorAll('.sb-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
@@ -705,179 +713,17 @@
         const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
         switchTab(savedTab);
 
-        // On lance la logique de l'onglet Home
-        // IMPORTANT : Le await ici garantit que updateHomeState finit avant de cacher le loader
-        if (expertId) await updateHomeState(); 
+        // E. Mise à jour du contenu
+        await updateHomeState(); 
 
-        // On cache le loader (tout est prêt, même le state)
+        // F. Suppression du Loader (FIN)
         const loader = document.getElementById('globalLoader');
         if(loader) {
             loader.style.opacity = '0';
             setTimeout(() => loader.style.display = 'none', 500);
         }
 
-        // --- LOGIQUE METIER (Simulateur, Slots, etc.) ---
-        const priceInput = document.getElementById('inputPrice');
-        const currencyInput = document.getElementById('inputCurrency');
-        const simDefault = document.getElementById('simDefault');
-        const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
-        const contentDefault = document.getElementById('contentDefault');
-        const arrowDefault = document.getElementById('arrowDefault');
-        const simCustom = document.getElementById('simCustom');
-        const elTotal = document.getElementById('simTotal');
-        const elFee = document.getElementById('simFee');
-        const elNet = document.getElementById('simNet');
-        const lblFeePct = document.getElementById('lblFeePct');
-        const msgSuccess = document.getElementById('rateSuccessMsg');
-
-        if(toggleDefaultBtn) {
-            toggleDefaultBtn.addEventListener('click', () => {
-                const isHidden = contentDefault.classList.contains('hidden');
-                if(isHidden) { contentDefault.classList.remove('hidden'); arrowDefault.style.transform = "rotate(180deg)"; } 
-                else { contentDefault.classList.add('hidden'); arrowDefault.style.transform = "rotate(0deg)"; }
-            });
-        }
-        function updateSimulation() {
-            const val = parseFloat(priceInput.value);
-            const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
-            const sym = curMap[currencyInput.value] || '$';
-            document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
-            if(!val || val <= 0) {
-                if(simDefault) simDefault.classList.remove('hidden');
-                if(simCustom) simCustom.classList.add('hidden');
-            } else {
-                if(simDefault) simDefault.classList.add('hidden');
-                if(simCustom) simCustom.classList.remove('hidden');
-                let rate = 0.20; let rateText = "20%";
-                if (val >= 200) { rate = 0.10; rateText = "10%"; } else if (val >= 100) { rate = 0.15; rateText = "15%"; }
-                const fee = val * rate; const net = val - fee;
-                elTotal.textContent = `${val} ${sym}`;
-                elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
-                elNet.textContent = `${net.toFixed(2)} ${sym}`;
-                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
-                if(lblFeePct) lblFeePct.textContent = isFr ? `Frais de plateforme (${rateText})` : `Platform fee (${rateText})`;
-                if (msgSuccess) {
-                    if (rate < 0.20) { msgSuccess.classList.remove('hidden'); elNet.style.color = "#16a34a"; } 
-                    else { msgSuccess.classList.add('hidden'); elNet.style.color = "#16a34a"; }
-                }
-            }
-        }
-        if(priceInput) priceInput.addEventListener('input', updateSimulation);
-        if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
-        setTimeout(updateSimulation, 800);
-
-        // Formulaire Profil
-        const pForm = document.getElementById('profileForm');
-        if(pForm) {
-            pForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = document.getElementById('saveProfileBtn');
-                btn.textContent = "Sauvegarde..."; btn.disabled = true;
-                try {
-                    const name = document.getElementById('inputName').value;
-                    const bio = document.getElementById('inputBio').value;
-                    const rawPrice = document.getElementById('inputPrice').value;
-                    const priceVal = rawPrice ? parseInt(rawPrice) : null;
-                    const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    let newPhotoUrl = expertData ? expertData.photo_url : "";
-                    
-                    const fileInput = document.getElementById('avatarInput');
-                    if (fileInput && fileInput.files.length > 0) {
-                        const file = fileInput.files[0];
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${expertId}-${Date.now()}.${fileExt}`;
-                        const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
-                        if (uploadError) throw uploadError;
-                        const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
-                        newPhotoUrl = publicUrl;
-                    }
-                    await sb.from('experts').update({
-                        name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
-                    }).eq('id', expertId);
-                    alert("Profil mis à jour !");
-                    document.getElementById('topTitle').textContent = name;
-                    if(newPhotoUrl) {
-                        document.getElementById('topAvatar').src = newPhotoUrl;
-                        document.getElementById('previewAvatar').src = newPhotoUrl;
-                    }
-                } catch (err) { alert("Erreur : " + err.message); } 
-                finally { btn.textContent = "Enregistrer"; btn.disabled = false; }
-            });
-        }
-
-        // Preview Photo
-        const avatarInput = document.getElementById('avatarInput');
-        if (avatarInput) {
-            avatarInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        document.getElementById('previewAvatar').src = ev.target.result;
-                        document.getElementById('topAvatar').src = ev.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-
-        // Listeners Boutons
-        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            localStorage.setItem('runcall_auth_pending', 'true');
-            const cleanRedirect = window.location.origin + window.location.pathname;
-            await sb.auth.signInWithOAuth({
-                provider: 'google',
-                options: { 
-                    redirectTo: cleanRedirect,
-                    scopes: 'https://www.googleapis.com/auth/calendar.events',
-                    queryParams: { access_type: 'offline', prompt: 'consent' }
-                }
-            });
-        });
-
-        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
-             const btn = document.getElementById('checkSlotsBtn');
-             const originalText = btn.innerHTML;
-             btn.innerHTML = "Vérification..."; btn.disabled = true;
-             await updateHomeState(); 
-             if(!hasSlots) {
-                 const msg = lang==='fr' 
-                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
-                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
-                 alert(msg);
-             }
-             btn.innerHTML = originalText;
-             btn.disabled = false;
-        });
-
-        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
-             const btn = document.getElementById('refreshSlotsBtn');
-             btn.style.transform = "rotate(360deg)"; setTimeout(() => btn.style.transform = "none", 500);
-             await updateHomeState(); 
-        });
-
-        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
-             let baseUrl = window.location.origin;
-             if (baseUrl === 'null' || baseUrl.startsWith('file:')) baseUrl = 'https://runcall.vercel.app';
-             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
-             navigator.clipboard.writeText(link);
-             alert(lang==='fr'?"Lien copié !":"Link copied!");
-        });
-
-        // --- FONCTIONS ETAT (Slots, Stripe...) ---
-        let hasCalendar = false; let hasSlots = false; let hasStripe = false;
-        let currentWeekOffset = 0;
-
-        if(expertId) {
-            const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
-            hasCalendar = !!gAccount;
-            try {
-                const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
-                const dataS = await resS.json();
-                hasStripe = dataS.isComplete;
-            } catch(e) {}
-        }
-
+        // --- G. FONCTIONS AUXILIAIRES ---
         function getStartOfWeek(offset) {
             const d = new Date(); const day = d.getDay(); 
             const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
@@ -945,7 +791,6 @@
 
         async function updateHomeState() {
             if(!expertId) return;
-            // On cache tout d'abord
             ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
             const progressEl = document.getElementById('onboardingProgress');
@@ -955,7 +800,6 @@
             const subReady = document.getElementById('calSubtitleReady');
             const subPreview = document.getElementById('calSubtitlePreview');
 
-            // 1. Calendrier
             if (!hasCalendar) {
                 document.getElementById('stateConnect').classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -965,7 +809,6 @@
                 return;
             }
 
-            // 2. Créneaux
             const checkStart = new Date();
             const checkEnd = new Date(); checkEnd.setDate(checkEnd.getDate() + 30); 
             const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
@@ -985,7 +828,6 @@
                 return;
             }
 
-            // 3. Paiements
             if (!hasStripe) {
                 stripeCard.classList.remove('hidden');
                 progressEl.classList.remove('hidden');
@@ -1015,7 +857,133 @@
             if(counterEl) counterEl.textContent = txt;
         }
 
-        // Setup Stripe Handler
+        // --- LISTENERS & SIMULATEUR ---
+        const priceInput = document.getElementById('inputPrice');
+        const currencyInput = document.getElementById('inputCurrency');
+        const simDefault = document.getElementById('simDefault');
+        const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
+        const contentDefault = document.getElementById('contentDefault');
+        const arrowDefault = document.getElementById('arrowDefault');
+        const simCustom = document.getElementById('simCustom');
+        const elTotal = document.getElementById('simTotal');
+        const elFee = document.getElementById('simFee');
+        const elNet = document.getElementById('simNet');
+        const lblFeePct = document.getElementById('lblFeePct');
+        const msgSuccess = document.getElementById('rateSuccessMsg');
+
+        if(toggleDefaultBtn) {
+            toggleDefaultBtn.addEventListener('click', () => {
+                const isHidden = contentDefault.classList.contains('hidden');
+                if(isHidden) { contentDefault.classList.remove('hidden'); arrowDefault.style.transform = "rotate(180deg)"; } 
+                else { contentDefault.classList.add('hidden'); arrowDefault.style.transform = "rotate(0deg)"; }
+            });
+        }
+        function updateSimulation() {
+            const val = parseFloat(priceInput.value);
+            const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
+            const sym = curMap[currencyInput.value] || '$';
+            document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
+            if(!val || val <= 0) {
+                if(simDefault) simDefault.classList.remove('hidden');
+                if(simCustom) simCustom.classList.add('hidden');
+            } else {
+                if(simDefault) simDefault.classList.add('hidden');
+                if(simCustom) simCustom.classList.remove('hidden');
+                let rate = 0.20; let rateText = "20%";
+                if (val >= 200) { rate = 0.10; rateText = "10%"; } else if (val >= 100) { rate = 0.15; rateText = "15%"; }
+                const fee = val * rate; const net = val - fee;
+                elTotal.textContent = `${val} ${sym}`;
+                elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+                elNet.textContent = `${net.toFixed(2)} ${sym}`;
+                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+                if(lblFeePct) lblFeePct.textContent = isFr ? `Frais de plateforme (${rateText})` : `Platform fee (${rateText})`;
+                if (msgSuccess) {
+                    if (rate < 0.20) { msgSuccess.classList.remove('hidden'); elNet.style.color = "#16a34a"; } 
+                    else { msgSuccess.classList.add('hidden'); elNet.style.color = "#16a34a"; }
+                }
+            }
+        }
+        if(priceInput) priceInput.addEventListener('input', updateSimulation);
+        if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
+        setTimeout(updateSimulation, 800);
+
+        // Form Profile
+        const pForm = document.getElementById('profileForm');
+        if(pForm) {
+            pForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('saveProfileBtn');
+                btn.textContent = "Sauvegarde..."; btn.disabled = true;
+                try {
+                    const name = document.getElementById('inputName').value;
+                    const bio = document.getElementById('inputBio').value;
+                    const rawPrice = document.getElementById('inputPrice').value;
+                    const priceVal = rawPrice ? parseInt(rawPrice) : null;
+                    const currencyVal = document.getElementById('inputCurrency').value || 'usd';
+                    let newPhotoUrl = expertData ? expertData.photo_url : "";
+                    const fileInput = document.getElementById('avatarInput');
+                    if (fileInput && fileInput.files.length > 0) {
+                        const file = fileInput.files[0];
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${expertId}-${Date.now()}.${fileExt}`;
+                        const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
+                        if (uploadError) throw uploadError;
+                        const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
+                        newPhotoUrl = publicUrl;
+                    }
+                    await sb.from('experts').update({
+                        name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
+                    }).eq('id', expertId);
+                    alert("Profil mis à jour !");
+                    document.getElementById('topTitle').textContent = name;
+                    if(newPhotoUrl) { document.getElementById('topAvatar').src = newPhotoUrl; document.getElementById('previewAvatar').src = newPhotoUrl; }
+                } catch (err) { alert("Erreur : " + err.message); } 
+                finally { btn.textContent = "Enregistrer"; btn.disabled = false; }
+            });
+        }
+
+        // Listeners divers
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => { document.getElementById('previewAvatar').src = ev.target.result; document.getElementById('topAvatar').src = ev.target.result; };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
+            // ON MARQUE LE COUP : L'utilisateur veut se connecter
+            localStorage.setItem('runcall_auth_pending', 'true');
+            
+            const cleanRedirect = window.location.origin + window.location.pathname;
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: cleanRedirect, scopes: 'https://www.googleapis.com/auth/calendar.events', queryParams: { access_type: 'offline', prompt: 'consent' } }
+            });
+        });
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             const originalText = btn.innerHTML;
+             btn.innerHTML = "Vérification..."; btn.disabled = true;
+             await updateHomeState(); 
+             if(!hasSlots) alert(lang==='fr' ? "⚠️ Aucun créneau trouvé sur 30 jours." : "⚠️ No slots found over 30 days.");
+             btn.innerHTML = originalText; btn.disabled = false;
+        });
+        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('refreshSlotsBtn');
+             btn.style.transform = "rotate(360deg)"; setTimeout(() => btn.style.transform = "none", 500);
+             await updateHomeState(); 
+        });
+        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
+             let baseUrl = window.location.origin;
+             if (baseUrl === 'null' || baseUrl.startsWith('file:')) baseUrl = 'https://runcall.vercel.app';
+             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
+             navigator.clipboard.writeText(link);
+             alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
         const setupStripeBtn = document.getElementById('setupStripeBtn');
         const homeSetupStripeBtn = document.getElementById('homeSetupStripeBtn');
         const setupHandler = async (btn) => {
@@ -1024,20 +992,23 @@
              try {
                  const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
                  const d = await res.json();
-                 if(d.url) window.location.href = d.url;
-                 else throw new Error("Erreur URL");
+                 if(d.url) window.location.href = d.url; else throw new Error("Erreur URL");
              } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
         };
         if(setupStripeBtn) setupStripeBtn.addEventListener('click', () => setupHandler(setupStripeBtn));
         if(homeSetupStripeBtn) homeSetupStripeBtn.addEventListener('click', () => setupHandler(homeSetupStripeBtn));
+        document.getElementById('copyLinkAction')?.addEventListener('click', () => {
+            const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            navigator.clipboard.writeText(link);
+            alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
 
     } catch (err) { 
         console.error("DASH ERROR", err);
         const l = document.getElementById('globalLoader');
         if(l) l.style.display = 'none';
-        alert("Une erreur est survenue pendant le chargement.");
+        // Alert supprimée pour éviter le spam, console log suffit
     }
-  
 })();
 </script>
 </body>
