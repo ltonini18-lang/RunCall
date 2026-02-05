@@ -517,10 +517,22 @@
     const cal = document.getElementById("calendar");
     const err = document.getElementById("slotsError");
     clearError(err);
-    cal.innerHTML = "";
+
+    // 1. ON AFFICHE LE LOADER (Injection HTML directe)
+    // grid-column: 1 / -1 permet au loader de prendre toute la largeur du calendrier
+    cal.innerHTML = `
+        <div style="grid-column: 1 / -1; display: flex; justify-content: center; align-items: center; min-height: 200px;">
+            <div class="rc-dots">
+                <div class="rc-dot"></div>
+                <div class="rc-dot"></div>
+                <div class="rc-dot"></div>
+            </div>
+        </div>
+    `;
 
     if (!expertId){
       showError(err, lang === "fr" ? "Lien invalide." : "Invalid link.");
+      cal.innerHTML = ""; 
       return;
     }
 
@@ -544,6 +556,7 @@
 
     let slots = [];
     try{
+      // Le loader tourne pendant ce await...
       slots = await fetchSlots(iso(gridStart), iso(gridEnd));
     } catch(e){
       console.warn("Slots error", e);
@@ -551,6 +564,9 @@
 
     latestGrouped = groupSlotsByDay(slots);
     
+    // 2. ON NETTOIE LE LOADER AVANT D'AFFICHER LES JOURS
+    cal.innerHTML = "";
+
     // Build days
     const cur = new Date(gridStart);
     const today0 = startOfToday().getTime();
