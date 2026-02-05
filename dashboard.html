@@ -1194,6 +1194,15 @@
             });
         }
 
+        // --- FIN DU CHARGEMENT : ON CACHE LE LOADER ---
+        const finalLoader = document.getElementById('globalLoader');
+        if(finalLoader) {
+            finalLoader.style.opacity = '0';
+            setTimeout(() => {
+                finalLoader.style.display = 'none';
+            }, 500);
+        }
+
     } catch (err) { console.error("DASH ERROR", err); }
   
 })();
