@@ -602,6 +602,8 @@
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
 
+      window.rawProviderToken = params.get('provider_token');
+
         if (accessToken && refreshToken) {
             // Cas Mobile : On a les clés dans l'URL -> On force la session manuellement
             const { data } = await sb.auth.setSession({
@@ -651,34 +653,37 @@
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
-// --- FIX BOUCLE ETAPE 1 : SAUVEGARDE ROBUSTE (Compatible Mac & Mobile) ---
-    const urlHash = new URLSearchParams(window.location.hash.substring(1));
+// --- FIX BOUCLE ETAPE 1 : VERSION FINALE (Mac & Mobile) ---
     
-    // 1. On cherche le token dans l'URL (Pour le Mobile qui est lent)
-    let googleToken = urlHash.get('provider_token');
+    // 1. On récupère le token qu'on a capturé tout en haut (Le coffre-fort)
+    let googleToken = window.rawProviderToken;
 
-    // 2. Si l'URL est vide (Mac trop rapide), on le prend dans la session Supabase
+    // 2. Roue de secours : si le coffre est vide, on regarde dans la session
     if (!googleToken && session && session.provider_token) {
         googleToken = session.provider_token;
     }
     
-    // VERIFICATION CRUCIALE : On ne sauvegarde QUE si l'utilisateur a demandé l'auth Agenda
+    // VERIFICATION CRUCIALE
     const isWaitingForCalendar = localStorage.getItem('runcall_auth_pending') === 'true';
 
     if (isWaitingForCalendar && googleToken && expertId) {
-        console.log("💾 Retour Agenda détecté (URL ou Session), sauvegarde...");
+        console.log("💾 Retour Agenda détecté, sauvegarde...");
+        
+        // On sécurise le refresh token
+        const rToken = session.provider_refresh_token || null;
+
         await sb.from('expert_google_accounts').upsert({
             expert_id: expertId,
             google_email: session.user.email,
             access_token: googleToken,
-            refresh_token: session.provider_refresh_token,
+            refresh_token: rToken,
             expiry_date: Date.now() + 3500 * 1000,
             updated_at: new Date()
         });
         
         localStorage.removeItem('runcall_auth_pending');
         
-        // Petite pause technique pour laisser le temps à la base de données
+        // Pause de sécurité (500ms)
         await new Promise(r => setTimeout(r, 500));
     }
     // --------------------------------------------------
