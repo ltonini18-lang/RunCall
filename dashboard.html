@@ -906,15 +906,21 @@
         document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('homeSetupStripeBtn');
              const sel = document.getElementById('homeCountrySelector');
-             const country = sel ? sel.value : 'FR';
+             
+             const country = sel ? sel.value : 'FR'; 
+             
+             // --- C'EST CETTE LIGNE QUI MANQUAIT ---
+             // On récupère le texte (ex: 🇫🇷 France) pour l'afficher dans le message
+             const countryName = sel ? sel.options[sel.selectedIndex].text : country;
+             // --------------------------------------
 
              // --- SÉCURITÉ ANTI-ERREUR ---
              const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
              const msg = isFr 
-                ? `Vous avez choisi le pays "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
-                : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+                ? `Attention : Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                : `Warning: You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
 
-             if (!confirm(msg)) return; // Si l'utilisateur clique "Annuler", on ne fait rien.
+             if (!confirm(msg)) return; 
              // ---------------------------
 
              btn.disabled = true; btn.innerText = "Chargement...";
@@ -1206,6 +1212,20 @@
         if (setupBtn) {
             setupBtn.addEventListener('click', async () => {
                 const country = countrySel ? countrySel.value : 'US';
+                
+                // --- C'EST CETTE LIGNE QUI MANQUAIT ICI AUSSI ---
+                const countryName = countrySel ? countrySel.options[countrySel.selectedIndex].text : country;
+                // ------------------------------------------------
+
+                // --- SÉCURITÉ ANTI-ERREUR ---
+                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+                const msg = isFr 
+                   ? `Attention : Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                   : `Warning: You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+
+                if (!confirm(msg)) return; 
+                // ---------------------------
+
                 setupBtn.disabled = true; setupBtn.innerText = "Loading...";
                 try {
                     const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
