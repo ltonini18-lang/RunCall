@@ -529,7 +529,7 @@
             </div>
         </div>
       </div>
-<div id="dashFooter" style="display:none; text-align:center; margin-top:40px; padding-bottom:10px;">
+<div id="dashFooter" style="display:none !important; text-align:center; margin-top:40px; padding-bottom:10px;">
         <a href="mailto:ltonini18@gmail.com" style="text-decoration:none; color:var(--muted2); font-size:0.85rem; font-weight:500; transition: color 0.2s;" 
            onmouseover="this.style.color=var(--brand)" 
            onmouseout="this.style.color=var(--muted2)">
@@ -1246,16 +1246,17 @@
         const finalLoader = document.getElementById('globalLoader');
         const footer = document.getElementById('dashFooter');
         
-        // 1. On affiche le footer maintenant que tout est chargé
-        if(footer) {
-            footer.style.display = 'block';
-        }
-
-        // 2. On fait disparaître le loader en douceur (comme avant)
         if(finalLoader) {
             finalLoader.style.opacity = '0';
+            
+            // On attend 500ms (la fin de l'animation) pour faire le ménage
             setTimeout(() => {
                 finalLoader.style.display = 'none';
+                
+                // C'est SEULEMENT MAINTENANT qu'on affiche le footer
+                // Une fois que tout est stable
+                if(footer) footer.style.display = 'block';
+                
             }, 500);
         }
 
