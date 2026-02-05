@@ -640,10 +640,8 @@
         localStorage.removeItem('runcall_auth_pending');
         
         // Petite pause technique
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 500));
         
-        // On force la mise à jour de l'affichage pour passer à l'étape 2 tout de suite
-        hasCalendar = true; 
     }
     // --------------------------------------------------
 
