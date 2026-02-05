@@ -167,23 +167,6 @@
 
 <body>
 
-  <div id="globalLoader" style="position:fixed; inset:0; background:#ffffff; z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s ease;">
-    <style>
-        .spinner-ring {
-            width: 50px; height: 50px;
-            border: 4px solid #f1f5f9;
-            border-top: 4px solid #1677ff; /* Bleu RunCall */
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-    </style>
-    <div class="spinner-ring"></div>
-    <div style="margin-top:20px; font-family:-apple-system, sans-serif; color:#64748b; font-size:0.9rem; font-weight:500;">
-        Chargement...
-    </div>
-</div>
-  
 <div class="dash-shell">
   <aside class="dash-sidebar">
     <div class="sb-brand">RunCall <span style="font-size:0.7em; opacity:0.6; font-weight:400;">Dashboard</span></div>
@@ -477,7 +460,7 @@
 </div>
 
 </form>
-             </div>
+            </div>
         </div>
       </div>
       
@@ -551,17 +534,11 @@
 
 <script>
 (async function() {
-    console.log("🚀 Dashboard RUN CALL - FINAL SEQUENTIAL 3.0");
+    console.log("🚀 Dashboard UX Unicorn init...");
 
-    // 1. SECURITE : AFFICHAGE IMMEDIAT (Anti Page Blanche)
-    document.documentElement.classList.remove('auth-pending');
-    document.body.style.visibility = 'visible';
-
-    // Timer de secours pour le loader
-    setTimeout(() => {
-        const l = document.getElementById('globalLoader');
-        if(l) l.style.display = 'none';
-    }, 5000);
+    const safetyTimer = setTimeout(() => {
+        document.documentElement.classList.remove('auth-pending');
+    }, 2000);
 
     try {
         if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
@@ -583,56 +560,27 @@
         document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
         setLang(lang);
 
-        // --- ETAPE 1 : AUTHENTIFICATION ---
-        let session = null;
-        let accessToken = null, refreshToken = null, providerToken = null;
-
-        // Lecture sécurisée des hash/search params
-        if (window.location.hash) {
-            const hashStr = window.location.hash.substring(1);
-            const urlParams = new URLSearchParams(hashStr);
-            accessToken = urlParams.get('access_token');
-            refreshToken = urlParams.get('refresh_token');
-            providerToken = urlParams.get('provider_token'); // Clé Agenda
+        // AUTH
+        const { data: { session }, error: authError } = await sb.auth.getSession();
+        if (authError || !session) { 
+            // .replace() remplace la page actuelle dans l'historique
+            // Donc si on fait "Retour", on saute le dashboard et on revient à la page d'avant (Profil)
+            window.location.replace("/"); 
+            return; 
         }
+        clearTimeout(safetyTimer);
+        document.documentElement.classList.remove('auth-pending');
 
-        // --- FIX FANTÔME (Anti saut étape 1) ---
-        // Si on n'a PAS de token dans l'URL (on recharge la page juste), on efface la mémoire "pending"
-        // Cela force le site à revérifier la vraie base de données au lieu de croire le navigateur
-        if (!accessToken) {
-             localStorage.removeItem('runcall_auth_pending');
-        }
-
-        if (accessToken && refreshToken) {
-            // Mobile/Redirection : On force la session avec le token de l'URL
-            const { data } = await sb.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-            });
-            session = data.session;
-        } else {
-            // Cas classique : Déjà connecté
-            const { data } = await sb.auth.getSession();
-            session = data.session;
-        }
-
-        // VERDICT AUTH
-        if (!session) {
-            // Si pas de session et pas de code Google en cours, on redirige
-            if (!window.location.search.includes('code=')) {
-                window.location.replace("/");
-            }
-            return; // Stop script ici si pas connecté
-        }
-
-        // --- ETAPE 2 : GESTION EXPERT ---
+        // EXPERT
         let expertId = new URLSearchParams(window.location.search).get('expert_id');
         let expertData = null;
 
-        const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
-        if (data) { 
-            expertData = data; expertId = data.id; 
-        } else {
+        if (!expertData) {
+            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+            if (data) { expertData = data; expertId = data.id; }
+        }
+
+        if (!expertData) {
             const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
             const { data: newExpert } = await sb.from('experts').insert([{
                 auth_user_id: session.user.id,
@@ -644,38 +592,28 @@
             if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
         }
 
-        // --- ETAPE 3 : SAUVEGARDE AGENDA (Anti-Boucle) ---
-        // Si on a capturé une clé Google au début (Etape 1), on l'enregistre maintenant
-        if (providerToken && expertId) {
-            console.log("💾 Sauvegarde Agenda...");
-            await sb.from('expert_google_accounts').upsert({
-                expert_id: expertId,
-                google_email: session.user.email,
-                access_token: providerToken,
-                refresh_token: refreshToken || session.provider_refresh_token,
-                expiry_date: Date.now() + 3500 * 1000,
-                updated_at: new Date()
-            });
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        // Nettoyage URL
         if(expertId) {
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('expert_id', expertId);
-            if(accessToken) newUrl.hash = ''; 
-            window.history.replaceState({}, '', newUrl);
+            window.history.pushState({}, '', newUrl);
         }
 
-        // --- ETAPE 4 : AFFICHAGE UI ---
-        
-        // A. Remplissage Header
         if (expertData) {
             document.getElementById('topTitle').textContent = expertData.name;
+            
             const topAvatar = document.getElementById('topAvatar');
             const previewAvatar = document.getElementById('previewAvatar');
-            let finalAvatar = expertData.photo_url && expertData.photo_url.trim() !== "" ? expertData.photo_url : "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
-            topAvatar.src = finalAvatar; previewAvatar.src = finalAvatar; topAvatar.style.display = 'block';
+            const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
+
+            let finalAvatar = blueAvatar;
+            if (expertData.photo_url && expertData.photo_url.trim() !== "") {
+                finalAvatar = expertData.photo_url;
+            }
+
+            topAvatar.src = finalAvatar;
+            previewAvatar.src = finalAvatar;
+            topAvatar.style.display = 'block';
+
             document.getElementById('inputName').value = expertData.name || "";
             document.getElementById('inputBio').value = expertData.presentation || "";
             document.getElementById('inputPrice').value = expertData.price || "";
@@ -683,61 +621,217 @@
             document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
         }
 
-        // B. Initialisation Variables Globales
-        let hasCalendar = false, hasSlots = false, hasStripe = false;
+        // PREVIEW PHOTO
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        document.getElementById('previewAvatar').src = ev.target.result;
+                        document.getElementById('topAvatar').src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // LOGIC
+        let hasCalendar = false;
+        let hasSlots = false;
+        let hasStripe = false;
+
+        const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
+        hasCalendar = !!gAccount;
+
+        try {
+            const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
+            const dataS = await resS.json();
+            hasStripe = dataS.isComplete;
+        } catch(e) { console.error("Stripe check", e); }
+
         let currentWeekOffset = 0;
-
-        // C. Fetch Initial des Status
-        if(expertId) {
-            const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
-            hasCalendar = !!gAccount; 
-            try {
-                const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
-                const dataS = await resS.json();
-                hasStripe = dataS.isComplete;
-            } catch(e) {}
-        }
-
-        // D. Lancement Visuel
-        function switchTab(tabName) {
-            localStorage.setItem('runcall_last_tab', tabName);
-            document.querySelectorAll('.sb-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
-            document.querySelectorAll('.mobile-nav-item').forEach(i => i.classList.toggle('active', i.dataset.tab === tabName));
-            ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            const targetEl = document.getElementById(tabName === 'profile' ? 'viewProfile' : (tabName === 'payouts' ? 'viewPayouts' : 'viewHome'));
-            if(targetEl) targetEl.classList.remove('hidden');
-        }
-        document.querySelectorAll('.sb-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
-        document.querySelectorAll('.mobile-nav-item').forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
-
-        const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
-        switchTab(savedTab);
-
-        // E. Mise à jour du contenu
-        await updateHomeState(); 
-
-        // F. Suppression du Loader (FIN)
-        const loader = document.getElementById('globalLoader');
-        if(loader) {
-            loader.style.opacity = '0';
-            setTimeout(() => loader.style.display = 'none', 500);
-        }
-
-        // --- G. FONCTIONS AUXILIAIRES ---
         function getStartOfWeek(offset) {
-            const d = new Date(); const day = d.getDay(); 
+            const d = new Date();
+            const day = d.getDay(); 
             const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
-            d.setDate(diff); d.setHours(0, 0, 0, 0); return d;
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0); 
+            return d;
         }
+
+        // --- MOTEUR DE VERIFICATION ---
+        async function updateHomeState() {
+            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            
+            const progressEl = document.getElementById('onboardingProgress');
+            const stripeCard = document.getElementById('stateSetupPayouts');
+            const calendarCard = document.getElementById('stateCalendar');
+            
+            const activeBadge = document.getElementById('activeBadge');
+            const subReady = document.getElementById('calSubtitleReady');
+            const subPreview = document.getElementById('calSubtitlePreview');
+
+            // 1. Calendrier
+            if (!hasCalendar) {
+                document.getElementById('stateConnect').classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
+                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
+                return;
+            }
+
+            // 2. Créneaux (CORRECTIF : On vérifie sur 30 jours pour ne pas bloquer l'onboarding)
+            // Au lieu de regarder juste la semaine courante, on regarde le mois à venir.
+            const checkStart = new Date();
+            const checkEnd = new Date();
+            checkEnd.setDate(checkEnd.getDate() + 30); // On regarde 30 jours devant
+            
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
+            
+            try {
+                const resSlots = await fetch(apiUrl);
+                const dataSlots = await resSlots.json();
+                const slots = Array.isArray(dataSlots) ? dataSlots : (dataSlots.slots || []);
+                hasSlots = slots.length > 0;
+            } catch(err) { hasSlots = false; }
+
+            if (!hasSlots) {
+                document.getElementById('stateFirstSlots').classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
+                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
+                return;
+            }
+
+            // 3. Paiements & Affichage
+            if (!hasStripe) {
+                // MODE: EN COURS
+                stripeCard.classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
+                
+                if(activeBadge) activeBadge.classList.add('hidden');
+                if(subReady) subReady.classList.add('hidden');
+                if(subPreview) subPreview.classList.remove('hidden');
+
+            } else {
+                // MODE: TERMINÉ
+                stripeCard.classList.add('hidden');
+                progressEl.classList.add('hidden'); 
+                
+                if(activeBadge) activeBadge.classList.remove('hidden');
+                if(subReady) subReady.classList.remove('hidden');
+                if(subPreview) subPreview.classList.add('hidden');
+            }
+
+            calendarCard.classList.remove('hidden');
+            
+            updateWeekLabel();
+            fetchAndRenderSlots();
+        }
+
+        function updateProgress(stepIndex, titleFr, titleEn, stepText) {
+            const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
+            dots.forEach((id, i) => {
+                const d = document.getElementById(id);
+                if (i < stepIndex) d.style.background = '#1677ff'; 
+                else if (i === stepIndex) d.style.background = '#1677ff'; 
+                else d.style.background = '#e2e8f0'; 
+            });
+            const titleEl = document.getElementById('stepTitle');
+            if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
+            const counterEl = document.getElementById('stepCounter');
+            if(counterEl) counterEl.textContent = stepText;
+        }
+
+        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
+            localStorage.setItem('runcall_auth_pending', 'true');
+            const cleanRedirect = window.location.origin + window.location.pathname;
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { 
+                    redirectTo: cleanRedirect,
+                    scopes: 'https://www.googleapis.com/auth/calendar.events',
+                    queryParams: { access_type: 'offline', prompt: 'consent' }
+                }
+            });
+        });
+
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
+            await sb.from('expert_google_accounts').upsert({
+                expert_id: expertId,
+                google_email: session.user.email,
+                access_token: session.provider_token,
+                refresh_token: session.provider_refresh_token,
+                expiry_date: Date.now() + 3600 * 1000 
+            });
+            localStorage.removeItem('runcall_auth_pending');
+            hasCalendar = true; 
+        }
+
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             const originalText = btn.innerHTML;
+             btn.innerHTML = "Vérification...";
+             btn.disabled = true;
+             await updateHomeState(); 
+             if(!hasSlots) {
+                 const msg = lang==='fr' 
+                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
+                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
+                 alert(msg);
+             }
+             btn.innerHTML = originalText;
+             btn.disabled = false;
+        });
+
+        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('refreshSlotsBtn');
+             btn.style.transform = "rotate(360deg)"; 
+             setTimeout(() => btn.style.transform = "none", 500);
+             await updateHomeState(); 
+        });
+
+        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
+             let baseUrl = window.location.origin;
+             if (baseUrl === 'null' || baseUrl.startsWith('file:')) {
+                 baseUrl = 'https://runcall.vercel.app';
+             }
+             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
+             navigator.clipboard.writeText(link);
+             alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
+
+        document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('homeSetupStripeBtn');
+             btn.disabled = true; btn.innerText = "Chargement...";
+             const country = document.getElementById('homeCountrySelector').value;
+             try {
+                 const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
+                 const d = await res.json();
+                 if(d.url) window.location.href = d.url;
+                 else throw new Error("Erreur URL");
+             } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
+        });
+
+        document.getElementById('copyLinkAction')?.addEventListener('click', () => {
+            const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            navigator.clipboard.writeText(link);
+            alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
 
         window.updateWeekLabel = function() {
             const start = getStartOfWeek(currentWeekOffset);
             const end = new Date(start); end.setDate(end.getDate() + 6);
-            const loc = lang === 'fr' ? 'fr-FR' : 'en-US';
+            const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
             const lbl = document.getElementById('weekLabel');
-            if(lbl) lbl.textContent = `${start.toLocaleDateString(loc, {day:'numeric', month:'short'})} - ${end.toLocaleDateString(loc, {day:'numeric', month:'short'})}`;
+            if(lbl) lbl.textContent = `${start.toLocaleDateString(locale, {day:'numeric', month:'short'})} - ${end.toLocaleDateString(locale, {day:'numeric', month:'short'})}`;
         }
-
+        
         async function fetchAndRenderSlots() {
             if (!expertId) return;
             const grid = document.getElementById('calendarGrid');
@@ -774,9 +868,9 @@
                         const container = document.getElementById(`slots-${dKey}`);
                         if (container) {
                             const div = document.createElement('div');
-                            const loc = lang==='fr'?'fr-FR':'en-US';
+                            const locale = lang==='fr'?'fr-FR':'en-US';
                             div.className = 'slot';
-                            div.textContent = `${new Date(slot.start).toLocaleTimeString(loc, {hour:'2-digit', minute:'2-digit'})} - ${new Date(slot.end).toLocaleTimeString(loc, {hour:'2-digit', minute:'2-digit'})}`;
+                            div.textContent = `${new Date(slot.start).toLocaleTimeString(locale, {hour:'2-digit', minute:'2-digit'})} - ${new Date(slot.end).toLocaleTimeString(locale, {hour:'2-digit', minute:'2-digit'})}`;
                             container.appendChild(div);
                         }
                     });
@@ -789,138 +883,69 @@
         if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
         if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
 
-        async function updateHomeState() {
-            if(!expertId) return;
-            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            
-            const progressEl = document.getElementById('onboardingProgress');
-            const stripeCard = document.getElementById('stateSetupPayouts');
-            const calendarCard = document.getElementById('stateCalendar');
-            const activeBadge = document.getElementById('activeBadge');
-            const subReady = document.getElementById('calSubtitleReady');
-            const subPreview = document.getElementById('calSubtitlePreview');
+        // --- GESTION DES ONGLETS (Instantanée & Sans saut) ---
+        function switchTab(tabName) {
+            // 1. Sauvegarde en mémoire
+            localStorage.setItem('runcall_last_tab', tabName);
 
-            if (!hasCalendar) {
-                document.getElementById('stateConnect').classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
-                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
-                return;
-            }
-
-            const checkStart = new Date();
-            const checkEnd = new Date(); checkEnd.setDate(checkEnd.getDate() + 30); 
-            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
-            try {
-                const resSlots = await fetch(apiUrl);
-                const dataSlots = await resSlots.json();
-                const slots = Array.isArray(dataSlots) ? dataSlots : (dataSlots.slots || []);
-                hasSlots = slots.length > 0;
-            } catch(err) { hasSlots = false; }
-
-            if (!hasSlots) {
-                document.getElementById('stateFirstSlots').classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                stripeCard.classList.add('hidden');
-                calendarCard.classList.add('hidden');
-                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
-                return;
-            }
-
-            if (!hasStripe) {
-                stripeCard.classList.remove('hidden');
-                progressEl.classList.remove('hidden');
-                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
-                if(activeBadge) activeBadge.classList.add('hidden');
-                if(subReady) subReady.classList.add('hidden');
-                if(subPreview) subPreview.classList.remove('hidden');
-            } else {
-                stripeCard.classList.add('hidden');
-                progressEl.classList.add('hidden'); 
-                if(activeBadge) activeBadge.classList.remove('hidden');
-                if(subReady) subReady.classList.remove('hidden');
-                if(subPreview) subPreview.classList.add('hidden');
-            }
-            calendarCard.classList.remove('hidden');
-            updateWeekLabel();
-            fetchAndRenderSlots();
-        }
-
-        function updateProgress(idx, fr, en, txt) {
-            ['step1-dot', 'step2-dot', 'step3-dot'].forEach((id, i) => {
-                document.getElementById(id).style.background = i <= idx ? '#1677ff' : '#e2e8f0';
+            // 2. Gestion Menu PC (Sidebar)
+            document.querySelectorAll('.sb-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.tab === tabName);
             });
-            const titleEl = document.getElementById('stepTitle');
-            if(titleEl) titleEl.textContent = lang === 'fr' ? fr : en;
-            const counterEl = document.getElementById('stepCounter');
-            if(counterEl) counterEl.textContent = txt;
-        }
 
-        // --- LISTENERS & SIMULATEUR ---
-        const priceInput = document.getElementById('inputPrice');
-        const currencyInput = document.getElementById('inputCurrency');
-        const simDefault = document.getElementById('simDefault');
-        const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
-        const contentDefault = document.getElementById('contentDefault');
-        const arrowDefault = document.getElementById('arrowDefault');
-        const simCustom = document.getElementById('simCustom');
-        const elTotal = document.getElementById('simTotal');
-        const elFee = document.getElementById('simFee');
-        const elNet = document.getElementById('simNet');
-        const lblFeePct = document.getElementById('lblFeePct');
-        const msgSuccess = document.getElementById('rateSuccessMsg');
-
-        if(toggleDefaultBtn) {
-            toggleDefaultBtn.addEventListener('click', () => {
-                const isHidden = contentDefault.classList.contains('hidden');
-                if(isHidden) { contentDefault.classList.remove('hidden'); arrowDefault.style.transform = "rotate(180deg)"; } 
-                else { contentDefault.classList.add('hidden'); arrowDefault.style.transform = "rotate(0deg)"; }
+            // 3. Gestion Menu Mobile (Bottom Bar) - NOUVEAU !
+            document.querySelectorAll('.mobile-nav-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.tab === tabName);
             });
-        }
-        function updateSimulation() {
-            const val = parseFloat(priceInput.value);
-            const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
-            const sym = curMap[currencyInput.value] || '$';
-            document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
-            if(!val || val <= 0) {
-                if(simDefault) simDefault.classList.remove('hidden');
-                if(simCustom) simCustom.classList.add('hidden');
-            } else {
-                if(simDefault) simDefault.classList.add('hidden');
-                if(simCustom) simCustom.classList.remove('hidden');
-                let rate = 0.20; let rateText = "20%";
-                if (val >= 200) { rate = 0.10; rateText = "10%"; } else if (val >= 100) { rate = 0.15; rateText = "15%"; }
-                const fee = val * rate; const net = val - fee;
-                elTotal.textContent = `${val} ${sym}`;
-                elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
-                elNet.textContent = `${net.toFixed(2)} ${sym}`;
-                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
-                if(lblFeePct) lblFeePct.textContent = isFr ? `Frais de plateforme (${rateText})` : `Platform fee (${rateText})`;
-                if (msgSuccess) {
-                    if (rate < 0.20) { msgSuccess.classList.remove('hidden'); elNet.style.color = "#16a34a"; } 
-                    else { msgSuccess.classList.add('hidden'); elNet.style.color = "#16a34a"; }
-                }
-            }
-        }
-        if(priceInput) priceInput.addEventListener('input', updateSimulation);
-        if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
-        setTimeout(updateSimulation, 800);
 
-        // Form Profile
+            // 4. Gestion Vues (Cacher tout, montrer la cible)
+            ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => {
+                document.getElementById(v).classList.add('hidden');
+            });
+
+            let targetId = 'viewHome';
+            if (tabName === 'profile') targetId = 'viewProfile';
+            if (tabName === 'payouts') targetId = 'viewPayouts';
+
+            const targetEl = document.getElementById(targetId);
+            if(targetEl) targetEl.classList.remove('hidden');
+        }
+
+        // A. Écouteurs de clics PC
+        document.querySelectorAll('.sb-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Écouteurs de clics MOBILE - NOUVEAU !
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Restauration IMMÉDIATE (Le secret pour éviter le saut)
+        // On lit la mémoire tout de suite. Si rien en mémoire, on met 'home'.
+        const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
+        
+        // On applique la vue immédiatement
+        switchTab(savedTab);
+
+        updateHomeState();
+        
         const pForm = document.getElementById('profileForm');
         if(pForm) {
             pForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('saveProfileBtn');
-                btn.textContent = "Sauvegarde..."; btn.disabled = true;
+                const originalText = btn.textContent;
+                btn.textContent = "Sauvegarde...";
+                btn.disabled = true;
                 try {
                     const name = document.getElementById('inputName').value;
                     const bio = document.getElementById('inputBio').value;
                     const rawPrice = document.getElementById('inputPrice').value;
                     const priceVal = rawPrice ? parseInt(rawPrice) : null;
                     const currencyVal = document.getElementById('inputCurrency').value || 'usd';
-                    let newPhotoUrl = expertData ? expertData.photo_url : "";
+                    let newPhotoUrl = expertData.photo_url;
+                    
                     const fileInput = document.getElementById('avatarInput');
                     if (fileInput && fileInput.files.length > 0) {
                         const file = fileInput.files[0];
@@ -931,84 +956,159 @@
                         const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
                         newPhotoUrl = publicUrl;
                     }
-                    await sb.from('experts').update({
+                    const { error } = await sb.from('experts').update({
                         name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
                     }).eq('id', expertId);
+                    if (error) throw error;
                     alert("Profil mis à jour !");
                     document.getElementById('topTitle').textContent = name;
-                    if(newPhotoUrl) { document.getElementById('topAvatar').src = newPhotoUrl; document.getElementById('previewAvatar').src = newPhotoUrl; }
+                    if(newPhotoUrl) {
+                        document.getElementById('topAvatar').src = newPhotoUrl;
+                        document.getElementById('previewAvatar').src = newPhotoUrl;
+                    }
                 } catch (err) { alert("Erreur : " + err.message); } 
-                finally { btn.textContent = "Enregistrer"; btn.disabled = false; }
+                finally { btn.textContent = originalText; btn.disabled = false; }
             });
         }
+        // --- CALCULATEUR DYNAMIQUE PRIX (Mode Hybride v2) ---
+    const priceInput = document.getElementById('inputPrice');
+    const currencyInput = document.getElementById('inputCurrency');
+    
+    // Mode Default (Accordéon)
+    const simDefault = document.getElementById('simDefault');
+    const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
+    const contentDefault = document.getElementById('contentDefault');
+    const arrowDefault = document.getElementById('arrowDefault');
 
-        // Listeners divers
-        const avatarInput = document.getElementById('avatarInput');
-        if (avatarInput) {
-            avatarInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => { document.getElementById('previewAvatar').src = ev.target.result; document.getElementById('topAvatar').src = ev.target.result; };
-                    reader.readAsDataURL(file);
-                }
-            });
-        }
-        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
-            // ON MARQUE LE COUP : L'utilisateur veut se connecter
-            localStorage.setItem('runcall_auth_pending', 'true');
-            
-            const cleanRedirect = window.location.origin + window.location.pathname;
-            await sb.auth.signInWithOAuth({
-                provider: 'google',
-                options: { redirectTo: cleanRedirect, scopes: 'https://www.googleapis.com/auth/calendar.events', queryParams: { access_type: 'offline', prompt: 'consent' } }
-            });
-        });
-        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
-             const btn = document.getElementById('checkSlotsBtn');
-             const originalText = btn.innerHTML;
-             btn.innerHTML = "Vérification..."; btn.disabled = true;
-             await updateHomeState(); 
-             if(!hasSlots) alert(lang==='fr' ? "⚠️ Aucun créneau trouvé sur 30 jours." : "⚠️ No slots found over 30 days.");
-             btn.innerHTML = originalText; btn.disabled = false;
-        });
-        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
-             const btn = document.getElementById('refreshSlotsBtn');
-             btn.style.transform = "rotate(360deg)"; setTimeout(() => btn.style.transform = "none", 500);
-             await updateHomeState(); 
-        });
-        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
-             let baseUrl = window.location.origin;
-             if (baseUrl === 'null' || baseUrl.startsWith('file:')) baseUrl = 'https://runcall.vercel.app';
-             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
-             navigator.clipboard.writeText(link);
-             alert(lang==='fr'?"Lien copié !":"Link copied!");
-        });
-        const setupStripeBtn = document.getElementById('setupStripeBtn');
-        const homeSetupStripeBtn = document.getElementById('homeSetupStripeBtn');
-        const setupHandler = async (btn) => {
-             btn.disabled = true; btn.innerText = "Chargement...";
-             const country = document.getElementById('countrySelector')?.value || document.getElementById('homeCountrySelector')?.value || 'FR';
-             try {
-                 const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
-                 const d = await res.json();
-                 if(d.url) window.location.href = d.url; else throw new Error("Erreur URL");
-             } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
-        };
-        if(setupStripeBtn) setupStripeBtn.addEventListener('click', () => setupHandler(setupStripeBtn));
-        if(homeSetupStripeBtn) homeSetupStripeBtn.addEventListener('click', () => setupHandler(homeSetupStripeBtn));
-        document.getElementById('copyLinkAction')?.addEventListener('click', () => {
-            const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
-            navigator.clipboard.writeText(link);
-            alert(lang==='fr'?"Lien copié !":"Link copied!");
-        });
+    // Mode Custom
+    const simCustom = document.getElementById('simCustom');
+    const elTotal = document.getElementById('simTotal');
+    const elFee = document.getElementById('simFee');
+    const elNet = document.getElementById('simNet');
+    const lblFeePct = document.getElementById('lblFeePct');
+    const msgSuccess = document.getElementById('rateSuccessMsg');
 
-    } catch (err) { 
-        console.error("DASH ERROR", err);
-        const l = document.getElementById('globalLoader');
-        if(l) l.style.display = 'none';
-        // Alert supprimée pour éviter le spam, console log suffit
+    // Gestion de l'accordéon (Clic sur la phrase grise)
+    if(toggleDefaultBtn) {
+        toggleDefaultBtn.addEventListener('click', () => {
+            const isHidden = contentDefault.classList.contains('hidden');
+            if(isHidden) {
+                contentDefault.classList.remove('hidden');
+                arrowDefault.style.transform = "rotate(180deg)";
+            } else {
+                contentDefault.classList.add('hidden');
+                arrowDefault.style.transform = "rotate(0deg)";
+            }
+        });
     }
+
+    function updateSimulation() {
+        const val = parseFloat(priceInput.value);
+        
+        // Symboles
+        const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
+        const sym = curMap[currencyInput.value] || '$';
+        document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
+
+        // LOGIQUE D'AFFICHAGE
+        if(!val || val <= 0) {
+            // Afficher le bloc par défaut
+            if(simDefault) simDefault.classList.remove('hidden');
+            if(simCustom) simCustom.classList.add('hidden');
+        } else {
+            // Afficher le bloc custom
+            if(simDefault) simDefault.classList.add('hidden');
+            if(simCustom) simCustom.classList.remove('hidden');
+
+            // --- LOGIQUE PALIERS (CORRIGÉE : A partir de 100 inclus) ---
+            let rate = 0.20; 
+            let rateText = "20%";
+
+            if (val >= 200) { // Supérieur OU EGAL à 200
+                rate = 0.10;
+                rateText = "10%";
+            } else if (val >= 100) { // Supérieur OU EGAL à 100
+                rate = 0.15;
+                rateText = "15%";
+            }
+
+            const fee = val * rate;
+            const net = val - fee;
+
+            elTotal.textContent = `${val} ${sym}`;
+            elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+            elNet.textContent = `${net.toFixed(2)} ${sym}`;
+            
+            // Textes
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+            if(lblFeePct) {
+                lblFeePct.textContent = isFr 
+                    ? `Frais de plateforme (${rateText})` 
+                    : `Platform fee (${rateText})`;
+            }
+
+            // Message succès
+            if (msgSuccess) {
+                if (rate < 0.20) {
+                    msgSuccess.classList.remove('hidden');
+                    msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
+                    // MODIF ICI : Je mets le vert (#16a34a) au lieu de l'orange
+                    elNet.style.color = "#16a34a"; 
+                } else {
+                    msgSuccess.classList.add('hidden');
+                    elNet.style.color = "#16a34a"; 
+                }
+            }
+        }
+    }
+
+    if(priceInput) priceInput.addEventListener('input', updateSimulation);
+    if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
+    
+    setTimeout(updateSimulation, 800);
+        // --- LOGIQUE PAYOUTS ---
+        const payoutStatus = document.getElementById('payoutStatus');
+        const setupZone = document.getElementById('setupZone');
+        const dashboardZone = document.getElementById('dashboardZone');
+        const accessBtn = document.getElementById('accessStripeBtn');
+        const setupBtn = document.getElementById('setupStripeBtn');
+        const countrySel = document.getElementById('countrySelector');
+
+        async function checkStripeStatus() {
+             if (!expertId) return;
+             if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Checking...</p>`;
+             try {
+                const res = await fetch('/api/stripe/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expertId }) });
+                const data = await res.json();
+                if (data.isComplete) {
+                     if(payoutStatus) payoutStatus.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;"><strong>✅ Active</strong></div>`;
+                     if(setupZone) setupZone.style.display = 'none';
+                     if(dashboardZone) dashboardZone.style.display = 'block';
+                     if(accessBtn) accessBtn.onclick = (e) => { e.preventDefault(); window.location.href = data.url; };
+                } else {
+                     if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:10px;">Link bank account required.</p>`;
+                     if(setupZone) setupZone.style.display = 'block';
+                     if(dashboardZone) dashboardZone.style.display = 'none';
+                }
+             } catch (err) { console.error(err); }
+        }
+        checkStripeStatus();
+        
+        if (setupBtn) {
+            setupBtn.addEventListener('click', async () => {
+                const country = countrySel ? countrySel.value : 'US';
+                setupBtn.disabled = true; setupBtn.innerText = "Loading...";
+                try {
+                    const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
+                    const d = await res.json();
+                    if(d.url) window.location.href = d.url;
+                    else throw new Error(d.error);
+                } catch (e) { alert("Error: "+e.message); setupBtn.disabled = false; }
+            });
+        }
+
+    } catch (err) { console.error("DASH ERROR", err); }
+  
 })();
 </script>
 </body>
