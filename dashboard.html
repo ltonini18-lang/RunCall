@@ -1242,8 +1242,16 @@
             });
         }
 
-        // --- FIN DU CHARGEMENT : ON CACHE LE LOADER ---
+        // --- FIN DU CHARGEMENT : ON CACHE LE LOADER ET ON AFFICHE LE FOOTER ---
         const finalLoader = document.getElementById('globalLoader');
+        const footer = document.getElementById('dashFooter');
+        
+        // 1. On affiche le footer maintenant que tout est chargé
+        if(footer) {
+            footer.style.display = 'block';
+        }
+
+        // 2. On fait disparaître le loader en douceur (comme avant)
         if(finalLoader) {
             finalLoader.style.opacity = '0';
             setTimeout(() => {
