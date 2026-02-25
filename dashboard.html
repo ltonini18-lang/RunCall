@@ -609,6 +609,7 @@
         const refreshToken = params.get('refresh_token');
 
       window.rawProviderToken = params.get('provider_token');
+      window.rawProviderRefreshToken = params.get('provider_refresh_token');
 
         if (accessToken && refreshToken) {
             // Cas Mobile : On a les clés dans l'URL -> On force la session manuellement
@@ -676,7 +677,7 @@
         console.log("💾 Retour Agenda détecté, sauvegarde...");
         
         // On sécurise le refresh token
-        const rToken = session.provider_refresh_token || null;
+        const rToken = window.rawProviderRefreshToken || session.provider_refresh_token || null;
 
         await sb.from('expert_google_accounts').upsert({
             expert_id: expertId,
@@ -864,17 +865,17 @@
             });
         });
 
-        if (localStorage.getItem('runcall_auth_pending') === 'true' && session.provider_token) {
-            await sb.from('expert_google_accounts').upsert({
-                expert_id: expertId,
-                google_email: session.user.email,
-                access_token: session.provider_token,
-                refresh_token: session.provider_refresh_token,
-                expiry_date: Date.now() + 3600 * 1000 
-            });
-            localStorage.removeItem('runcall_auth_pending');
-            hasCalendar = true; 
-        }
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && (window.rawProviderToken || session.provider_token)) {
+await sb.from('expert_google_accounts').upsert({
+expert_id: expertId,
+google_email: session.user.email,
+access_token: window.rawProviderToken || session.provider_token,
+refresh_token: window.rawProviderRefreshToken || session.provider_refresh_token,
+expiry_date: Date.now() + 3600 * 1000
+});
+localStorage.removeItem('runcall_auth_pending');
+hasCalendar = true;
+}
 
         document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
              const btn = document.getElementById('checkSlotsBtn');
