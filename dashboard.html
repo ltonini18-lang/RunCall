@@ -929,7 +929,7 @@
              if (!confirm(msg)) return; 
              // ---------------------------
 
-             btn.disabled = true; btn.innerText = "Chargement...";
+             btn.disabled = true; btn.innerText = "Loading...";
              
              try {
                  const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
