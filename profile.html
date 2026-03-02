@@ -125,42 +125,57 @@
     /* BOUTON BIO DISCRET (PC et Mobile) */
 .p-bio-wrap { position: relative; margin-top: 2px; padding-bottom: 25px; }
 
-    .p-bio-toggle {
-        display: none; /* <--- 1. CACHÉ PAR DÉFAUT (PC) */
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: -5px;
-        width: 40px; height: 30px;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        z-index: 10;
-        transition: transform 0.2s ease;
-        -webkit-tap-highlight-color: transparent;
-        
-        /* On prépare l'alignement pour quand il sera visible */
-        align-items: center; 
-        justify-content: center;
-    }
+.p-bio-wrap:not(.is-open) #expertBio {
+display: -webkit-box;
+-webkit-box-orient: vertical;
+-webkit-line-clamp: 5;
+overflow: hidden;
+}
 
-    .p-bio-toggle svg {
-        width: 24px; height: 24px;
-        fill: var(--rc-blue);
-        opacity: 0.8;
-        filter: drop-shadow(0 1px 2px #ffffff);
-    }
+.p-bio-fade {
+pointer-events: none;
+position: absolute; left: 0; right: 0; bottom: 20px; height: 3em;
+background: linear-gradient(to bottom, rgba(255,255,255,0), var(--rc-bg));
+opacity: 0;
+transition: opacity 160ms ease;
+}
 
-    /* 2. AFFICHAGE MOBILE UNIQUEMENT */
-    @media (max-width: 640px) {
-        .p-bio-toggle { display: flex; } 
-    }
+.p-bio-wrap:not(.is-open) .p-bio-fade { opacity: 1; }
 
-    /* État Ouvert */
-    .p-bio-wrap.is-open .p-bio-toggle {
-        transform: translateX(-50%) rotate(180deg) !important;
-        bottom: -25px;
-    }
+.p-bio-toggle {
+display: flex;
+position: absolute;
+left: 50%;
+transform: translateX(-50%);
+bottom: -5px;
+width: 40px; height: 30px;
+background: transparent;
+border: none;
+cursor: pointer;
+z-index: 10;
+transition: transform 0.2s ease;
+-webkit-tap-highlight-color: transparent;
+align-items: center;
+justify-content: center;
+}
+
+.p-bio-toggle svg {
+width: 24px; height: 24px;
+fill: var(--rc-blue);
+opacity: 0.8;
+filter: drop-shadow(0 1px 2px var(--rc-bg));
+}
+
+.p-bio-toggle:hover {
+transform: translateX(-50%) translateY(-2px);
+}
+
+/* État Ouvert */
+.p-bio-wrap.is-open .p-bio-toggle {
+transform: translateX(-50%) rotate(180deg) !important;
+bottom: -5px;
+}
+.p-bio-wrap.is-open .p-bio-fade { opacity: 0; }
 
     /* Calendar area */
     .p-book-head{
