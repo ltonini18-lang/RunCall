@@ -136,6 +136,15 @@
     /* BOUTON BIO DISCRET (PC et Mobile) */
 .p-bio-wrap { position: relative; margin-top: 2px; padding-bottom: 25px; }
 
+/* NOUVEAU : On cache les éléments si le texte ne dépasse pas */
+    .p-bio-wrap:not(.is-expandable) .p-bio-fade,
+    .p-bio-wrap:not(.is-expandable) .p-bio-toggle {
+        display: none !important;
+    }
+    .p-bio-wrap:not(.is-expandable) {
+        padding-bottom: 0 !important;
+    }
+    
 .p-bio-wrap:not(.is-open) #expertBio {
 display: -webkit-box;
 -webkit-box-orient: vertical;
@@ -498,7 +507,21 @@ bottom: -5px;
 
       const name = d?.name || "—";
       document.getElementById("expertName").textContent = name;
-      document.getElementById("expertBio").textContent = d?.presentation || "—";
+      
+      const bioEl = document.getElementById("expertBio");
+      bioEl.textContent = d?.presentation || "—";
+      
+      // NOUVEAU : On attend 50ms que le navigateur dessine le texte, 
+      // puis on vérifie s'il dépasse les 5 lignes
+      setTimeout(() => {
+        const wrapEl = document.getElementById("bioWrap");
+        if (bioEl.scrollHeight > bioEl.clientHeight) {
+            wrapEl.classList.add("is-expandable"); // Ça dépasse : on affiche la flèche
+        } else {
+            wrapEl.classList.remove("is-expandable"); // C'est court : on cache la flèche
+        }
+      }, 50);
+
       updateBookHeadline();
 
       // Photo handling
