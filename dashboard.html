@@ -1,1335 +1,1288 @@
-<!-- dashboard.html (UPDATED: tabs Home/Profile/Payouts + token session + storage avatar upload + secure update) -->
-<!-- redeploy restore-dashboard-working-09fae8c -->
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Dashboard intervenant</title>
+  <title>RunCall – Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- 🔒 AUTH GATE: cache TOUT immédiatement (anti flash) -->
-  <style>
-    html.auth-pending body { visibility: hidden; }
-  </style>
-  <script>
-    // cache tout dès le parsing HTML (avant rendu)
-    document.documentElement.classList.add('auth-pending');
-  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  
+  <style>html.auth-pending body { visibility: hidden; }</style>
+  <script>document.documentElement.classList.add('auth-pending');</script>
 
   <link rel="stylesheet" href="style.css" />
-
+  
   <style>
-    :root{
-      --bg:#f8fafc;
-      --card:#ffffff;
-      --border:#e5e7eb;
-      --text:#0f172a;
-      --muted:#475569;
-      --muted2:#64748b;
-      --brand:#1677ff;
-      --shadow: 0 18px 40px rgba(15,23,42,.08);
-      --radius:18px;
+    /* --- DESIGN SYSTEM --- */
+
+    /* --- LOADER 3 POINTS (Style Profile) --- */
+    .rc-loader-overlay {
+        position: fixed; inset: 0; background: #ffffff; z-index: 99999;
+        display: flex; justify-content: center; align-items: center;
+        transition: opacity 0.4s ease;
     }
-    body{ background:var(--bg); }
+    .rc-dots { display: flex; gap: 8px; }
+    .rc-dot {
+        width: 12px; height: 12px; background: #1677ff; border-radius: 50%;
+        animation: rcBounce 0.6s infinite alternate;
+    }
+    .rc-dot:nth-child(2) { animation-delay: 0.2s; }
+    .rc-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes rcBounce {
+        to { transform: translateY(-10px); opacity: 0.7; }
+    }
+    
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --border:#e5e7eb; --text:#0f172a;
+      --muted:#475569; --muted2:#64748b; --brand:#1677ff; 
+      --shadow: 0 18px 40px rgba(15,23,42,.08); --radius:18px;
+    }
+    body{ background:var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin:0; }
 
     .dash-shell{ display:flex; min-height: 100vh; }
+    
+    /* Sidebar */
     .dash-sidebar{
-      position:sticky; top:0; align-self:flex-start;
-      height: 100vh; width: 270px;
+      position:sticky; top:0; align-self:flex-start; height: 100vh; width: 270px;
       background:#fff; border-right: 1px solid var(--border);
-      padding: 16px 14px; box-sizing:border-box;
+      padding: 16px 14px; box-sizing:border-box; display:flex; flex-direction:column;
     }
-    .dash-main{ flex:1; min-width:0; }
-
-    .dash-top{
-      position:sticky; top:0; z-index:20;
-      background: rgba(248,250,252,.86);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(229,231,235,.8);
-    }
-    .dash-top-inner{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 14px 18px;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      box-sizing:border-box;
-    }
-    .dash-content{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px 18px 46px;
-      box-sizing:border-box;
-    }
-
-    .sb-brand{
-      display:flex; align-items:center; gap:10px;
-      padding: 6px 8px 12px;
-      margin-bottom: 12px;
-      border-bottom:1px solid var(--border);
-    }
-    .sb-logo{ font-weight: 900; letter-spacing:-.02em; color: var(--text); font-size: 1.05rem; }
-    .sb-pill{
-      margin-left:auto;
-      font-size:.78rem;
-      padding:5px 8px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      color: var(--muted);
-      background:#fff;
-    }
-
-    .sb-nav{ margin-top: 10px; }
+    .sb-brand{ font-weight: 900; font-size: 1.1rem; padding: 8px 10px 20px; border-bottom:1px solid var(--border); margin-bottom:14px; color:var(--text); }
     .sb-item{
-      display:flex; align-items:center; gap:10px;
-      padding: 10px 10px;
-      border-radius: 14px;
-      color: var(--text);
-      text-decoration:none;
-      border: 1px solid transparent;
-      cursor:pointer;
-      user-select:none;
+      display:flex; align-items:center; gap:10px; padding: 12px; border-radius: 14px;
+      color: var(--muted); cursor:pointer; transition:all 0.2s; font-weight:600; font-size:0.95rem;
     }
-    .sb-item:hover{ background: rgba(22,119,255,.06); border-color: rgba(22,119,255,.18); }
-    .sb-item.active{ background: rgba(22,119,255,.10); border-color: rgba(22,119,255,.35); font-weight: 800; }
-    .sb-ico{
-      width: 28px; height: 28px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      display:grid; place-items:center;
-      color: var(--brand);
-      background:#fff;
-      flex:0 0 auto;
-      font-weight: 900;
-      font-size:.9rem;
+    .sb-item:hover{ background: rgba(22,119,255,.06); color:var(--text); }
+    .sb-item.active{ background: rgba(22,119,255,.10); color:var(--brand); font-weight:800; }
+    
+    /* Main */
+    .dash-main{ flex:1; min-width:0; }
+    .dash-top{
+      position:sticky; top:0; z-index:20; background: rgba(248,250,252,.85);
+      backdrop-filter: blur(12px); border-bottom: 1px solid rgba(229,231,235,0.8);
+      padding: 14px 24px; display:flex; justify-content:space-between; align-items:center;
     }
-    .sb-muted{ color: var(--muted2); font-size: .9rem; line-height:1.4; padding: 10px 10px 0; }
+    
+    .dash-content{ max-width: 1100px; margin: 0 auto; padding: 24px 24px 60px; }
 
-    .profile-row{ display:flex; align-items:center; gap:14px; min-width:0; width:100%; }
-    .avatar{
-      width: 54px; height: 54px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: #fff;
-      overflow:hidden;
-      display:grid;
-      place-items:center;
-      flex: 0 0 auto;
-      box-shadow: 0 10px 20px rgba(15,23,42,.06);
+    /* Cards */
+    .card{ 
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius); 
+      overflow:hidden; box-shadow:var(--shadow); margin-bottom:24px; 
     }
-    .avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
-    .avatar-fallback{ font-weight: 900; color: var(--brand); }
+    .card-head{ 
+      padding:20px 24px; border-bottom:1px solid var(--border); 
+      background: radial-gradient(900px 320px at 20% 0%, rgba(22,119,255,.12), transparent 58%);
+    }
+    .card-body{ padding:24px; }
+    
+    .title{ margin:0 0 6px; font-size:1.4rem; font-weight:800; color:var(--text); letter-spacing:-0.02em; }
+    .subtitle{ margin:0; color:var(--muted); font-size:1rem; line-height:1.5; }
+    .badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; border:1px solid var(--border); background:#fff; font-size:0.85rem; color:var(--muted); margin-bottom:12px; }
+    .dot{ width:8px; height:8px; background:var(--brand); border-radius:50%; }
 
-    .pmeta{ min-width:0; flex: 1 1 auto; }
-    .pname{
-      margin:0;
-      font-size: 1.15rem;
-      line-height:1.15;
-      letter-spacing:-.02em;
-      color: var(--text);
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .pbio{
-      margin: 3px 0 0;
-      color: var(--muted);
-      line-height:1.35;
-      font-size:.95rem;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width: 64ch;
-    }
-
-    .pactions{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      margin-left:auto;
-      flex: 0 0 auto;
-    }
-
+    /* Buttons */
     .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background:#fff;
-      color: var(--text);
-      text-decoration:none;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      user-select:none;
-      font-weight:800;
-      letter-spacing:-.01em;
-      white-space:nowrap;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 18px;
+      border-radius:14px; font-weight:700; cursor:pointer; border:1px solid var(--border);
+      transition:all 0.15s ease; background:#fff; color:var(--text); text-decoration:none; font-size:0.95rem;
     }
-    .btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
+    .btn:hover{ transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+    .btn:active{ transform:translateY(0); }
+    
+    .btn-primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
+    .btn-primary:hover{ background:#0062eb; box-shadow:0 8px 20px rgba(22,119,255,0.25); }
+    
+    /* Petits boutons ronds */
+    .btn-icon {
+        width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+        background: #fff; color: var(--muted); display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: all 0.2s;
     }
-    .btn:active{ transform: translateY(0); }
-    .btn[disabled]{ opacity:.6; cursor:not-allowed; transform:none !important; box-shadow:none !important; }
+    .btn-icon:hover { color: var(--brand); border-color: var(--brand); background: #eff6ff; }
 
-    .btn-primary{ border-color: var(--brand); background: rgba(22,119,255,.10); }
-    .btn-primary:hover{ background: rgba(22,119,255,.14); }
-
-    .icon-btn{
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display:inline-grid;
-      place-items:center;
-      border:1px solid var(--border);
-      background:#fff;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      user-select:none;
-      position:relative;
-      color: var(--text);
-    }
-    .icon-btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
+    /* Calendar Grid */
+    .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:12px; margin-top:16px; }
+    .day-col{ border:1px solid var(--border); border-radius:16px; min-height:220px; background:#fff; display:flex; flex-direction:column; overflow:hidden; }
+    .day-head{ padding:10px; text-align:center; border-bottom:1px solid var(--border); font-weight:700; font-size:0.9rem; background:#f9fafb; color:var(--muted); }
+    .slots{ padding:8px; display:flex; flex-direction:column; gap:6px; flex:1; background:#fff; }
+    
+    .slot{ 
+        background:rgba(22,119,255,0.08); border:1px solid rgba(22,119,255,0.2); 
+        padding:6px 8px; border-radius:8px; font-size:0.85rem; color:var(--brand); 
+        font-weight:600; cursor:default;
     }
 
-    .tip{
-      position:absolute;
-      top: 52px;
-      right: 0;
-      padding: 10px 12px;
-      border-radius: 12px;
-      background: #111827;
-      color:#fff;
-      font-weight: 800;
-      font-size:.9rem;
-      opacity:0;
-      transform: translateY(-6px);
-      pointer-events:none;
-      transition: opacity 140ms ease, transform 140ms ease;
-      box-shadow: 0 18px 40px rgba(0,0,0,.25);
-      white-space:nowrap;
-      z-index: 50;
-    }
-    .tip:before{
-      content:"";
-      position:absolute;
-      top:-6px;
-      right: 14px;
-      width: 12px; height: 12px;
-      background:#111827;
-      transform: rotate(45deg);
-    }
-    .icon-btn:hover .tip{ opacity:1; transform: translateY(0); }
+    /* Forms */
+    .form-group{ margin-bottom:16px; }
+    .label{ display:block; font-weight:700; margin-bottom:6px; font-size:0.95rem; }
+    .input, .textarea{ width:100%; padding:12px; border-radius:12px; border:1px solid var(--border); font-family:inherit; box-sizing:border-box; }
+    .input:focus, .textarea:focus{ outline:none; border-color:var(--brand); box-shadow:0 0 0 3px rgba(22,119,255,0.1); }
+    
+    .avatar-upload-row{ display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+    .avatar-preview{ width:64px; height:64px; border-radius:50%; background:#f1f5f9; object-fit:cover; border:1px solid var(--border); }
 
-    .lang-switch{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      margin-left: 6px;
-    }
-    .lang-switch button{
-      border:1px solid var(--border);
-      background:#fff;
-      padding: 10px 10px;
-      border-radius: 14px;
-      cursor:pointer;
-      font-weight:900;
-      color: var(--muted);
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      line-height: 1;
-    }
-    .lang-switch button:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-    }
-    .lang-switch button.active{
-      color: var(--text);
-      border-color: rgba(22,119,255,.55);
-      background: rgba(22,119,255,.10);
-    }
+    /* Utilities */
+    .hidden{ display:none !important; }
+    .lang-switch button{ background:none; border:none; cursor:pointer; font-weight:700; color:var(--muted); opacity:0.5; }
+    .lang-switch button.active{ opacity:1; color:var(--brand); }
+    .step-subtitle { font-size: 0.9rem; color: var(--muted2); margin-top: 2px; font-weight: 500; }
+    
+    /* Helpers */
+    .w-full { width: 100%; }
+    .mb-4 { margin-bottom: 16px; }
 
-    .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card-head{
-      padding: 18px 18px 14px;
-      border-bottom: 1px solid var(--border);
-      background: radial-gradient(900px 320px at 18% 0%, rgba(22,119,255,.12), transparent 58%);
-    }
-    .badge{
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 10px; border-radius:999px;
-      border:1px solid var(--border); background:#fff;
-      color: var(--muted); font-size:.9rem;
-    }
-    .dot{ width:8px; height:8px; border-radius:999px; background: var(--brand); }
-    .title{ margin: 12px 0 4px; font-size: 1.55rem; line-height:1.2; letter-spacing:-.02em; color: var(--text); }
-    .subtitle{ margin:0; color: var(--muted); line-height:1.55; font-size:1.02rem; max-width: 90ch; }
-    .card-body{ padding: 16px 18px 18px; }
+    /* --- MOBILE NAVIGATION --- */
+    .mobile-nav { display: none; } /* Caché par défaut sur PC */
 
-    .main-grid{
-      display:grid;
-      grid-template-columns: 3fr 1.2fr;
-      gap: 16px;
-      align-items:start;
-      margin-top: 14px;
-    }
+    @media (max-width: 800px){
+        /* On cache la sidebar */
+        .dash-sidebar{ display:none; }
+        
+        /* On passe la grille en 1 colonne */
+        .week-grid{ grid-template-columns: 1fr; }
 
-    .calendar-wrap{
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background:#fff;
-      overflow:hidden;
-      position: relative;
-    }
-    .calendar-top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background:#fff;
-      flex-wrap: wrap;
-    }
-    .calendar-note{ color: var(--muted); font-size:.98rem; line-height:1.4; min-width: min(620px, 100%); }
-    .cal-nav{ display:flex; align-items:center; gap:10px; margin-left:auto; flex-wrap: wrap; }
-    .cal-nav .range{
-      color: var(--muted2);
-      font-weight: 900;
-      letter-spacing:-.01em;
-      font-size:.95rem;
-      padding: 0 2px;
-      white-space:nowrap;
-    }
-    .arrow-btn{
-      width: 40px; height: 40px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background:#fff;
-      cursor:pointer;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
-      display:grid;
-      place-items:center;
-      font-weight: 900;
-      color: var(--text);
-      user-select:none;
-    }
-    .arrow-btn:hover{
-      transform: translateY(-1px);
-      border-color: rgba(22,119,255,.45);
-      background: rgba(22,119,255,.06);
-      box-shadow: 0 12px 26px rgba(22,119,255,.10);
-    }
+        /* On affiche la barre du bas */
+        .mobile-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #fff;
+            border-top: 1px solid var(--border);
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom); 
+        }
 
-    .calendar-area{ position:relative; min-height: 520px; background: #fff; }
-    .calendar-inner{ padding: 14px; }
+        .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 0.7rem;
+            color: #94a3b8; /* Gris Premium */
+            gap: 6px;
+            flex: 1;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
 
-    .week-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap:10px; }
-    .day-col{
-      border:1px solid var(--border);
-      border-radius: 16px;
-      background:#fff;
-      overflow:hidden;
-      min-height: 220px;
-      display:flex;
-      flex-direction:column;
-    }
-    .day-head{
-      padding: 10px 10px 8px;
-      border-bottom:1px solid var(--border);
-      font-weight: 900;
-      color: var(--text);
-      letter-spacing:-.01em;
-      font-size:.92rem;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    .day-date{ font-weight: 800; color: var(--muted2); font-size:.85rem; white-space:nowrap; }
-    .slots{ padding: 10px; display:flex; flex-direction:column; gap:8px; flex:1; }
-    .slot{
-      border: 1px solid rgba(22,119,255,.22);
-      background: rgba(22,119,255,.08);
-      color: var(--text);
-      border-radius: 14px;
-      padding: 8px 10px;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .slot strong{ font-size:.92rem; }
-    .slot small{ color: var(--muted2); font-size:.85rem; }
+        .mobile-nav-item.active {
+            color: var(--brand); /* Bleu RunCall */
+            font-weight: 700;
+        }
+        
+        .mobile-nav-item:active {
+            transform: scale(0.95);
+        }
 
-    .calendar-wrap.is-empty .calendar-inner{
-      opacity: .35;
-      filter: grayscale(1);
-      pointer-events: none;
-      user-select: none;
-    }
-
-    .overlay{
-      position:absolute; inset: 0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 20px;
-      background: rgba(248,250,252,.55);
-      backdrop-filter: blur(2px);
-      z-index: 5;
-    }
-    .overlay.show{ display:flex; }
-    .overlay-card{
-      width: min(520px, 100%);
-      border-radius: 20px;
-      border:1px solid var(--border);
-      background:#fff;
-      box-shadow: 0 18px 40px rgba(15,23,42,.10);
-      padding: 16px;
-      text-align:center;
-    }
-
-    .helper{
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background:#fff;
-      padding: 14px;
-    }
-
-    .toast{
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      z-index: 999;
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background:#fff;
-      box-shadow: 0 18px 40px rgba(15,23,42,.12);
-      color: var(--text);
-      display:none;
-      max-width: 360px;
-    }
-    .toast.show{ display:block; }
-    .toast.ok{ border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
-    .toast.err{ border-color:#fecaca; background:#fff1f2; color:#881337; }
-
-    .form-row{ display:grid; gap:6px; margin-bottom: 10px; }
-    .form-row label{ font-weight: 900; color: var(--text); }
-    .input, .textarea, select.input{
-      width:100%;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background:#fff;
-      color: var(--text);
-      box-sizing:border-box;
-    }
-    .textarea{ resize: vertical; min-height: 110px; }
-    .mini{ color: var(--muted2); font-size: .92rem; line-height: 1.45; margin-top: 6px; }
-    .modal-actions{
-      display:flex;
-      gap:10px;
-      justify-content:flex-end;
-      margin-top: 12px;
-    }
-
-    @media (max-width: 980px){
-      .dash-sidebar{ display:none; }
-      .dash-top-inner, .dash-content{ padding-left: 14px; padding-right: 14px; }
-      .main-grid{ grid-template-columns: 1fr; }
-    }
-    @media (max-width: 780px){
-      .week-grid{ grid-template-columns: 1fr; }
-      .calendar-note{ min-width: 100%; }
-      .cal-nav{ width: 100%; justify-content:space-between; }
-      .cal-nav .range{ flex:1; text-align:center; }
+        /* Espace pour ne pas cacher le contenu */
+        .dash-content { padding-bottom: 100px; }
     }
   </style>
 </head>
 
 <body>
-<div class="dash-shell" id="dashShell">
 
-  <aside class="dash-sidebar" id="dashSidebar">
-    <div class="sb-brand">
-      <div class="sb-logo" data-fr="Dashboard" data-en="Dashboard">Dashboard</div>
-      <div class="sb-pill" data-fr="Intervenant" data-en="Creator">Intervenant</div>
+  <div id="globalLoader" class="rc-loader-overlay">
+    <div class="rc-dots">
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
     </div>
+</div>
 
-    <nav class="sb-nav">
+<div class="dash-shell">
+  <aside class="dash-sidebar">
+    <div class="sb-brand">RunCall <span style="font-size:0.7em; opacity:0.6; font-weight:400;">Dashboard</span></div>
+    
+    <nav style="display:flex; flex-direction:column; gap:6px;">
+      
       <div class="sb-item active" data-tab="home">
-        <div class="sb-ico">⌂</div>
-        <div data-fr="Accueil" data-en="Home">Accueil</div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
       </div>
 
       <div class="sb-item" data-tab="profile">
-        <div class="sb-ico">👤</div>
-        <div data-fr="Profil" data-en="Profile">Profil</div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span data-fr="Profil" data-en="Profile">Profil</span>
       </div>
 
       <div class="sb-item" data-tab="payouts">
-        <div class="sb-ico">€</div>
-        <div data-fr="Paiements" data-en="Payouts">Paiements</div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+            <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        <span data-fr="Paiements" data-en="Payouts">Paiements</span>
       </div>
 
-      <div class="sb-item" data-tab="analytics" title="Coming soon">
-        <div class="sb-ico">↗</div>
-        <div data-fr="Statistiques (bientôt)" data-en="Analytics (soon)">Statistiques (bientôt)</div>
-      </div>
-
-      <div class="sb-item" data-tab="settings" title="Coming soon">
-        <div class="sb-ico">⚙</div>
-        <div data-fr="Réglages (bientôt)" data-en="Settings (soon)">Réglages (bientôt)</div>
-      </div>
-
-      <div class="sb-muted"
-           data-fr="À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements."
-           data-en="Soon you’ll find your revenue, session history, and payout settings here.">
-        À terme, tu retrouveras ici tes revenus, ton historique de sessions, et la gestion des paiements.
-      </div>
     </nav>
+    <div style="margin-top:auto; padding-top:20px; border-top:1px solid var(--border);">
+        <div class="lang-switch" style="display:flex; justify-content:center; gap:10px;">
+            <button data-lang="fr">FR</button>
+            <button data-lang="en">EN</button>
+        </div>
+    </div>
   </aside>
 
   <main class="dash-main">
-
-    <div class="dash-top" id="dashTop">
-      <div class="dash-top-inner">
-        <div class="profile-row">
-          <div class="avatar" id="avatar">
-            <div class="avatar-fallback" id="avatarFallback">RC</div>
-          </div>
-
-          <div class="pmeta">
-            <h2 class="pname" id="pname">—</h2>
-            <p class="pbio" id="pbio">—</p>
-          </div>
-
-          <div class="pactions">
-            <button class="btn" id="editProfileBtn" type="button" data-fr="Modifier" data-en="Edit">Modifier</button>
-
-            <a class="btn btn-primary" id="publicPageBtn" href="#" target="_blank" rel="noopener">
-              <span data-fr="Voir ma page Public" data-en="View my public page">Voir ma page Public</span>
-              <span aria-hidden="true">↗</span>
-            </a>
-
-            <button class="icon-btn" id="copyLinkBtn" type="button" aria-label="Copy link">
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="currentColor" d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10V1zm3 4H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H10V7h9v14z"/>
-              </svg>
-              <span class="tip" id="copyTip"
-                    data-fr="Copier le lien de ma page publique"
-                    data-en="Copy link to my public page">copy link of my public page</span>
-            </button>
-
-            <div class="lang-switch">
-              <button type="button" data-lang="fr">FR</button>
-              <button type="button" data-lang="en">EN</button>
-            </div>
-          </div>
-        </div>
+    <div class="dash-top">
+      <div style="display:flex; align-items:center; gap:12px;">
+         <img id="topAvatar" class="avatar-preview" style="width:36px; height:36px;" src="" onerror="this.style.display='none'">
+         <h2 id="topTitle" style="margin:0; font-size:1.1rem; font-weight:700;">Dashboard</h2>
+      </div>
+      <div style="display:flex; gap: 8px; align-items: center;">
+         <button id="headerCopyBtn" class="btn-icon" title="Copier le lien de ma page">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+         </button>
+         <a href="#" id="publicLinkBtn" target="_blank" class="btn">
+             <span data-fr="Voir ma page ↗" data-en="View my page ↗"></span>
+         </a>
       </div>
     </div>
 
     <div class="dash-content">
-
-      <div class="card" id="authGate" style="display:none;"></div>
-
-      <!-- ✅ HOME VIEW -->
+      
       <div id="viewHome">
-        <div class="card">
-          <div class="card-head">
-            <div class="badge">
-              <span class="dot"></span>
-              <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
-            </div>
-
-            <h1 class="title" data-fr="Gère tes créneaux depuis Google Calendar" data-en="Manage your slots from Google Calendar">
-              Gère tes créneaux depuis Google Calendar
-            </h1>
-
-            <p class="subtitle"
-               data-fr="Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre."
-               data-en="To open slots, simply create events in your Google Calendar with “RunCall” in the title.">
-              Pour ouvrir des créneaux, crées simplement des événements dans ton Google Calendar avec “RunCall” dans le titre.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div class="main-grid">
-
-              <div class="calendar-wrap" id="calendarWrap">
-                <div class="calendar-top">
-                  <div class="calendar-note"
-                       data-fr="Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar."
-                       data-en="To close a slot: delete (or edit) the matching event in your Google Calendar.">
-                    Pour fermer un créneau : supprime (ou modifie) l’événement correspondant dans ton Google Calendar.
-                  </div>
-
-                  <div class="cal-nav">
-                    <button class="arrow-btn" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
-                    <div class="range" id="weekRangeLabel">—</div>
-                    <button class="arrow-btn" id="nextWeekBtn" type="button" aria-label="Next week">›</button>
-
-                    <a class="btn btn-primary" id="openGcalBtn"
-                       href="https://calendar.google.com/calendar/u/0/r"
-                       target="_blank" rel="noopener noreferrer"
-                       data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
-                      Ouvrir Google Calendar
-                    </a>
-                  </div>
+        
+        <div id="onboardingProgress" class="card hidden" style="background:#fff; border-left:4px solid var(--brand);">
+            <div class="card-body" style="padding:20px 24px; display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                    <h3 id="stepTitle" class="title" style="font-size:1.2rem; margin:0; font-weight:800;">Configuration...</h3>
+                    <div id="stepCounter" class="step-subtitle">Etape 1/3</div>
                 </div>
+                <div style="display:flex; gap:8px;">
+                    <div id="step1-dot" class="dot" style="background:#e2e8f0; width:10px; height:10px;"></div>
+                    <div id="step2-dot" class="dot" style="background:#e2e8f0; width:10px; height:10px;"></div>
+                    <div id="step3-dot" class="dot" style="background:#e2e8f0; width:10px; height:10px;"></div>
+                </div>
+            </div>
+        </div>
 
-                <div class="calendar-area" id="calendarArea">
-                  <div class="calendar-inner">
-                    <div class="week-grid" id="weekGrid"></div>
-                  </div>
+        <div id="stateConnect" class="card hidden" style="text-align:center; padding:60px 20px;">
+            <div style="width:80px; height:80px; background:#eff6ff; color:var(--brand); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; margin-bottom:20px;">
+                <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+            <h2 class="title" data-fr="Connecte ton agenda" data-en="Connect your calendar"></h2>
+            <p class="subtitle" style="max-width:450px; margin:0 auto 30px;" 
+               data-fr="Synchronise ton Google Calendar pour que RunCall détecte tes disponibilités."
+               data-en="Sync your Google Calendar so RunCall can detect availability.">
+            </p>
+            <button id="connectGoogleBtn" class="btn btn-primary" style="padding:14px 28px; font-size:1rem;">
+                <span data-fr="Autoriser Google Calendar" data-en="Authorize Google Calendar"></span>
+            </button>
+        </div>
 
-                  <div class="overlay" id="emptyOverlay">
-                    <div class="overlay-card">
-                      <div class="badge" style="justify-content:center;">
-                        <span class="dot"></span>
-                        <span data-fr="Aucun créneau visible" data-en="No visible slots">Aucun créneau visible</span>
-                      </div>
-
-                      <div class="overlay-title" data-fr="Ouvre ton premier créneau" data-en="Open your first slot">
-                        Ouvre ton premier créneau
-                      </div>
-
-                      <p class="overlay-text"
-                        data-fr="Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre."
-                        data-en="Click “Open Google Calendar”, create an event when you’re available, and put “RunCall” in the title.">
-                        Clique sur “Ouvrir Google Calendar”, crée un événement quand tu es dispo, et mets “RunCall” dans le titre.
-                      </p>
-
-                      <div style="height:12px;"></div>
-                      <a class="btn btn-primary"
-                         href="https://calendar.google.com/calendar/u/0/r"
-                         target="_blank" rel="noopener noreferrer"
-                         data-fr="Ouvrir Google Calendar" data-en="Open Google Calendar">
-                        Ouvrir Google Calendar
-                      </a>
+        <div id="stateFirstSlots" class="card hidden" style="text-align:center; padding:50px 20px;">
+            <div style="max-width:550px; margin:0 auto;">
+                <h2 class="title" style="margin-bottom:10px;" data-fr="Définis tes disponibilités" data-en="Set your availability"></h2>
+                <p class="subtitle" style="margin-bottom:30px;" 
+                   data-fr="RunCall ne voit aucun créneau pour l'instant. Ajoute des disponibilités dans ton agenda."
+                   data-en="RunCall doesn't see any slots yet. Add availability to your calendar.">
+                </p>
+                
+                <div style="background:#f8fafc; border:1px dashed var(--border); border-radius:12px; padding:20px; margin-bottom:30px; text-align:left;">
+                    <div style="display:flex; gap:15px; align-items:center; margin-bottom:12px;">
+                        <div style="background:#fff; border:1px solid var(--border); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;">1</div>
+                        <div style="font-size:0.95rem;" data-fr="Ouvre ton Google Agenda" data-en="Open Google Calendar"></div>
                     </div>
-                  </div>
-
+                    <div style="display:flex; gap:15px; align-items:start; margin-bottom:12px;">
+                        <div style="background:#fff; border:1px solid var(--border); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;">2</div>
+                        <div style="font-size:0.95rem; line-height:1.4;">
+                             <span data-fr="Crée un événement avec écrit 'RunCall' dans le titre." data-en="Create an event with 'RunCall' written in the title."></span><br>
+                             <span style="opacity:0.6; font-size:0.9em;">(Ex: "RunCall" ou "RunCall dispo")</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:15px; align-items:center;">
+                        <div style="background:#fff; border:1px solid var(--border); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.9rem;">3</div>
+                        <div style="font-size:0.95rem;" data-fr="Reviens ici et clique sur 'Vérifier'" data-en="Come back here and click 'Check'"></div>
+                    </div>
                 </div>
-              </div>
 
-              <div class="helper">
-                <h3 data-fr="Comment ça marche" data-en="How it works">Comment ça marche</h3>
-                <ol>
-                  <li data-fr="Ouvre Google Calendar." data-en="Open Google Calendar.">Ouvre Google Calendar.</li>
-                  <li data-fr="Crée un événement sur une plage où tu es dispo." data-en="Create an event during a time you’re available.">
-                    Crée un événement sur une plage où tu es dispo.
-                  </li>
-                  <li data-fr="Ajoute “RunCall” dans le titre." data-en="Add “RunCall” in the title.">Ajoute “RunCall” dans le titre.</li>
-                  <li data-fr="Tes créneaux apparaîtront automatiquement sur ta page Public." data-en="Your slots will automatically appear on your public page.">
-                    Tes créneaux apparaîtront automatiquement sur ta page Public.
-                  </li>
-                  <li data-fr="Partage ta page public pour recevoir des réservations." data-en="Share your public page to receive bookings.">
-                    Partage ta page public pour recevoir des réservations.
-                  </li>
-                </ol>
-
-                <div class="mini"
-                     data-fr="Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite."
-                     data-en="You can start with a single slot to test, then add more later.">
-                  Tu peux commencer par un seul créneau pour tester, puis en ajouter d’autres ensuite.
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <a href="https://calendar.google.com/" target="_blank" class="btn">
+                        <span data-fr="Ouvrir Agenda ↗" data-en="Open Calendar ↗"></span>
+                    </a>
+                    <button id="checkSlotsBtn" class="btn btn-primary">
+                        <span data-fr="🔄 Vérifier mes créneaux" data-en="🔄 Check my slots"></span>
+                    </button>
                 </div>
-              </div>
-
             </div>
-          </div>
         </div>
-      </div>
 
-      <!-- ✅ PROFILE VIEW -->
-      <div id="viewProfile" style="display:none;">
-        <div class="card">
-          <div class="card-head">
-            <div class="badge"><span class="dot"></span><span data-fr="Profil" data-en="Profile">Profil</span></div>
-            <h1 class="title" data-fr="Ton profil public" data-en="Your public profile">Ton profil public</h1>
-            <p class="subtitle"
-               data-fr="Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique."
-               data-en="Edit your photo, name and description. These appear on your public page.">
-              Modifie ta photo, ton nom et ta description. Ces infos apparaîtront sur ta page publique.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div style="display:grid; gap:12px; max-width: 680px;">
-              <div class="form-row">
-                <label data-fr="Photo de profil" data-en="Profile photo">Photo de profil</label>
-                <input class="input" id="profilePhotoFile" type="file" accept="image/*" />
-                <div class="mini"
-                     data-fr="Astuce : choisis une image carrée. Max ~500KB."
-                     data-en="Tip: choose a square image. Max ~500KB.">
-                  Astuce : choisis une image carrée. Max ~500KB.
-                </div>
-              </div>
-
-              <div class="form-row">
-                <label for="profileName" data-fr="Nom (ou pseudo)" data-en="Name (or nickname)">Nom (ou pseudo)</label>
-                <input class="input" id="profileName" type="text" />
-              </div>
-
-              <div class="form-row">
-                <label for="profileBio" data-fr="Description" data-en="Description">Description</label>
-                <textarea class="textarea" id="profileBio"></textarea>
-              </div>
-
-              <div class="modal-actions" style="justify-content:flex-start;">
-                <button class="btn btn-primary" id="profileSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ✅ PAYOUTS VIEW -->
-      <div id="viewPayouts" style="display:none;">
-        <div class="card">
-          <div class="card-head">
-            <div class="badge"><span class="dot"></span><span data-fr="Paiements" data-en="Payouts">Paiements</span></div>
-            <h1 class="title" data-fr="Recevoir tes gains" data-en="Receive your earnings">Recevoir tes gains</h1>
-            <p class="subtitle"
-               data-fr="Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal. (On passera à Stripe Connect plus tard.)"
-               data-en="To keep it simple and secure at first: we only collect a Wise/PayPal email. (We’ll move to Stripe Connect later.)">
-              Pour rester simple et sécurisé au début : on collecte seulement un email Wise/PayPal.
-            </p>
-          </div>
-
-          <div class="card-body">
-            <div style="display:grid; gap:12px; max-width: 680px;">
-              <div class="form-row">
-                <label for="payoutMethod" data-fr="Méthode" data-en="Method">Méthode</label>
-                <select class="input" id="payoutMethod">
-                  <option value="wise">Wise</option>
-                  <option value="paypal">PayPal</option>
+        <div id="stateSetupPayouts" class="card hidden" style="text-align:center; padding:50px 20px; border-left:4px solid var(--brand); background:#f0f9ff;">
+             <h2 class="title" data-fr="Active les paiements" data-en="Enable Payouts"></h2>
+             <p class="subtitle" style="max-width:450px; margin:0 auto 30px;"
+                data-fr="Dernière étape ! Connecte Stripe pour recevoir tes revenus."
+                data-en="Last step! Connect Stripe to receive earnings.">
+             </p>
+             <div style="max-width:300px; margin:0 auto;">
+                <select id="homeCountrySelector" class="input" style="margin-bottom:10px;">
+                    <option value="US" selected>🇺🇸 United States</option>
+                    <option value="FR" >🇫🇷 France</option>
+                    <option value="GB" >🇬🇧 United Kingdom</option>
+                    <option value="CH" >🇨🇭 Switzerland</option>
+                    <option value="CA" >🇨🇦 Canada</option>
                 </select>
-              </div>
+                <button id="homeSetupStripeBtn" class="btn btn-primary" style="width:100%;">
+                    <span data-fr="🏦 Configurer mes virements" data-en="🏦 Setup Payouts">🏦 Configurer mes virements</span>
+                </button>
+             </div>
+        </div>
 
-              <div class="form-row">
-                <label for="payoutEmail" data-fr="Email (Wise/PayPal)" data-en="Email (Wise/PayPal)">Email (Wise/PayPal)</label>
-                <input class="input" id="payoutEmail" type="email" placeholder="name@email.com" />
-              </div>
+        <div id="stateCalendar" class="card hidden">
+            <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+                <div>
+                    <div id="activeBadge" class="badge hidden" style="background:#dcfce7; color:#166534; border-color:#86efac;">
+                        <span class="dot" style="background:#16a34a;"></span> 
+                        <span data-fr="Compte Actif" data-en="Account Active"></span>
+                    </div>
+                    <h1 class="title" data-fr="Tes disponibilités" data-en="Your availability"></h1>
+                    
+                    <div id="calSubtitleReady" class="subtitle hidden" style="margin-top:5px; line-height:1.4;">
+                        <div data-fr="Tout est prêt. Partage ton lien pour recevoir des réservations." data-en="Everything is ready. Share your link to receive bookings."></div>
+                        <div style="font-size:0.9em; opacity:0.8;" data-fr="Ajoute, modifie, supprime des créneaux directement dans ton google agenda" data-en="Add, edit, remove slots directly in your Google Calendar"></div>
+                    </div>
+                    <div id="calSubtitlePreview" class="subtitle hidden" style="margin-top:5px; line-height:1.4; color:var(--muted);">
+                        <div data-fr="Aperçu de vos disponibilités détectées." data-en="Preview of your detected availability."></div>
+                    </div>
 
-              <div class="modal-actions" style="justify-content:flex-start;">
-                <button class="btn btn-primary" id="payoutSaveBtn" type="button" data-fr="Enregistrer" data-en="Save">Enregistrer</button>
-              </div>
-
-              <div class="mini"
-                   data-fr="Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici."
-                   data-en="Note: this is only used to pay you. No bank details stored here.">
-                Note : ces infos ne servent qu’à te payer. Pas d’IBAN stocké ici.
-              </div>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <a href="https://calendar.google.com/" target="_blank" class="btn">
+                        <span data-fr="Agenda Google ↗" data-en="Google Calendar ↗"></span>
+                    </a>
+                    <button id="refreshSlotsBtn" class="btn-icon" title="Rafraîchir les créneaux">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                </div>
             </div>
-          </div>
+            <div class="card-body">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <button id="prevWeek" class="btn">‹</button>
+                    <strong id="weekLabel" style="font-size:1.1rem; color:var(--text);">--</strong>
+                    <button id="nextWeek" class="btn">›</button>
+                </div>
+                <div id="calendarGrid" class="week-grid"></div>
+                <div id="loadingSlots" style="display:flex; justify-content:center; padding:40px;">
+    <div class="rc-dots">
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+        <div class="rc-dot"></div>
+    </div>
+</div>
+                <div id="emptyStateMsg" class="hidden" style="text-align:center; padding:40px; color:var(--muted); background:#f8fafc; border-radius:12px; margin-top:10px;">
+                    <p data-fr="Aucun créneau 'RunCall' cette semaine." data-en="No 'RunCall' slots this week."></p>
+                </div>
+            </div>
         </div>
       </div>
+
+      <div id="viewProfile" class="hidden">
+        <div class="card">
+             <div class="card-head">
+                 <h2 class="title" data-fr="Modifier mon profil" data-en="Edit my profile"></h2>
+             </div>
+             <div class="card-body">
+                 <form id="profileForm" style="max-width:600px;">
+                     <div class="avatar-upload-row">
+                         <img id="previewAvatar" class="avatar-preview" src="">
+                         <div>
+                             <label class="btn" style="cursor:pointer;">
+                                 <span data-fr="Changer la photo" data-en="Change photo"></span>
+                                 <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                             </label>
+                             <div style="margin-top:5px; font-size:0.8rem; color:var(--muted2);" 
+                                   data-fr="Max 500Ko. Carré recommandé." data-en="Max 500KB. Square recommended."></div>
+                         </div>
+                     </div>
+                     <div class="form-group">
+                         <label class="label" data-fr="Nom complet" data-en="Full name"></label>
+                         <input type="text" id="inputName" class="input">
+                     </div>
+                     <div class="form-group">
+                         <label class="label" data-fr="Présentation" data-en="Bio"></label>
+                         <textarea id="inputBio" rows="5" class="textarea"></textarea>
+                     </div>
+                     <div class="form-group">
+    <label class="label">
+        <span data-fr="Mon Tarif" data-en="My Rate">Mon Tarif</span>
+        <span style="font-weight:400; color:#64748b; font-size:0.85em; display:block; margin-top:2px;" 
+              data-fr="(Si le champ reste vide le client pourra choisir entre les trois prix par défaut : 29, 49 et 79)" 
+              data-en="(If empty, the client can choose between the three default prices: 29, 49, and 79)">
+        </span>
+    </label>
+
+    <div style="display:flex; gap:10px;">
+        <input type="number" id="inputPrice" class="input" placeholder="Ex: 50" style="flex:2;">
+        <select id="inputCurrency" class="input" style="flex:1;">
+            <option value="usd">USD ($)</option>
+            <option value="eur">EUR (€)</option>
+            <option value="gbp">GBP (£)</option>
+            <option value="chf">CHF (Fr)</option> 
+            <option value="cad">CAD ($)</option>
+        </select>
+    </div>
+
+    <div id="priceSimulator" style="margin-top:12px; background:#f8fafc; padding:10px 14px; border-radius:12px; border:1px solid var(--border);">
+        
+        <div id="simDefault">
+            <div id="toggleDefaultBtn" style="cursor:pointer; display:flex; align-items:center; gap:6px; color:#64748b; font-size:0.85rem; user-select:none;">
+                <span data-fr="Voir mes revenus nets pour les prix par défaut" data-en="See net earnings for default prices">Voir mes revenus nets pour les prix par défaut</span>
+                <svg id="arrowDefault" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+
+            <div id="contentDefault" class="hidden" style="margin-top:10px; padding-top:10px; border-top:1px solid #e2e8f0;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                        <div style="font-size:0.75rem; color:#64748b;">29 <span class="cur-sym">$</span></div>
+                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">23.20 <span class="cur-sym">$</span></div>
+                    </div>
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                        <div style="font-size:0.75rem; color:#64748b;">49 <span class="cur-sym">$</span></div>
+                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">39.20 <span class="cur-sym">$</span></div>
+                    </div>
+                    <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:6px 2px;">
+                        <div style="font-size:0.75rem; color:#64748b;">79 <span class="cur-sym">$</span></div>
+                        <div style="font-weight:700; color:#16a34a; font-size:0.9rem;">63.20 <span class="cur-sym">$</span></div>
+                    </div>
+                </div>
+                <div style="margin-top:8px; font-size:0.75rem; color:#94a3b8; text-align:center;"
+                     data-fr="* Commission standard de 20%" 
+                     data-en="* Standard 20% commission">
+                    * Commission standard de 20%
+                </div>
+            </div>
+        </div>
+
+        <div id="simCustom" class="hidden">
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.9rem; color:var(--muted);">
+                <span data-fr="Prix payé par le client" data-en="Client pays">Prix payé par le client</span>
+                <span id="simTotal" style="font-weight:600;">--</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:#64748b;">
+                <span id="lblFeePct">Frais de plateforme (20%)</span>
+                <span id="simFee">- --</span>
+            </div>
+            <div id="rateSuccessMsg" class="hidden" style="font-size:0.75rem; color:#16a34a; margin-bottom:8px; text-align:right;">
+                🎉 Taux réduit activé !
+            </div>
+            <div style="border-top:1px solid #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-weight:700; font-size:0.95rem; color:var(--text);" data-fr="Vous recevez" data-en="You receive">Vous recevez</span>
+                <span id="simNet" style="font-weight:800; font-size:1.1rem; color:#16a34a;">--</span>
+            </div>
+        </div>
 
     </div>
-  </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div style="margin-top:20px;">
+    <button type="submit" class="btn btn-primary" id="saveProfileBtn">
+        <span data-fr="Enregistrer" data-en="Save Changes"></span>
+    </button>
+</div>
+
+</form>
+            </div>
+        </div>
+      </div>
+      
+      <div id="viewPayouts" class="hidden">
+        <div class="card">
+            <div class="card-body">
+                <div class="flex items-center gap-2 mb-6">
+                    <span style="font-size:1.5rem;">💸</span>
+                    <h2 class="title" style="margin:0;" data-fr="Mes Revenus" data-en="My Earnings">Mes Revenus</h2>
+                </div>
+                <div id="payoutStatus" class="mb-6"></div>
+                <div id="setupZone" style="display:none;">
+                    <label class="block text-sm font-bold text-gray-700 mb-2" data-fr="Pays de votre banque" data-en="Bank country">Pays de votre banque</label>
+                    <select id="countrySelector" class="w-full p-3 border rounded mb-4 bg-white">
+                        <option value="US" selected >🇺🇸 United States</option>
+                        <option value="FR" >🇫🇷 France</option>
+                        <option value="GB" >🇬🇧 United Kingdom</option>
+                        <option value="CH" >🇨🇭 Switzerland</option>
+                        <option value="CA" >🇨🇦 Canada</option>
+                    </select>
+                    <button id="setupStripeBtn" class="btn-primary w-full" style="padding: 15px; font-size: 1.1rem;">
+                        <span data-fr="🏦 Configurer mes virements" data-en="🏦 Setup Payouts">🏦 Configurer mes virements</span>
+                    </button>
+                </div>
+                <div id="dashboardZone" style="display:none;">
+                    <a href="#" id="accessStripeBtn" class="btn" style="width:100%; justify-content:center; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1;">
+                        <span data-fr="Accéder à mon portail financier Stripe ↗" data-en="Access my Stripe financial portal ↗">Accéder à mon portail financier Stripe ↗</span>
+                    </a>
+                </div>
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <p class="text-gray-400 text-sm" data-fr="L'argent est viré automatiquement sur votre compte." data-en="Money is automatically transferred to your account.">L'argent est viré automatiquement sur votre compte.</p>
+                </div>
+            </div>
+        </div>
+      </div>
+<div id="dashFooter" style="display:none !important; text-align:center; margin-top:40px; padding-bottom:10px;">
+        <a href="mailto:ltonini18@gmail.com" style="text-decoration:none; color:var(--muted2); font-size:0.85rem; font-weight:500; transition: color 0.2s;" 
+           onmouseover="this.style.color=var(--brand)" 
+           onmouseout="this.style.color=var(--muted2)">
+            <span data-fr="Besoin d'aide ?" data-en="Need help?">Besoin d'aide ?</span>
+        </a>
+    </div>
+    </div>
+  </main>
+
+  <nav class="mobile-nav">
+      
+      <div class="mobile-nav-item active" data-tab="home">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span data-fr="Calendrier" data-en="Calendar">Calendrier</span>
+      </div>
+
+      <div class="mobile-nav-item" data-tab="profile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span data-fr="Profil" data-en="Profile">Profil</span>
+      </div>
+
+      <div class="mobile-nav-item" data-tab="payouts">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+              <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          <span data-fr="Paiements" data-en="Payouts">Paiements</span>
+      </div>
+
+  </nav>
+
+</div>
 
 <script>
-(async function(){
-  // ---------------------------
-  // Helpers
-  // ---------------------------
-  function qs(name){ return new URLSearchParams(window.location.search).get(name); }
-  function cleanUrlParams(keys){
-    try{
-      const u = new URL(window.location.href);
-      let changed = false;
-      keys.forEach(k => {
-        if (u.searchParams.has(k)){ u.searchParams.delete(k); changed = true; }
-      });
-      if (changed) window.history.replaceState({}, "", u.toString());
-    }catch(_){}
-  }
-  function initials(str){
-    const s = (str || "").trim();
-    if (!s) return "RC";
-    const parts = s.split(/\s+/).slice(0,2);
-    return parts.map(p => p[0]?.toUpperCase() || "").join("") || "RC";
-  }
-
-  // UI
-  const toast = document.getElementById("toast");
-  function showToast(type, text){
-    toast.className = "toast show " + (type === "err" ? "err" : "ok");
-    toast.textContent = text;
-    setTimeout(() => toast.classList.remove("show"), 3200);
-  }
-
-  // Elements
-  const langButtons = document.querySelectorAll('.lang-switch button');
-  const avatar = document.getElementById("avatar");
-  const pname = document.getElementById("pname");
-  const pbio = document.getElementById("pbio");
-  const publicPageBtn = document.getElementById("publicPageBtn");
-  const copyLinkBtn = document.getElementById("copyLinkBtn");
-  const editProfileBtn = document.getElementById("editProfileBtn");
-
-  const viewHome = document.getElementById("viewHome");
-  const viewProfile = document.getElementById("viewProfile");
-  const viewPayouts = document.getElementById("viewPayouts");
-
-  const calendarWrap = document.getElementById("calendarWrap");
-  const weekGrid = document.getElementById("weekGrid");
-  const emptyOverlay = document.getElementById("emptyOverlay");
-  const weekRangeLabel = document.getElementById("weekRangeLabel");
-  const prevWeekBtn = document.getElementById("prevWeekBtn");
-  const nextWeekBtn = document.getElementById("nextWeekBtn");
-
-  const profilePhotoFile = document.getElementById("profilePhotoFile");
-  const profileName = document.getElementById("profileName");
-  const profileBio = document.getElementById("profileBio");
-  const profileSaveBtn = document.getElementById("profileSaveBtn");
-
-  const payoutMethod = document.getElementById("payoutMethod");
-  const payoutEmail = document.getElementById("payoutEmail");
-  const payoutSaveBtn = document.getElementById("payoutSaveBtn");
-
-let expertId = null;
-let expertRow = null;
-let weekOffset = 0;
-let cachedSlots = [];
-  
-  // ---------------------------
-  // Language
-  // ---------------------------
-  let lang = localStorage.getItem('runcall_lang');
-  if (!lang) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    lang = browserLang.startsWith('fr') ? 'fr' : 'en';
-  }
-  function applyLanguage(nextLang){
-    lang = nextLang;
-    document.documentElement.lang = lang;
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-    langButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
-    if (typeof weekOffset !== "undefined") paintWeek();
-
-  }
-  langButtons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
-
-  // ---------------------------
-  // Auth: sessions.token
-  // ---------------------------
-  const tokenFromUrl = qs("token");
-  const tokenFromStorage = localStorage.getItem("runcall_token");
-  const token = tokenFromUrl || tokenFromStorage;
-
-  if (!token){
-    window.location.replace("/login.html");
-    return;
-  }
-
-  if (tokenFromUrl) localStorage.setItem("runcall_token", tokenFromUrl);
-  cleanUrlParams(["token", "connected"]);
-
-  async function resolveSessionToken(){
-    try{
-      const r = await fetch(`/api/sessions/resolve?token=${encodeURIComponent(token)}`, {
-        headers: { "Accept":"application/json" }
-      });
-      if (!r.ok) return null;
-      return await r.json(); // { expert_id }
-    }catch(_){
-      return null;
-    }
-  }
-
-  const resolved = await resolveSessionToken();
-  if (!resolved || !resolved.expert_id){
-    localStorage.removeItem("runcall_token");
-    window.location.replace("/login.html");
-    return;
-  }
-
-  const expertId = String(resolved.expert_id);
-  localStorage.setItem("runcall_expert_id", expertId);
-
-  // Now auth is OK, show UI
-  document.documentElement.classList.remove('auth-pending');
-
-  // ---------------------------
-  // Router
-  // ---------------------------
-  function showView(tab){
-    document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-    const active = document.querySelector(`.sb-item[data-tab="${tab}"]`);
-    if (active) active.classList.add("active");
-
-    viewHome.style.display = (tab === "home") ? "" : "none";
-    viewProfile.style.display = (tab === "profile") ? "" : "none";
-    viewPayouts.style.display = (tab === "payouts") ? "" : "none";
-
-    if (tab === "analytics" || tab === "settings"){
-      showToast("ok", lang === "fr" ? "Bientôt disponible ✨" : "Coming soon ✨");
-      const fallback = "home";
-      document.querySelectorAll(".sb-item").forEach(x => x.classList.remove("active"));
-      const a2 = document.querySelector(`.sb-item[data-tab="${fallback}"]`);
-      if (a2) a2.classList.add("active");
-      viewHome.style.display = "";
-      viewProfile.style.display = "none";
-      viewPayouts.style.display = "none";
-    }
-  }
-
-  document.querySelectorAll(".sb-item").forEach(item => {
-    item.addEventListener("click", () => {
-      const tab = item.getAttribute("data-tab");
-      if (!tab) return;
-      showView(tab);
-    });
-  });
-  editProfileBtn.addEventListener("click", () => showView("profile"));
-
-  // ---------------------------
-  // Dates
-  // ---------------------------
-  let weekOffset = 0;
-  let cachedSlots = [];
-
-  function startOfWeek(d){
-    const x = new Date(d);
-    const day = x.getDay();
-    const diff = (day === 0 ? -6 : 1) - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0,0,0,0);
-    return x;
-  }
-  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-  function ymd(d){ return new Date(d).toISOString().slice(0,10); }
-
-  function fmtTime(date){
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    return new Intl.DateTimeFormat(locale, { hour:'2-digit', minute:'2-digit' }).format(date);
-  }
-  function fmtRange(monday){
-    const end = addDays(monday, 6);
-    const locale = (lang === "fr") ? "fr-FR" : "en-US";
-    const a = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short' }).format(monday);
-    const b = new Intl.DateTimeFormat(locale, { day:'2-digit', month:'short', year:'numeric' }).format(end);
-    return `${a} → ${b}`;
-  }
-  function getMondayForOffset(offset){
-    const base = startOfWeek(new Date());
-    return addDays(base, offset * 7);
-  }
-
-  // ---------------------------
-  // Calendar render
-  // ---------------------------
-  function renderWeekSkeleton(monday){
-    weekGrid.innerHTML = "";
-    const dayNames = (lang === "fr")
-      ? ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
-      : ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-
-    for (let i=0;i<7;i++){
-      const dayDate = addDays(monday, i);
-      const dd = String(dayDate.getDate()).padStart(2,'0');
-      const mm = String(dayDate.getMonth()+1).padStart(2,'0');
-
-      const col = document.createElement("div");
-      col.className = "day-col";
-      col.innerHTML = `
-        <div class="day-head">
-          <span>${dayNames[i]}</span>
-          <span class="day-date">${dd}/${mm}</span>
-        </div>
-        <div class="slots" data-day="${ymd(dayDate)}"></div>
-      `;
-      weekGrid.appendChild(col);
-    }
-  }
-
-  function normalizeSlots(raw){
-    return (raw || []).map(s => {
-      const startRaw = s.start || s.slot_start;
-      const endRaw   = s.end   || s.slot_end;
-      return {
-        start: startRaw ? new Date(startRaw) : null,
-        end: endRaw ? new Date(endRaw) : null,
-        title: s.title || s.summary || "RunCall"
-      };
-    }).filter(x => x.start && !isNaN(x.start.getTime()) && x.end && !isNaN(x.end.getTime()));
-  }
-
-  function filterSlotsForWeek(monday, slots){
-    const start = new Date(monday);
-    const end = addDays(start, 7);
-    return slots.filter(x => x.start >= start && x.start < end).sort((a,b) => a.start - b.start);
-  }
-
-  function setEmptyState(hasAnySlots){
-    if (!hasAnySlots){
-      calendarWrap.classList.add("is-empty");
-      emptyOverlay.classList.add("show");
-    } else {
-      calendarWrap.classList.remove("is-empty");
-      emptyOverlay.classList.remove("show");
-    }
-  }
-
-  function paintWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    weekRangeLabel.textContent = fmtRange(monday);
-
-    renderWeekSkeleton(monday);
-
-    const slots = normalizeSlots(cachedSlots);
-    setEmptyState(slots.length > 0);
-
-    const inWeek = filterSlotsForWeek(monday, slots);
-    for (const s of inWeek){
-      const key = ymd(s.start);
-      const bucket = weekGrid.querySelector(`.slots[data-day="${key}"]`);
-      if (!bucket) continue;
-
-      const item = document.createElement("div");
-      item.className = "slot";
-      item.innerHTML = `<strong>${fmtTime(s.start)} – ${fmtTime(s.end)}</strong><small>${s.title}</small>`;
-      bucket.appendChild(item);
-    }
-  }
-
-  async function fetchSlots(fromISO, toISO){
-    const q = new URLSearchParams({ expert_id: expertId });
-    if (fromISO) q.set("from", fromISO);
-    if (toISO) q.set("to", toISO);
-
-    const urls = [
-      `/api/experts/slots?${q.toString()}`,
-      `/api/slots?${q.toString()}`
-    ];
-
-    for (const url of urls){
-      try{
-        const r = await fetch(url, { headers: { "Accept":"application/json" } });
-        if (!r.ok) continue;
-        const data = await r.json();
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.slots)) return data.slots;
-        return [];
-      }catch(_){}
-    }
-    return [];
-  }
-
-  async function reloadWeek(){
-    const monday = getMondayForOffset(weekOffset);
-    const fromISO = monday.toISOString();
-    const toISO = addDays(monday, 7).toISOString();
-    cachedSlots = await fetchSlots(fromISO, toISO);
-    paintWeek();
-  }
-
-  prevWeekBtn.addEventListener("click", async () => {
-    weekOffset -= 1;
-    await reloadWeek();
-  });
-  nextWeekBtn.addEventListener("click", async () => {
-    weekOffset += 1;
-    await reloadWeek();
-  });
-
-  // ---------------------------
-  // Public page link
-  // ---------------------------
-  const publicUrl = `https://www.run-call.com/intervenant.html?expert_id=${encodeURIComponent(expertId)}`;
-  publicPageBtn.href = publicUrl;
-
-  copyLinkBtn.addEventListener("click", async () => {
-    try{
-      await navigator.clipboard.writeText(publicUrl);
-      showToast("ok", lang === "fr" ? "Lien copié ✅" : "Link copied ✅");
-    }catch(_){
-      showToast("err", lang === "fr" ? "Impossible de copier le lien." : "Unable to copy link.");
-    }
-  });
-
-  // ---------------------------
-  // Expert profile load (API)
-  // ---------------------------
-  let expertRow = { id: expertId, name: "", presentation: "", photo_url: "" };
-
-  async function fetchExpertPublic(){
-    const r = await fetch(`/api/experts/get?expert_id=${encodeURIComponent(expertId)}`, {
-      headers: { "Accept":"application/json" }
-    });
-    if (!r.ok) return null;
-    return await r.json(); // {id,name,presentation,photo_url}
-  }
-
-  const fetched = await fetchExpertPublic();
-  if (fetched && fetched.id){
-    expertRow = {
-      id: fetched.id,
-      name: fetched.name || "",
-      presentation: fetched.presentation || "",
-      photo_url: fetched.photo_url || ""
-    };
-  }
-
-  function renderHeaderFromExpert(){
-    const name = (expertRow?.name || "").trim() || (lang === "fr" ? "Intervenant RunCall" : "RunCall creator");
-    const bio  = (expertRow?.presentation || "").trim() || (lang === "fr" ? "Ajoute une description depuis ton profil." : "Add a description from your profile.");
-    const photo = (expertRow?.photo_url || "").trim();
-
-    pname.textContent = name;
-    pbio.textContent = bio;
-
-    avatar.innerHTML = "";
-    if (photo){
-      const img = document.createElement("img");
-      img.src = photo;
-      img.alt = "Profile photo";
-      img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-      avatar.appendChild(img);
-    } else {
-      avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-    }
-
-    profileName.value = (expertRow?.name || "").trim();
-    profileBio.value  = (expertRow?.presentation || "").trim();
-  }
-  renderHeaderFromExpert();
-
-  // ---------------------------
-  // Profile save (API only)
-  // ---------------------------
-  profilePhotoFile?.addEventListener("change", () => {
-    const file = profilePhotoFile?.files?.[0];
-    if (!file) return;
-    if (file.size > 500 * 1024){
-      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-      profilePhotoFile.value = "";
-      return;
-    }
-    showToast("ok", lang === "fr" ? "Photo prête ✅" : "Photo ready ✅");
-  });
-
-  async function uploadAvatarIfNeeded(){
-    const file = profilePhotoFile?.files?.[0];
-    if (!file) return null;
-
-    if (file.size > 500 * 1024){
-      showToast("err", lang === "fr" ? "Image trop lourde (max ~500KB)." : "Image too large (max ~500KB).");
-      profilePhotoFile.value = "";
-      return null;
-    }
-
-    const fd = new FormData();
-    fd.append("file", file);
-
-    const r = await fetch("/api/experts/avatar/upload", {
-      method: "POST",
-      headers: { "x-session-token": token },
-      body: fd
-    });
-
-    if (!r.ok){
-      const txt = await r.text().catch(()=> "");
-      throw new Error(`Avatar upload failed (${r.status}) ${txt}`);
-    }
-
-    const data = await r.json();
-    return data?.photo_url || null;
-  }
-
-  async function updateExpertViaApi(name, presentation, photoUrlOrNull){
-    const payload = { name, presentation };
-    // if provided, send photo_url (string or null)
-    if (photoUrlOrNull !== undefined) payload.photo_url = photoUrlOrNull;
-
-    const r = await fetch("/api/experts/update", {
-      method: "POST",
-      headers: {
-        "Content-Type":"application/json",
-        "Accept":"application/json",
-        "x-session-token": token
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!r.ok){
-      const txt = await r.text().catch(()=> "");
-      throw new Error(`Update failed (${r.status}) ${txt}`);
-    }
-
-    const data = await r.json();
-    return data?.expert || null;
-  }
-
-  profileSaveBtn?.addEventListener("click", async () => {
-    if (!expertId){
-      showToast("err", lang === "fr" ? "Session invalide." : "Invalid session.");
-      return;
-    }
-
-      profileSaveBtn.disabled = true;
-      try{
-        // 1) upload avatar if selected
-        const newPhotoUrl = await uploadAvatarIfNeeded();
-
-      // 2) update profile text (server reads token -> expert)
-const updated = await updateExpertViaApi({
-  expert_id: expertId,
-  name,
-  presentation
-});
-
-if (updated) {
-  // ✅ preserve existing photo_url if API doesn't return it
-  const prevPhoto = (expertRow?.photo_url || "").trim();
-  expertRow = { ...(expertRow || {}), ...updated };
-  if (!(expertRow?.photo_url || "").trim() && prevPhoto) {
-    expertRow.photo_url = prevPhoto;
-  }
-}
-
-
-
-        // 3) refresh UI
-        pname.textContent = name;
-        pbio.textContent = presentation;
-
-        const finalPhoto = (newPhotoUrl || expertRow?.photo_url || "").trim();
-        avatar.innerHTML = "";
-        if (finalPhoto){
-          const img = document.createElement("img");
-          img.src = finalPhoto;
-          img.alt = "Profile photo";
-          img.onerror = () => { avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`; };
-          avatar.appendChild(img);
-          if (expertRow) expertRow.photo_url = finalPhoto;
+(async function() {
+    console.log("🚀 Dashboard UX Unicorn init...");
+
+    const safetyTimer = setTimeout(() => {
+        document.documentElement.classList.remove('auth-pending');
+    }, 2000);
+
+    try {
+        if (typeof CONFIG === 'undefined' || typeof window.supabase === 'undefined') throw new Error("Deps missing");
+
+        const sb = window.supabase.createClient(
+            "https://bflptoazeqfcultpukkh.supabase.co",
+            "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4"
+        );
+
+        // LANGUE
+        let lang = localStorage.getItem('runcall_lang') || (navigator.language.startsWith('fr') ? 'fr' : 'en');
+        function setLang(l) {
+            lang = l; localStorage.setItem('runcall_lang', l);
+            document.querySelectorAll('[data-fr][data-en]').forEach(el => el.textContent = el.dataset[l]);
+            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+            updateHomeState(); 
+            if(typeof updateWeekLabel === 'function') updateWeekLabel(); 
+        }
+        document.querySelectorAll('.lang-switch button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+        setLang(lang);
+
+        // --- AUTH & FIX MOBILE ---
+        let session = null;
+        
+        // 1. Analyse de l'URL pour le Mobile (On capture le token avant Supabase)
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+      window.rawProviderToken = params.get('provider_token');
+      window.rawProviderRefreshToken = params.get('provider_refresh_token');
+
+        if (accessToken && refreshToken) {
+            // Cas Mobile : On a les clés dans l'URL -> On force la session manuellement
+            const { data } = await sb.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken
+            });
+            session = data.session;
         } else {
-          avatar.innerHTML = `<div class="avatar-fallback">${initials(name)}</div>`;
-          if (expertRow) expertRow.photo_url = "";
+            // Cas PC / Cache : On demande gentiment à Supabase
+            const { data } = await sb.auth.getSession();
+            session = data.session;
         }
 
-        profilePhotoFile.value = "";
-        showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-      }catch(e){
-        console.error(e);
-        showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-      }finally{
-        profileSaveBtn.disabled = false;
-      }
-    });
+        // 2. Verdict de sécurité
+        if (!session) { 
+            // On ne redirige PAS si on voit un code Google ou un token dans l'URL
+            // (Ça veut dire que ça charge encore)
+            if (!window.location.search.includes('code=') && !accessToken) {
+                window.location.replace("/"); 
+                return; 
+            }
+        }
 
-    if (!name || !presentation){
-      showToast("err", lang === "fr" ? "Merci de remplir le nom et la description." : "Please fill name and description.");
-      return;
+        // 3. Déblocage de l'écran (Anti Page Blanche)
+        clearTimeout(safetyTimer);
+        document.documentElement.classList.remove('auth-pending');
+        document.body.style.visibility = 'visible';
+
+        // EXPERT
+        let expertId = new URLSearchParams(window.location.search).get('expert_id');
+        let expertData = null;
+
+        if (!expertData) {
+            const { data } = await sb.from('experts').select('*').eq('auth_user_id', session.user.id).maybeSingle();
+            if (data) { expertData = data; expertId = data.id; }
+        }
+
+        if (!expertData) {
+            const googleName = session.user.user_metadata.full_name || "Nouveau RunCaller";
+            const { data: newExpert } = await sb.from('experts').insert([{
+                auth_user_id: session.user.id,
+                email: session.user.email,
+                name: googleName,
+                presentation: "",
+                photo_url: "" 
+            }]).select().single();
+            if (newExpert) { expertData = newExpert; expertId = newExpert.id; }
+        }
+
+// --- FIX BOUCLE ETAPE 1 : VERSION FINALE (Mac & Mobile) ---
+    
+    // 1. On récupère le token qu'on a capturé tout en haut (Le coffre-fort)
+    let googleToken = window.rawProviderToken;
+
+    // 2. Roue de secours : si le coffre est vide, on regarde dans la session
+    if (!googleToken && session && session.provider_token) {
+        googleToken = session.provider_token;
     }
+    
+    // VERIFICATION CRUCIALE
+    const isWaitingForCalendar = localStorage.getItem('runcall_auth_pending') === 'true';
 
-    profileSaveBtn.disabled = true;
-    try{
-      // 1) upload avatar if selected
-      const newPhotoUrl = await uploadAvatarIfNeeded();
+    if (isWaitingForCalendar && googleToken && expertId) {
+        console.log("💾 Retour Agenda détecté, sauvegarde...");
+        
+        // On sécurise le refresh token
+        const rToken = window.rawProviderRefreshToken || session.provider_refresh_token || null;
 
-      // 2) update text + optional photo_url
-      const photoToSend =
-        newPhotoUrl ? newPhotoUrl :
-        ((expertRow?.photo_url || "").trim() ? expertRow.photo_url : null);
-
-      const updated = await updateExpertViaApi(name, presentation, photoToSend);
-
-      // 3) update local state
-      if (updated){
-        expertRow = {
-          ...(expertRow || {}),
-          ...(updated || {}),
-          id: expertId,
-          name,
-          presentation,
-          photo_url: (updated.photo_url || newPhotoUrl || expertRow.photo_url || "")
-        };
-      } else {
-        expertRow = {
-          ...(expertRow || {}),
-          id: expertId,
-          name,
-          presentation,
-          photo_url: (newPhotoUrl || expertRow.photo_url || "")
-        };
-      }
-
-      // 4) refresh UI
-      renderHeaderFromExpert();
-
-      profilePhotoFile.value = "";
-      showToast("ok", lang === "fr" ? "Profil mis à jour ✅" : "Profile updated ✅");
-    }catch(e){
-      console.error(e);
-      showToast("err", (lang === "fr" ? "Impossible d’enregistrer : " : "Unable to save: ") + (e?.message || "error"));
-    }finally{
-      profileSaveBtn.disabled = false;
+        await sb.from('expert_google_accounts').upsert({
+            expert_id: expertId,
+            google_email: session.user.email,
+            access_token: googleToken,
+            refresh_token: rToken,
+            expiry_date: Date.now() + 3500 * 1000,
+            updated_at: new Date()
+        });
+        
+        localStorage.removeItem('runcall_auth_pending');
+        
+        // Pause de sécurité (500ms)
+        await new Promise(r => setTimeout(r, 500));
     }
-  });
+    // --------------------------------------------------
 
-  // ---------------------------
-  // Payouts (TEMP: localStorage)
-  // ---------------------------
-  function loadPayoutLocal(){
-    const m = localStorage.getItem("runcall_payout_method");
-    const e = localStorage.getItem("runcall_payout_email");
-    if (m) payoutMethod.value = m;
-    if (e) payoutEmail.value = e;
-  }
-  loadPayoutLocal();
+      
+        if(expertId) {
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('expert_id', expertId);
+            window.history.pushState({}, '', newUrl);
+        }
 
-  payoutSaveBtn?.addEventListener("click", async () => {
-    const method = payoutMethod.value;
-    const email = (payoutEmail.value || "").trim();
-    if (!email){
-      showToast("err", lang === "fr" ? "Email requis." : "Email required.");
-      return;
-    }
-    localStorage.setItem("runcall_payout_method", method);
-    localStorage.setItem("runcall_payout_email", email);
-    showToast("ok", lang === "fr" ? "Enregistré ✅ (temporaire)" : "Saved ✅ (temporary)");
-  });
+        if (expertData) {
+            document.getElementById('topTitle').textContent = expertData.name;
+            
+            const topAvatar = document.getElementById('topAvatar');
+            const previewAvatar = document.getElementById('previewAvatar');
+            const blueAvatar = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NmZjRZmMiIHN0cm9rZT0iIzNjODJmNiIgc3Ryb2tlLXdpZHRoPSIxIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzE2NzdmZiIvPjxwYXRoIGQ9Ik0xMiAxNGE0IDQgMCAxIDAgMC04IDQgNCAwIDAgMCAwIDh6bTAgMmMtMi42NyAwLTggMS4zNC04IDR2MmgxNnYtMmMwLTIuNjYtNS4zMy00LTgtNHoiIGZpbGw9IiNmZmYiIHN0cm9rZT0ibm9uZSIvPjwvc3ZnPg==";
 
-  // ---------------------------
-  // Init
-  // ---------------------------
-  showView("home");
-  paintWeek();
-  await reloadWeek();
+            let finalAvatar = blueAvatar;
+            if (expertData.photo_url && expertData.photo_url.trim() !== "") {
+                finalAvatar = expertData.photo_url;
+            }
 
-})().catch((e) => {
-  console.error("Dashboard fatal error:", e);
-  document.documentElement.classList.remove('auth-pending');
-  alert("Dashboard JS crashed. Open console for details: " + (e?.message || e));
+            topAvatar.src = finalAvatar;
+            previewAvatar.src = finalAvatar;
+            topAvatar.style.display = 'block';
+
+            document.getElementById('inputName').value = expertData.name || "";
+            document.getElementById('inputBio').value = expertData.presentation || "";
+            document.getElementById('inputPrice').value = expertData.price || "";
+            document.getElementById('inputCurrency').value = expertData.currency || "usd";
+            document.getElementById('publicLinkBtn').href = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+        }
+
+        // PREVIEW PHOTO
+        const avatarInput = document.getElementById('avatarInput');
+        if (avatarInput) {
+            avatarInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        document.getElementById('previewAvatar').src = ev.target.result;
+                        document.getElementById('topAvatar').src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // LOGIC
+        let hasCalendar = false;
+        let hasSlots = false;
+        let hasStripe = false;
+
+        const { data: gAccount } = await sb.from('expert_google_accounts').select('id').eq('expert_id', expertId).maybeSingle();
+        hasCalendar = !!gAccount;
+
+        try {
+            const resS = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId }) });
+            const dataS = await resS.json();
+            hasStripe = dataS.isComplete;
+        } catch(e) { console.error("Stripe check", e); }
+
+        let currentWeekOffset = 0;
+        function getStartOfWeek(offset) {
+            const d = new Date();
+            const day = d.getDay(); 
+            const diff = d.getDate() - day + (day == 0 ? -6 : 1) + (offset * 7); 
+            d.setDate(diff);
+            d.setHours(0, 0, 0, 0); 
+            return d;
+        }
+
+        // --- MOTEUR DE VERIFICATION ---
+        async function updateHomeState() {
+            ['stateConnect', 'stateFirstSlots', 'stateSetupPayouts', 'stateCalendar'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            
+            const progressEl = document.getElementById('onboardingProgress');
+            const stripeCard = document.getElementById('stateSetupPayouts');
+            const calendarCard = document.getElementById('stateCalendar');
+            
+            const activeBadge = document.getElementById('activeBadge');
+            const subReady = document.getElementById('calSubtitleReady');
+            const subPreview = document.getElementById('calSubtitlePreview');
+
+            // 1. Calendrier
+            if (!hasCalendar) {
+                document.getElementById('stateConnect').classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
+                updateProgress(0, "Connecte ton agenda", "Connect your calendar", "Etape 1/3");
+                return;
+            }
+
+            // 2. Créneaux (CORRECTIF : On vérifie sur 30 jours pour ne pas bloquer l'onboarding)
+            // Au lieu de regarder juste la semaine courante, on regarde le mois à venir.
+            const checkStart = new Date();
+            const checkEnd = new Date();
+            checkEnd.setDate(checkEnd.getDate() + 30); // On regarde 30 jours devant
+            
+            const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${checkStart.toISOString()}&to=${checkEnd.toISOString()}&_t=${Date.now()}`;
+            
+            try {
+                const resSlots = await fetch(apiUrl);
+                const dataSlots = await resSlots.json();
+                const slots = Array.isArray(dataSlots) ? dataSlots : (dataSlots.slots || []);
+                hasSlots = slots.length > 0;
+            } catch(err) { hasSlots = false; }
+
+            if (!hasSlots) {
+                document.getElementById('stateFirstSlots').classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                stripeCard.classList.add('hidden');
+                calendarCard.classList.add('hidden');
+                updateProgress(1, "Définis tes disponibilités", "Set your availability", "Etape 2/3");
+                return;
+            }
+
+            // 3. Paiements & Affichage
+            if (!hasStripe) {
+                // MODE: EN COURS
+                stripeCard.classList.remove('hidden');
+                progressEl.classList.remove('hidden');
+                updateProgress(2, "Active les paiements", "Enable payouts", "Etape 3/3");
+                
+                if(activeBadge) activeBadge.classList.add('hidden');
+                if(subReady) subReady.classList.add('hidden');
+                if(subPreview) subPreview.classList.remove('hidden');
+
+            } else {
+                // MODE: TERMINÉ
+                stripeCard.classList.add('hidden');
+                progressEl.classList.add('hidden'); 
+                
+                if(activeBadge) activeBadge.classList.remove('hidden');
+                if(subReady) subReady.classList.remove('hidden');
+                if(subPreview) subPreview.classList.add('hidden');
+            }
+
+            calendarCard.classList.remove('hidden');
+            
+            updateWeekLabel();
+            fetchAndRenderSlots();
+        }
+
+        function updateProgress(stepIndex, titleFr, titleEn, stepText) {
+            const dots = ['step1-dot', 'step2-dot', 'step3-dot'];
+            dots.forEach((id, i) => {
+                const d = document.getElementById(id);
+                if (i < stepIndex) d.style.background = '#1677ff'; 
+                else if (i === stepIndex) d.style.background = '#1677ff'; 
+                else d.style.background = '#e2e8f0'; 
+            });
+            const titleEl = document.getElementById('stepTitle');
+            if(titleEl) titleEl.textContent = lang === 'fr' ? titleFr : titleEn;
+            const counterEl = document.getElementById('stepCounter');
+            if(counterEl) counterEl.textContent = stepText;
+        }
+
+        document.getElementById('connectGoogleBtn')?.addEventListener('click', async () => {
+            localStorage.setItem('runcall_auth_pending', 'true');
+            const cleanRedirect = window.location.origin + window.location.pathname;
+            await sb.auth.signInWithOAuth({
+                provider: 'google',
+                options: { 
+                    redirectTo: cleanRedirect,
+                    scopes: 'https://www.googleapis.com/auth/calendar.events',
+                    queryParams: { access_type: 'offline', prompt: 'consent' }
+                }
+            });
+        });
+
+        if (localStorage.getItem('runcall_auth_pending') === 'true' && (window.rawProviderToken || session.provider_token)) {
+await sb.from('expert_google_accounts').upsert({
+expert_id: expertId,
+google_email: session.user.email,
+access_token: window.rawProviderToken || session.provider_token,
+refresh_token: window.rawProviderRefreshToken || session.provider_refresh_token,
+expiry_date: Date.now() + 3600 * 1000
 });
-</script>
+localStorage.removeItem('runcall_auth_pending');
+hasCalendar = true;
+}
 
+        document.getElementById('checkSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('checkSlotsBtn');
+             const originalText = btn.innerHTML;
+             btn.innerHTML = "Vérification...";
+             btn.disabled = true;
+             await updateHomeState(); 
+             if(!hasSlots) {
+                 const msg = lang==='fr' 
+                    ? "⚠️ Aucun créneau trouvé sur la semaine en cours.\n\nAssurez-vous d'avoir créé un événement 'RunCall' CETTE SEMAINE dans votre agenda principal." 
+                    : "⚠️ No slots found this week.\n\nMake sure you created a 'RunCall' event THIS WEEK in your primary calendar.";
+                 alert(msg);
+             }
+             btn.innerHTML = originalText;
+             btn.disabled = false;
+        });
+
+        document.getElementById('refreshSlotsBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('refreshSlotsBtn');
+             btn.style.transform = "rotate(360deg)"; 
+             setTimeout(() => btn.style.transform = "none", 500);
+             await updateHomeState(); 
+        });
+
+        document.getElementById('headerCopyBtn')?.addEventListener('click', () => {
+             let baseUrl = window.location.origin;
+             if (baseUrl === 'null' || baseUrl.startsWith('file:')) {
+                 baseUrl = 'https://runcall.vercel.app';
+             }
+             const link = `${baseUrl}/profile.html?expert_id=${expertId}`;
+             navigator.clipboard.writeText(link);
+             alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
+
+        document.getElementById('homeSetupStripeBtn')?.addEventListener('click', async () => {
+             const btn = document.getElementById('homeSetupStripeBtn');
+             const sel = document.getElementById('homeCountrySelector');
+             
+             const country = sel ? sel.value : 'FR'; 
+             
+             // --- C'EST CETTE LIGNE QUI MANQUAIT ---
+             // On récupère le texte (ex: 🇫🇷 France) pour l'afficher dans le message
+             const countryName = sel ? sel.options[sel.selectedIndex].text : country;
+             // --------------------------------------
+
+             // --- SÉCURITÉ ANTI-ERREUR ---
+             const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+             const msg = isFr 
+                ? `Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+
+             if (!confirm(msg)) return; 
+             // ---------------------------
+
+             btn.disabled = true; btn.innerText = "Loading...";
+             
+             try {
+                 const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
+                 const d = await res.json();
+                 if(d.url) window.location.href = d.url;
+                 else throw new Error("Erreur URL");
+             } catch(e) { alert("Erreur: "+e.message); btn.disabled=false; }
+        });
+
+        document.getElementById('copyLinkAction')?.addEventListener('click', () => {
+            const link = `${CONFIG.URLS.profile}?expert_id=${expertId}`;
+            navigator.clipboard.writeText(link);
+            alert(lang==='fr'?"Lien copié !":"Link copied!");
+        });
+
+        window.updateWeekLabel = function() {
+            const start = getStartOfWeek(currentWeekOffset);
+            const end = new Date(start); end.setDate(end.getDate() + 6);
+            const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+            const lbl = document.getElementById('weekLabel');
+            if(lbl) lbl.textContent = `${start.toLocaleDateString(locale, {day:'numeric', month:'short'})} - ${end.toLocaleDateString(locale, {day:'numeric', month:'short'})}`;
+        }
+        
+        async function fetchAndRenderSlots() {
+            if (!expertId) return;
+            const grid = document.getElementById('calendarGrid');
+            const loader = document.getElementById('loadingSlots');
+            const emptyMsg = document.getElementById('emptyStateMsg');
+            grid.innerHTML = '';
+            if(loader) loader.classList.remove('hidden');
+            if(emptyMsg) emptyMsg.classList.add('hidden');
+
+            const startOfWeek = getStartOfWeek(currentWeekOffset);
+            const dayNames = lang === 'fr' ? ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(startOfWeek); d.setDate(d.getDate() + i);
+                const col = document.createElement('div'); col.className = 'day-col';
+                const dateKey = d.toLocaleDateString('en-CA'); 
+                col.innerHTML = `<div class="day-head">${dayNames[i]} <span style="font-weight:400">${d.getDate()}</span></div><div class="slots" id="slots-${dateKey}"></div>`;
+                grid.appendChild(col);
+            }
+
+            try {
+                const toDate = new Date(startOfWeek); toDate.setDate(toDate.getDate() + 7);
+                const apiUrl = `/api/experts/slots?expert_id=${expertId}&from=${startOfWeek.toISOString()}&to=${toDate.toISOString()}&_t=${Date.now()}`;
+                const res = await fetch(apiUrl);
+                const response = await res.json();
+                const slots = Array.isArray(response) ? response : (response.slots || []);
+                if(loader) loader.classList.add('hidden');
+
+                if (!slots || slots.length === 0) {
+                    if(emptyMsg) emptyMsg.classList.remove('hidden');
+                } else {
+                    slots.forEach(slot => {
+                        const dKey = new Date(slot.start).toLocaleDateString('en-CA');
+                        const container = document.getElementById(`slots-${dKey}`);
+                        if (container) {
+                            const div = document.createElement('div');
+                            const locale = lang==='fr'?'fr-FR':'en-US';
+                            div.className = 'slot';
+                            div.textContent = `${new Date(slot.start).toLocaleTimeString(locale, {hour:'2-digit', minute:'2-digit'})} - ${new Date(slot.end).toLocaleTimeString(locale, {hour:'2-digit', minute:'2-digit'})}`;
+                            container.appendChild(div);
+                        }
+                    });
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        const prevBtn = document.getElementById('prevWeek');
+        const nextBtn = document.getElementById('nextWeek');
+        if(prevBtn) prevBtn.addEventListener('click', () => { currentWeekOffset--; updateWeekLabel(); fetchAndRenderSlots(); });
+        if(nextBtn) nextBtn.addEventListener('click', () => { currentWeekOffset++; updateWeekLabel(); fetchAndRenderSlots(); });
+
+        // --- GESTION DES ONGLETS (Instantanée & Sans saut) ---
+        function switchTab(tabName) {
+            // 1. Sauvegarde en mémoire
+            localStorage.setItem('runcall_last_tab', tabName);
+
+            // 2. Gestion Menu PC (Sidebar)
+            document.querySelectorAll('.sb-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.tab === tabName);
+            });
+
+            // 3. Gestion Menu Mobile (Bottom Bar) - NOUVEAU !
+            document.querySelectorAll('.mobile-nav-item').forEach(i => {
+                i.classList.toggle('active', i.dataset.tab === tabName);
+            });
+
+            // 4. Gestion Vues (Cacher tout, montrer la cible)
+            ['viewHome', 'viewProfile', 'viewPayouts'].forEach(v => {
+                document.getElementById(v).classList.add('hidden');
+            });
+
+            let targetId = 'viewHome';
+            if (tabName === 'profile') targetId = 'viewProfile';
+            if (tabName === 'payouts') targetId = 'viewPayouts';
+
+            const targetEl = document.getElementById(targetId);
+            if(targetEl) targetEl.classList.remove('hidden');
+        }
+
+        // A. Écouteurs de clics PC
+        document.querySelectorAll('.sb-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Écouteurs de clics MOBILE - NOUVEAU !
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
+            item.addEventListener('click', () => switchTab(item.dataset.tab));
+        });
+
+        // B. Restauration IMMÉDIATE (Le secret pour éviter le saut)
+        // On lit la mémoire tout de suite. Si rien en mémoire, on met 'home'.
+        const savedTab = localStorage.getItem('runcall_last_tab') || 'home';
+        
+        // On applique la vue immédiatement
+        switchTab(savedTab);
+
+        updateHomeState();
+        
+        const pForm = document.getElementById('profileForm');
+    if(pForm) {
+        pForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 1. Détection de la langue
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+
+            const btn = document.getElementById('saveProfileBtn');
+            const originalText = btn.textContent;
+            
+            // 2. Texte du bouton pendant le chargement (FR/EN)
+            btn.textContent = isFr ? "Sauvegarde..." : "Saving...";
+            btn.disabled = true;
+
+            try {
+                const name = document.getElementById('inputName').value;
+                const bio = document.getElementById('inputBio').value;
+                const rawPrice = document.getElementById('inputPrice').value;
+                const priceVal = rawPrice ? parseInt(rawPrice) : null;
+                const currencyVal = document.getElementById('inputCurrency').value || 'usd';
+                let newPhotoUrl = expertData.photo_url;
+                
+                const fileInput = document.getElementById('avatarInput');
+                if (fileInput && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${expertId}-${Date.now()}.${fileExt}`;
+                    const { error: uploadError } = await sb.storage.from('avatars').upload(fileName, file);
+                    if (uploadError) throw uploadError;
+                    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(fileName);
+                    newPhotoUrl = publicUrl;
+                }
+
+                const { error } = await sb.from('experts').update({
+                    name: name, presentation: bio, price: priceVal, currency: currencyVal, photo_url: newPhotoUrl, updated_at: new Date()
+                }).eq('id', expertId);
+
+                if (error) throw error;
+
+                // 3. Alerte de succès (FR/EN)
+                alert(isFr ? "Profil mis à jour !" : "Profile updated!");
+
+                document.getElementById('topTitle').textContent = name;
+                if(newPhotoUrl) {
+                    document.getElementById('topAvatar').src = newPhotoUrl;
+                    document.getElementById('previewAvatar').src = newPhotoUrl;
+                }
+            } catch (err) { 
+                // 4. Alerte d'erreur (FR/EN)
+                const prefix = isFr ? "Erreur : " : "Error: ";
+                alert(prefix + err.message); 
+            } 
+            finally { 
+                btn.textContent = originalText; 
+                btn.disabled = false; 
+            }
+        });
+    }
+        // --- CALCULATEUR DYNAMIQUE PRIX (Mode Hybride v2) ---
+    const priceInput = document.getElementById('inputPrice');
+    const currencyInput = document.getElementById('inputCurrency');
+    
+    // Mode Default (Accordéon)
+    const simDefault = document.getElementById('simDefault');
+    const toggleDefaultBtn = document.getElementById('toggleDefaultBtn');
+    const contentDefault = document.getElementById('contentDefault');
+    const arrowDefault = document.getElementById('arrowDefault');
+
+    // Mode Custom
+    const simCustom = document.getElementById('simCustom');
+    const elTotal = document.getElementById('simTotal');
+    const elFee = document.getElementById('simFee');
+    const elNet = document.getElementById('simNet');
+    const lblFeePct = document.getElementById('lblFeePct');
+    const msgSuccess = document.getElementById('rateSuccessMsg');
+
+    // Gestion de l'accordéon (Clic sur la phrase grise)
+    if(toggleDefaultBtn) {
+        toggleDefaultBtn.addEventListener('click', () => {
+            const isHidden = contentDefault.classList.contains('hidden');
+            if(isHidden) {
+                contentDefault.classList.remove('hidden');
+                arrowDefault.style.transform = "rotate(180deg)";
+            } else {
+                contentDefault.classList.add('hidden');
+                arrowDefault.style.transform = "rotate(0deg)";
+            }
+        });
+    }
+
+    function updateSimulation() {
+        const val = parseFloat(priceInput.value);
+        
+        // Symboles
+        const curMap = {'usd':'$','eur':'€','gbp':'£','chf':'CHF','cad':'$'};
+        const sym = curMap[currencyInput.value] || '$';
+        document.querySelectorAll('.cur-sym').forEach(el => el.textContent = sym);
+
+        // LOGIQUE D'AFFICHAGE
+        if(!val || val <= 0) {
+            // Afficher le bloc par défaut
+            if(simDefault) simDefault.classList.remove('hidden');
+            if(simCustom) simCustom.classList.add('hidden');
+        } else {
+            // Afficher le bloc custom
+            if(simDefault) simDefault.classList.add('hidden');
+            if(simCustom) simCustom.classList.remove('hidden');
+
+            // --- LOGIQUE PALIERS (CORRIGÉE : A partir de 100 inclus) ---
+            let rate = 0.20; 
+            let rateText = "20%";
+
+            if (val >= 200) { // Supérieur OU EGAL à 200
+                rate = 0.10;
+                rateText = "10%";
+            } else if (val >= 100) { // Supérieur OU EGAL à 100
+                rate = 0.15;
+                rateText = "15%";
+            }
+
+            const fee = val * rate;
+            const net = val - fee;
+
+            elTotal.textContent = `${val} ${sym}`;
+            elFee.textContent = `- ${fee.toFixed(2)} ${sym}`;
+            elNet.textContent = `${net.toFixed(2)} ${sym}`;
+            
+            // Textes
+            const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+            if(lblFeePct) {
+                lblFeePct.textContent = isFr 
+                    ? `Frais de plateforme (${rateText})` 
+                    : `Platform fee (${rateText})`;
+            }
+
+            // Message succès
+            if (msgSuccess) {
+                if (rate < 0.20) {
+                    msgSuccess.classList.remove('hidden');
+                    msgSuccess.textContent = isFr ? "🎉 Taux réduit activé !" : "🎉 Reduced rate active!";
+                    // MODIF ICI : Je mets le vert (#16a34a) au lieu de l'orange
+                    elNet.style.color = "#16a34a"; 
+                } else {
+                    msgSuccess.classList.add('hidden');
+                    elNet.style.color = "#16a34a"; 
+                }
+            }
+        }
+    }
+
+    if(priceInput) priceInput.addEventListener('input', updateSimulation);
+    if(currencyInput) currencyInput.addEventListener('change', updateSimulation);
+    
+    setTimeout(updateSimulation, 800);
+        // --- LOGIQUE PAYOUTS ---
+        const payoutStatus = document.getElementById('payoutStatus');
+        const setupZone = document.getElementById('setupZone');
+        const dashboardZone = document.getElementById('dashboardZone');
+        const accessBtn = document.getElementById('accessStripeBtn');
+        const setupBtn = document.getElementById('setupStripeBtn');
+        const countrySel = document.getElementById('countrySelector');
+
+        async function checkStripeStatus() {
+             if (!expertId) return;
+             if(payoutStatus) payoutStatus.innerHTML = `<p class="text-gray-500">Checking...</p>`;
+             try {
+                const res = await fetch('/api/stripe/connect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expertId }) });
+                const data = await res.json();
+                if (data.isComplete) {
+                     if(payoutStatus) payoutStatus.innerHTML = `<div style="background:#d1fae5; color:#065f46; padding:15px; border-radius:8px; border:1px solid #34d399; margin-bottom:20px;"><strong>✅ Active</strong></div>`;
+                     if(setupZone) setupZone.style.display = 'none';
+                     if(dashboardZone) dashboardZone.style.display = 'block';
+                     if(accessBtn) accessBtn.onclick = (e) => { e.preventDefault(); window.location.href = data.url; };
+                } else {
+                     if(payoutStatus) payoutStatus.innerHTML = `<p style="color:#666; margin-bottom:10px;">Link Stripe required.</p>`;
+                     if(setupZone) setupZone.style.display = 'block';
+                     if(dashboardZone) dashboardZone.style.display = 'none';
+                }
+             } catch (err) { console.error(err); }
+        }
+        checkStripeStatus();
+        
+        if (setupBtn) {
+            setupBtn.addEventListener('click', async () => {
+                const country = countrySel ? countrySel.value : 'US';
+                
+                // --- C'EST CETTE LIGNE QUI MANQUAIT ICI AUSSI ---
+                const countryName = countrySel ? countrySel.options[countrySel.selectedIndex].text : country;
+                // ------------------------------------------------
+
+                // --- SÉCURITÉ ANTI-ERREUR ---
+                const isFr = (localStorage.getItem('runcall_lang') || 'fr') === 'fr';
+                const msg = isFr 
+                   ? `Vous avez choisi "${countryName}".\nCe choix est DÉFINITIF.\nUne fois validé, il sera impossible de changer le pays du compte bancaire.\n\nÊtes-vous sûr ?`
+                   : `You selected "${countryName}".\nThis choice is PERMANENT.\nOnce validated, you cannot change the bank account country.\n\nAre you sure?`;
+
+                if (!confirm(msg)) return; 
+                // ---------------------------
+
+                setupBtn.disabled = true; setupBtn.innerText = "Loading...";
+                try {
+                    const res = await fetch('/api/stripe/connect', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ expertId, country }) });
+                    const d = await res.json();
+                    if(d.url) window.location.href = d.url;
+                    else throw new Error(d.error);
+                } catch (e) { alert("Error: "+e.message); setupBtn.disabled = false; }
+            });
+        }
+
+        // --- FIN DU CHARGEMENT : ON CACHE LE LOADER ET ON AFFICHE LE FOOTER ---
+        const finalLoader = document.getElementById('globalLoader');
+        const footer = document.getElementById('dashFooter');
+        
+        if(finalLoader) {
+            finalLoader.style.opacity = '0';
+            
+            // On attend 500ms (la fin de l'animation) pour faire le ménage
+            setTimeout(() => {
+                finalLoader.style.display = 'none';
+                
+                // C'est SEULEMENT MAINTENANT qu'on affiche le footer
+                // Une fois que tout est stable
+                if(footer) footer.style.display = 'block';
+                
+            }, 500);
+        }
+
+    } catch (err) { console.error("DASH ERROR", err); }
+  
+})();
+</script>
 </body>
 </html>

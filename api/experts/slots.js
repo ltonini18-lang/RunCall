@@ -1,285 +1,203 @@
-// /api/experts/slots.js
+const https = require('https');
 
-function overlaps(aStart, aEnd, bStart, bEnd) {
-  return aStart < bEnd && bStart < aEnd;
+// 1. Helper pour faire des requêtes HTTPS propres (Promisified)
+function simpleRequest(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        const req = https.request(new URL(url), {
+            method: options.method || 'GET',
+            headers: options.headers || {}
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => resolve({
+                json: () => { try { return JSON.parse(data) } catch(e) { return null } },
+                status: res.statusCode
+            }));
+        });
+        req.on('error', reject);
+        if (options.body) req.write(options.body);
+        req.end();
+    });
 }
 
-function parseGoogleEventTime(t) {
-  if (!t) return null;
-  if (t.dateTime) return new Date(t.dateTime);
-  // Ignore all-day events for slot logic (prevents "monday disappears")
-  return null;
-}
-
-async function refreshAccessToken(refreshToken) {
-  const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-  const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-  if (!CLIENT_ID || !CLIENT_SECRET) throw new Error("Missing GOOGLE_CLIENT_ID/SECRET");
-
-  const r = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  const text = await r.text();
-  if (!r.ok) throw new Error("Google refresh_token failed: " + text);
-  const data = JSON.parse(text);
-
-  return {
-    access_token: data.access_token,
-    expires_in: data.expires_in || null,
-    token_type: data.token_type || "Bearer",
-    scope: data.scope || null,
-  };
-}
-
-async function supabaseGetGoogleAccount(expertId) {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!SUPABASE_URL || !KEY) throw new Error("Missing SUPABASE env vars");
-
-  const url =
-    `${SUPABASE_URL}/rest/v1/expert_google_accounts?` +
-    `select=expert_id,google_email,access_token,refresh_token,scope,expiry_date&` +
-    `expert_id=eq.${encodeURIComponent(expertId)}&limit=1`;
-
-  const r = await fetch(url, {
-    headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
-  });
-
-  const text = await r.text();
-  if (!r.ok) throw new Error("Supabase get google account failed: " + text);
-  const rows = JSON.parse(text || "[]");
-  return rows[0] || null;
-}
-
-async function supabaseUpdateGoogleAccount(expertId, patch) {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!SUPABASE_URL || !KEY) throw new Error("Missing SUPABASE env vars");
-
-  const url = `${SUPABASE_URL}/rest/v1/expert_google_accounts?expert_id=eq.${encodeURIComponent(
-    expertId
-  )}`;
-
-  const r = await fetch(url, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: KEY,
-      Authorization: `Bearer ${KEY}`,
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(patch),
-  });
-
-  const text = await r.text();
-  if (!r.ok) throw new Error("Supabase update google account failed: " + text);
-}
-
-async function googleListCalendars(accessToken) {
-  const url = "https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250";
-  const r = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  const text = await r.text();
-  if (!r.ok) throw new Error("Google calendarList.list failed: " + text);
-
-  const data = JSON.parse(text);
-  return Array.isArray(data.items) ? data.items : [];
-}
-
-async function googleListEvents({ accessToken, calendarId, timeMin, timeMax }) {
-  const url = new URL(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`
-  );
-  url.searchParams.set("timeMin", timeMin);
-  url.searchParams.set("timeMax", timeMax);
-  url.searchParams.set("singleEvents", "true");
-  url.searchParams.set("orderBy", "startTime");
-  url.searchParams.set("maxResults", "2500");
-  url.searchParams.set("showDeleted", "false");
-
-  // ✅ IMPORTANT: we want extendedProperties back (Google includes it by default,
-  // but setting fields makes it explicit and avoids surprises)
-  url.searchParams.set(
-    "fields",
-    "items(id,status,summary,description,transparency,start,end,extendedProperties)"
-  );
-
-  const r = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  const text = await r.text();
-  if (!r.ok) throw new Error(`Google events.list failed (${calendarId}): ` + text);
-
-  const data = JSON.parse(text);
-  return Array.isArray(data.items) ? data.items : [];
-}
-
-function normalizeText(s) {
-  return String(s || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
-}
-
-// ✅ Expert can type: "runcall", "run-call", "run call", etc. (in title or description)
-function isRunCallAvailability(haystack) {
-  const s = normalizeText(haystack);
-  const run = s.indexOf("run");
-  const call = s.indexOf("call");
-  return run !== -1 && call !== -1 && run < call;
-}
-
-// ✅ NEW: robust machine-readable tag set by webhook.js on confirmed bookings
-function isRunCallBookingEvent(ev) {
-  const t = ev?.extendedProperties?.private?.runcall_type;
-  return String(t || "").toLowerCase() === "booking";
-}
-
-export default async function handler(req, res) {
-  try {
-    const expertId = String(req.query.expert_id || "").trim();
-    if (!expertId) return res.status(400).json({ error: "Missing expert_id" });
-
-    const from = String(req.query.from || "").trim();
-    const to = String(req.query.to || "").trim();
-
-    const now = new Date();
-    const defaultFrom = now.toISOString();
-    const defaultTo = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString();
-
-    const timeMin = from || defaultFrom;
-    const timeMax = to || defaultTo;
-
-    const account = await supabaseGetGoogleAccount(expertId);
-    if (!account) return res.status(404).json({ error: "Google not connected for this expert" });
-
-    let accessToken = account.access_token;
-    const refreshToken = account.refresh_token;
-
-    const expiry = account.expiry_date ? Number(account.expiry_date) : null;
-    const isExpired = !expiry || Date.now() > expiry - 60_000;
-
-    if (!accessToken || isExpired) {
-      if (!refreshToken)
-        return res.status(401).json({ error: "Missing refresh_token (reconnect Google Calendar)" });
-
-      const refreshed = await refreshAccessToken(refreshToken);
-      accessToken = refreshed.access_token;
-
-      const newExpiry = refreshed.expires_in ? Date.now() + refreshed.expires_in * 1000 : null;
-
-      await supabaseUpdateGoogleAccount(expertId, {
-        access_token: accessToken,
-        scope: refreshed.scope || account.scope || null,
-        expiry_date: newExpiry,
-      });
+// 2. Fonction dédiée pour rafraîchir le token (Séparée pour être réutilisée)
+async function refreshGoogleToken(refreshToken, expertId, supabaseUrl, supabaseKey) {
+    if (!refreshToken) return null;
+    
+    // On récupère les clés d'environnement (Vercel)
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    if (!clientId || !clientSecret) {
+        console.error("❌ MISSING ENV VARS: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET");
+        return null;
     }
 
-    // 1) Get all calendars
-    const calendars = await googleListCalendars(accessToken);
+    const postData = new URLSearchParams({
+        client_id: clientId, 
+        client_secret: clientSecret, 
+        refresh_token: refreshToken, 
+        grant_type: "refresh_token"
+    }).toString();
 
-    // Only calendars you can read
-    const readableCalendars = calendars
-      .filter((c) => c && c.id && (c.accessRole === "owner" || c.accessRole === "writer" || c.accessRole === "reader"))
-      .map((c) => c.id);
+    // Demande à Google
+    const refRes = await simpleRequest("https://oauth2.googleapis.com/token", {
+        method: "POST", 
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }, 
+        body: postData
+    });
 
-    // 2) Fetch events across calendars (sequential to keep it robust)
-    const availabilityIntervals = [];
-    const busyIntervals = [];
-
-    for (const calId of readableCalendars) {
-      const events = await googleListEvents({ accessToken, calendarId: calId, timeMin, timeMax });
-
-      for (const ev of events) {
-        if (!ev || ev.status === "cancelled") continue;
-
-        const start = parseGoogleEventTime(ev.start);
-        const end = parseGoogleEventTime(ev.end);
-        if (!start || !end || end <= start) continue;
-
-        // ✅ PRIORITY RULE:
-        // - If event is a RunCall BOOKING (tagged by webhook), it MUST block time.
-        if (isRunCallBookingEvent(ev)) {
-          busyIntervals.push({ start, end });
-          continue;
-        }
-
-        // Otherwise, RunCall "availability" is detected by text (title or description).
-        const summary = ev.summary || "";
-        const description = ev.description || "";
-        const haystack = `${summary} ${description}`;
-
-        if (isRunCallAvailability(haystack)) {
-          availabilityIntervals.push({ start, end });
-        } else {
-          // Do not block events marked "Free" in Google Calendar
-          if (ev.transparency !== "transparent") {
-            busyIntervals.push({ start, end });
-          }
-        }
-      }
+    const refData = refRes.json();
+    
+    if (refData && refData.access_token) {
+        const newExpiry = Date.now() + (refData.expires_in * 1000);
+        
+        // Sauvegarde immédiate dans Supabase
+        await simpleRequest(`${supabaseUrl}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}`, {
+            method: "PATCH",
+            headers: { 
+                "Content-Type": "application/json", 
+                'apikey': supabaseKey, 
+                'Authorization': `Bearer ${supabaseKey}`, 
+                'Prefer': 'return=minimal' 
+            },
+            body: JSON.stringify({ access_token: refData.access_token, expiry_date: newExpiry })
+        });
+        
+        return refData.access_token;
     }
-
-    // 3) Split availability into 30-min slots and remove conflicts with busy
-    const SLOT_MIN = 30;
-    const slots = [];
-
-    for (const a of availabilityIntervals) {
-      const endMs = a.end.getTime();
-
-      let cursor = new Date(a.start.getTime());
-      const m = cursor.getMinutes();
-      const mod = m % SLOT_MIN;
-      if (mod !== 0) cursor.setMinutes(m + (SLOT_MIN - mod), 0, 0);
-      else cursor.setSeconds(0, 0);
-
-      while (cursor.getTime() + SLOT_MIN * 60 * 1000 <= endMs) {
-        const slotStart = new Date(cursor);
-        const slotEnd = new Date(cursor.getTime() + SLOT_MIN * 60 * 1000);
-
-        let conflict = false;
-        for (const b of busyIntervals) {
-          if (overlaps(slotStart, slotEnd, b.start, b.end)) {
-            conflict = true;
-            break;
-          }
-        }
-
-        if (!conflict) {
-          slots.push({ start: slotStart.toISOString(), end: slotEnd.toISOString() });
-        }
-
-        cursor = new Date(cursor.getTime() + SLOT_MIN * 60 * 1000);
-      }
-    }
-
-    // Sort + dedupe
-    slots.sort((x, y) => new Date(x.start) - new Date(y.start));
-    const deduped = [];
-    const seen = new Set();
-    for (const s of slots) {
-      const key = `${s.start}|${s.end}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        deduped.push(s);
-      }
-    }
-
-    return res.status(200).json({ slots: deduped });
-  } catch (e) {
-    console.error("slots error:", e);
-    return res.status(500).json({ error: "Server error" });
-  }
+    
+    console.error("❌ Refresh Failed:", refData);
+    return null;
 }
+
+module.exports = async (req, res) => {
+    // Headers CORS pour autoriser le Dashboard
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Content-Type', 'application/json');
+
+    if (req.method === 'OPTIONS') { res.statusCode = 200; res.end(); return; }
+
+    try {
+        const expertId = req.query.expert_id;
+        if (!expertId) return res.status(200).json([]);
+
+        // Config Supabase
+        const SUPA_URL = process.env.SUPABASE_URL;
+        const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        // 1. On récupère le compte en base
+        const accRes = await simpleRequest(`${SUPA_URL}/rest/v1/expert_google_accounts?expert_id=eq.${expertId}&limit=1`, {
+            headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
+        });
+        const rows = accRes.json();
+        
+        if (!rows || !rows.length) return res.status(200).json([]);
+        
+        const account = rows[0];
+        let { access_token, refresh_token, expiry_date } = account;
+
+        // 2. Refresh Préventif (Si la date en base dit que c'est périmé)
+        if (!access_token || (expiry_date && Date.now() > Number(expiry_date) - 60000)) {
+            const newToken = await refreshGoogleToken(refresh_token, expertId, SUPA_URL, SUPA_KEY);
+            if (newToken) access_token = newToken;
+        }
+
+        // 3. Appel Google Calendar
+        const fromParam = req.query.from || new Date().toISOString();
+        const from = new Date(fromParam);
+        const to = req.query.to || new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString();
+
+        const evUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?` + 
+            `timeMin=${encodeURIComponent(from.toISOString())}&timeMax=${encodeURIComponent(to)}` +
+            `&singleEvents=true&orderBy=startTime&showDeleted=false`; 
+
+        let evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${access_token}` } });
+        
+        // --- LE FILET DE SÉCURITÉ (C'est ça qui manquait !) ---
+        // Si Google dit "401 Unauthorized", c'est que le token est mort, peu importe la date en base.
+        // On force le refresh et on réessaie UNE fois.
+        if (evRes.status === 401 && refresh_token) {
+            console.log("⚠️ Token rejected by Google (401). Forcing refresh...");
+            const freshToken = await refreshGoogleToken(refresh_token, expertId, SUPA_URL, SUPA_KEY);
+            if (freshToken) {
+                // Retry avec le nouveau token tout neuf
+                evRes = await simpleRequest(evUrl, { headers: { 'Authorization': `Bearer ${freshToken}` } });
+            }
+        }
+        // -----------------------------------------------------
+
+        if (evRes.status !== 200) {
+            // Si ça échoue encore, on renvoie vide (le dashboard affichera "Aucun créneau")
+            // On log l'erreur pour la voir dans Vercel Logs
+            console.error("Calendar API Error:", evRes.status, evRes.json());
+            return res.status(200).json([]); 
+        }
+
+        const evData = evRes.json();
+        const events = evData.items || [];
+
+        // 4. Traitement des événements (Ton code existant)
+        const availRanges = [];
+        const busyRanges = [];
+
+        for (const ev of events) {
+            if (ev.status === 'cancelled') continue;
+            const startStr = ev.start.dateTime || ev.start.date;
+            const endStr = ev.end.dateTime || ev.end.date;
+            if (!startStr || !endStr) continue;
+
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            const text = (ev.summary || "") + " " + (ev.description || "");
+
+            const isRunCall = /run[\s-]?call/i.test(text);
+            const isBooking = (ev.extendedProperties?.private?.runcall_type === 'booking');
+            
+            if (isBooking) busyRanges.push({ start, end });
+            else if (isRunCall) availRanges.push({ start, end });
+            else if (ev.transparency !== 'transparent') busyRanges.push({ start, end });
+        }
+
+        // 5. Découpage en slots de 30 min
+        const SLOT_MIN = 30;
+        const slots = [];
+        const safeNow = new Date(Date.now() + 5 * 60000); 
+
+        for (const range of availRanges) {
+            let cursor = new Date(range.start.getTime());
+            const endMs = range.end.getTime();
+
+            while (cursor.getTime() + SLOT_MIN * 60000 <= endMs) {
+                const sStart = new Date(cursor);
+                const sEnd = new Date(cursor.getTime() + SLOT_MIN * 60000);
+                
+                if (sStart >= safeNow) {
+                    let conflict = false;
+                    for (const busy of busyRanges) {
+                        if (sStart < busy.end && busy.start < sEnd) { conflict = true; break; }
+                    }
+                    if (!conflict) slots.push({ start: sStart.toISOString(), end: sEnd.toISOString() });
+                }
+                cursor = new Date(cursor.getTime() + SLOT_MIN * 60000);
+            }
+        }
+
+        slots.sort((a, b) => new Date(a.start) - new Date(b.start));
+        
+        // Dédoublonnage
+        const unique = [];
+        const seen = new Set();
+        for (const s of slots) {
+            const k = s.start + "|" + s.end;
+            if (!seen.has(k)) { seen.add(k); unique.push(s); }
+        }
+
+        return res.status(200).json(unique);
+
+    } catch (e) {
+        console.error("API Error:", e);
+        return res.status(500).json({ error: "Server Error", message: e.message });
+    }
+};

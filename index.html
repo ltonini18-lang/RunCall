@@ -1,303 +1,297 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-
-  <!-- OPEN GRAPH / SOCIAL PREVIEW -->
-  <meta property="og:title" content="RunCall – Conversations autour du sport">
-  <meta property="og:description" content="Des conversations en visio de 20 à 30 minutes avec des athlètes et créateurs du sport.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://run-call.com/">
-  <meta property="og:image" content="https://run-call.com/images/og-runcall.jpg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-
-  <!-- FAVICON -->
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-
-  <title>RunCall – Conversations autour du sport</title>
+  <title>RunCall</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+
+  <style>
+    /* RESET BASIQUE */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* Pas de scroll */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f8fafc;
+    }
+
+    /* CONTENEUR GLOBAL */
+    .container {
+      /* On force le plein écran */
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      
+      /* La Clé du 50/50 */
+      display: flex;
+      flex-direction: row; /* Côte à côte */
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --- MOITIÉ GAUCHE (50%) --- */
+    .brand-side {
+      flex: 1; /* Prend 1 part */
+      position: relative;
+      background-color: #f8fafc;
+      /* Centrage du contenu */
+      display: flex;
+      flex-direction: column;
+      justify-content: center; /* Vertical */
+      align-items: center;      /* Horizontal */
+      padding: 60px;
+      overflow: hidden;
+    }
+
+    /* Fond décoratif */
+    .brand-bg {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+      z-index: 0;
+    }
+    
+    .motion-shape {
+      position: absolute; top: -10%; right: -10%; width: 80%; height: 120%;
+      background: linear-gradient(200deg, rgba(22, 119, 255, 0.03) 0%, rgba(22, 119, 255, 0.1) 100%);
+      transform: skewX(-15deg);
+      z-index: 0;
+    }
+
+    /* Contenu Gauche */
+    .brand-content { 
+      position: relative; 
+      z-index: 1; 
+      max-width: 600px; /* Largeur max pour que le texte reste lisible */
+      width: 100%;
+      text-align: left; /* Texte aligné à gauche dans son bloc centré */
+    }
+
+    .brand-logo {
+      font-size: 2.5rem; font-weight: 900; color: #1677ff;
+      margin-bottom: 30px; display: inline-block; text-decoration: none;
+    }
+
+    .brand-title {
+      font-size: 3.5rem; 
+      font-weight: 800; color: #0f172a;
+      line-height: 1.1; margin-bottom: 24px; letter-spacing: -0.03em;
+    }
+
+    .brand-desc { font-size: 1.3rem; color: #64748b; line-height: 1.5; margin-bottom: 40px; }
+
+    /* --- AJOUT POUR GOOGLE VERIFICATION --- */
+    .features-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+    .feature-item { display: flex; align-items: flex-start; gap: 12px; font-size: 1.05rem; color: #475569; line-height: 1.4; }
+    .f-icon { 
+        min-width: 24px; height: 24px; background: #dbeafe; color: #1677ff; 
+        border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+        font-weight: 800; font-size: 0.8rem; margin-top: 2px; flex-shrink: 0;
+    }
+    /* -------------------------------------- */
+
+    /* --- MOITIÉ DROITE (50%) --- */
+    .login-side {
+      flex: 1; /* Prend 1 part (donc égal à la gauche) */
+      background: white;
+      position: relative;
+      /* Centrage du contenu */
+      display: flex;
+      flex-direction: column;
+      justify-content: center; /* Vertical */
+      align-items: center;      /* Horizontal */
+      padding: 40px;
+      border-left: 1px solid #f1f5f9;
+    }
+
+    /* Switcher Langue */
+    .lang-switcher {
+      position: absolute; top: 30px; right: 40px;
+      display: flex; gap: 10px; align-items: center; z-index: 10;
+    }
+    .lang-btn {
+      background: none; border: none; font-size: 0.9rem; font-weight: 600; 
+      color: #94a3b8; cursor: pointer; padding: 5px; transition: color 0.2s;
+    }
+    .lang-btn:hover { color: #64748b; }
+    .lang-btn.active { color: #0f172a; font-weight: 800; }
+    .sep { color: #e2e8f0; font-size: 0.9rem; }
+
+    /* Login Box */
+    .login-box { 
+      width: 100%; 
+      max-width: 400px; /* Limite la largeur pour ne pas être trop large sur grand écran */
+      text-align: center; 
+    }
+    
+    .login-header { margin-bottom: 30px; }
+    .login-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+    .login-subtitle { color: #64748b; font-size: 1rem; line-height: 1.5; }
+
+    .btn-google {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 16px;
+      background: #fff; color: #1e293b; font-weight: 600;
+      border: 1px solid #e2e8f0; border-radius: 12px;
+      cursor: pointer; transition: all 0.2s ease;
+      font-size: 1rem; gap: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
+    }
+    .btn-google:hover {
+      border-color: #cbd5e1; background-color: #f8fafc;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+
+    /* MOBILE / TABLETTE (< 1000px) */
+    @media (max-width: 1000px) {
+      /* On passe en colonne simple */
+      .container { 
+        position: relative; 
+        flex-direction: column; 
+        height: auto; 
+        overflow-y: auto; 
+      }
+      .brand-side { flex: none; width: 100%; min-height: 400px; padding: 50px 30px; }
+      .brand-title { font-size: 2.5rem; }
+      .login-side { flex: none; width: 100%; min-height: 60vh; border-left: none; padding: 50px 30px; }
+      html, body { overflow: auto; }
+    }
+  </style>
 </head>
-
-
-
 <body>
 
-<!-- HEADER -->
-<header class="site-header">
-  <div class="container header-inner">
-    <a href="index.html" class="logo-link">
-  <div class="logo">RunCall</div>
-</a>
-    <nav class="nav">
-      <a href="#experts" data-fr="Profils" data-en="Profiles"></a>
-      <a href="#how" data-fr="Comment ça marche" data-en="How it works"></a>
-      <a href="#contact" data-fr="Contact" data-en="Contact"></a>
-    </nav>
-  </div>
-</header>
+  <div class="container">
+    <div class="brand-side">
+      <div class="brand-bg"></div>
+      <div class="motion-shape"></div>
+      
+      <div class="brand-content">
+        <a href="index.html" class="brand-logo">RunCall</a>
+        <h1 class="brand-title" id="txt-hero-title">...</h1>
+        <p class="brand-desc" id="txt-hero-desc">...</p>
+        
+        <div class="features-list">
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-1">...</div>
+            </div>
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-2">...</div>
+            </div>
+            <div class="feature-item">
+                <div class="f-icon">✓</div>
+                <div id="feat-3">...</div>
+            </div>
+        </div>
+        </div>
+    </div>
 
-<!-- LANGUAGE SWITCH -->
-<div class="lang-switch">
-  <button type="button" data-lang="fr">FR</button>
-  <button type="button" data-lang="en">EN</button>
+    <div class="login-side">
+      <div class="lang-switcher">
+        <button id="btn-fr" class="lang-btn">FR</button>
+        <span class="sep">|</span>
+        <button id="btn-en" class="lang-btn">EN</button>
+      </div>
+
+      <div class="login-box">
+        <div class="login-header">
+          <h2 class="login-title" id="txt-login-title">...</h2>
+          <p class="login-subtitle" id="txt-login-sub">...</p>
+        </div>
+
+        <button id="googleBtn" class="btn-google">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          <span id="txt-btn">...</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        heroTitle: "Share your experience on RunCall.",
+        heroDesc: "Schedule your availability and let people ask you questions via video.",
+        // PHRASES VALIDATION GOOGLE (EN)
+        feat1: "Connects with <strong>Google Calendar</strong> to sync your availability.",
+        feat2: "Allows your audience to easily book video calls with you.",
+        feat3: "Prevents double-booking by checking your existing events.",
+        
+        loginTitle: "Host Area",
+        loginSub: "Log in to access your dashboard or create an account.",
+        btn: "Continue with Google"
+      },
+      fr: {
+        heroTitle: "Partagez votre expérience sur RunCall.",
+        heroDesc: "Programmez vos disponibilités et laissez les gens vous poser leurs questions en visio.",
+        // PHRASES VALIDATION GOOGLE (FR)
+        feat1: "Se connecte à <strong>Google Calendar</strong> pour synchroniser vos disponibilités.",
+        feat2: "Permet à votre audience de réserver facilement des visios avec vous.",
+        feat3: "Évite les doubles réservations en vérifiant vos événements existants.",
+        
+        loginTitle: "Espace Intervenant",
+        loginSub: "Connectez-vous pour accéder à votre tableau de bord ou créer un compte.",
+        btn: "Continuer avec Google"
+      }
+    };
+
+    let currentLang = 'en';
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      const t = translations[lang];
+      document.getElementById('txt-hero-title').textContent = t.heroTitle;
+      document.getElementById('txt-hero-desc').textContent = t.heroDesc;
+      document.getElementById('txt-login-title').textContent = t.loginTitle;
+      document.getElementById('txt-login-sub').textContent = t.loginSub;
+      document.getElementById('txt-btn').textContent = t.btn;
+
+      // MISE A JOUR DES NOUVELLES PHRASES
+      document.getElementById('feat-1').innerHTML = t.feat1;
+      document.getElementById('feat-2').innerHTML = t.feat2;
+      document.getElementById('feat-3').innerHTML = t.feat3;
+
+      document.getElementById('btn-fr').classList.toggle('active', lang === 'fr');
+      document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    }
+
+    const userLang = navigator.language || navigator.userLanguage;
+    const initialLang = userLang.startsWith('fr') ? 'fr' : 'en';
+    setLanguage(initialLang);
+
+    document.getElementById('btn-fr').addEventListener('click', () => setLanguage('fr'));
+    document.getElementById('btn-en').addEventListener('click', () => setLanguage('en'));
+
+    const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    document.getElementById('googleBtn').addEventListener('click', async function(){
+      this.style.opacity = 0.7; 
+      this.querySelector('span').innerText = currentLang === 'fr' ? "Connexion..." : "Loading...";
+      
+      // ON REVIENT AU DYNAMIQUE (Plus sûr si Supabase est bien configuré)
+      // Cela garde le même domaine (www ou non) pour éviter l'erreur de sécurité
+      const targetURL = new URL(CONFIG.URLS.dashboard, window.location.href).href;
+
+      await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: { 
+            redirectTo: targetURL,
+            queryParams: { prompt: 'select_account' }
+        }
+      });
+    });
+  </script>
+  <div style="position: fixed; bottom: 15px; left: 0; width: 100%; text-align: center; font-size: 0.75rem; color: #64748b; z-index: 9999;">
+    <a href="privacy.html" target="_blank" style="color: #64748b; text-decoration: none; margin: 0 10px;">Privacy Policy</a>
+    •
+    <a href="terms.html" target="_blank" style="color: #64748b; text-decoration: none; margin: 0 10px;">Terms of Service</a>
 </div>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="container hero-inner">
-    <div class="hero-text">
-      <h1
-        data-fr="RunCall est une plateforme de conversations à forte valeur autour du sport"
-        data-en="RunCall is a platform for high-value conversations around sport"
-      ></h1>
-
-      <p class="hero-subtitle"
-      data-fr="Posez vos questions et obtenez des réponses personnalisées en visio."
-      data-en="Ask your questions and get personalized answers through video calls."
-      ></p>
-
-
-      <a href="#experts" class="btn btn-primary"
-        data-fr="Découvrir les profils"
-        data-en="Discover profiles"
-      ></a>
-    </div>
-  </div>
-</section>
-
-<!-- HOW IT WORKS -->
-<section id="how" class="section">
-  <div class="container">
-    <h2 data-fr="Comment ça marche ?" data-en="How it works"></h2>
-
-    <div class="steps">
-      <div class="step-card">
-        <span class="step-number">1</span>
-        <h3
-  data-fr="Choisissez un profil"
-  data-en="Choose a profile"
-></h3>
-
-        <p
-  data-fr="Athlète, créateur, coach ou passionné selon les questions que vous avez"
-  data-en="Athlete, creator, coach or passionate runner depending on the questions you have"
-></p>
-
-      </div>
-
-      <div class="step-card">
-        <span class="step-number">2</span>
-        <h3
-  data-fr="Réservez un créneau"
-  data-en="Book a time slot"
-></h3>
-
-        <p
-  data-fr="Les intervenants fixent leurs disponibilités"
-  data-en="Participants set their availability"
-></p>
-
-      </div>
-
-      <div class="step-card">
-        <span class="step-number">3</span>
-        <h3
-          data-fr="Recevez une invitation"
-          data-en="Receive an invitation"
-        ></h3>
-        <p
-          data-fr="Un lien de visio est généré automatiquement"
-          data-en="A video call link is automatically generated"
-        ></p>
-      </div>
-
-      <div class="step-card">
-        <span class="step-number">4</span>
-        <h3
-          data-fr="Une Conversation dédiée"
-          data-en="One focused conversation"
-        ></h3>
-      <p
-  data-fr="Un échange personnalisé, humain et directement applicable à votre pratique"
-  data-en="A personalized, human conversation you can directly apply to your practice"
-></p>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- CTA PARTAGER EXPERIENCE -->
-  <div class="container">
-    <div class="expert-cta">
-      <p class="expert-cta-text"
-        data-fr="Vous avez un parcours ou une expérience qui pourrait aider d’autres sportifs ?"
-        data-en="Do you have a journey or experience that could help other athletes?"
-      ></p>
-
-      <a href="devenir-expert.html" target="_blank" rel="noopener noreferrer"
-         class="btn btn-primary"
-         data-fr="Partager votre expérience sur RunCall"
-         data-en="Share your experience on RunCall"
-      ></a>
-    </div>
-  </div>
-</section>
-
-<!-- PROFILES -->
-<section id="experts" class="section section-alt">
-  <div class="container">
-    <h2
-      data-fr="Quelques profils RunCall"
-      data-en="A few RunCall profiles"
-    ></h2>
-
-    <div class="expert-grid">
-
-      <article class="expert-card">
-        <img src="images/lucas.jpg" alt="Lucas Tonini" class="expert-photo">
-
-        <h3
-          data-fr="Lucas Tonini – Coach certifié USATF"
-          data-en="Lucas Tonini – USATF certified coach"
-        ></h3>
-
-        <p class="expert-specialty"
-          data-fr="Marathon, performance, structuration de l’entraînement"
-          data-en="Marathon, performance, training structure"
-        ></p>
-
-        <a href="experts/lucas-tonini.html" class="btn btn-outline"
-           data-fr="Voir le profil"
-           data-en="View profile"
-        ></a>
-      </article>
-
-    </div>
-  </div>
-</section>
-
-<!-- WHY -->
-<section class="section">
-  <div class="container">
-    <h2 data-fr="Pourquoi RunCall ?" data-en="Why RunCall?"></h2>
-
-    <ul class="why-list">
-      <li
-        data-fr="Recevez des informations déterminantes pour votre pratique du sport"
-        data-en="Get decisive insights to improve your sports practice"
-      ></li>
-      <li
-        data-fr="Des échanges humains, concrets et personnalisés"
-        data-en="Human, concrete and personalized conversations"
-      ></li>
-      <li
-        data-fr="Visio simple et fluide, sans friction technique"
-        data-en="Simple and smooth video calls, no technical friction"
-      ></li>
-      <li
-  data-fr="Aucun abonnement. Vous payez uniquement si vous réservez un rendez-vous."
-  data-en="No subscription. You only pay if you book a session."
-></li>
-
-    </ul>
-  </div>
-</section>
-
-<!-- CONTACT -->
-<section id="contact" class="section section-alt">
-  <div class="container contact-split">
-
-    <div class="contact-left">
-      <h2 data-fr="Vous avez une question avant de réserver ?"
-          data-en="Have a question before booking?"></h2>
-
-      <p data-fr="Envoyez-nous un message et nous vous répondrons rapidement."
-         data-en="Send us a message and we’ll get back to you quickly."></p>
-
-      <form class="contact-form" action="https://formspree.io/f/xrbnrdbe" method="POST">
-        <div class="form-row">
-          <label data-fr="Nom" data-en="Name"></label>
-          <input type="text" name="name" required />
-        </div>
-        <div class="form-row">
-          <label>Email</label>
-          <input type="email" name="email" required />
-        </div>
-        <div class="form-row">
-          <label data-fr="Votre message" data-en="Your message"></label>
-          <textarea name="message" rows="4" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary"
-          data-fr="Envoyer"
-          data-en="Send"
-        ></button>
-      </form>
-    </div>
-
-    <div class="contact-divider"></div>
-
-    <div class="contact-right">
-      <h2
-        data-fr="Partager votre expérience sur RunCall"
-        data-en="Share your experience on RunCall"
-      ></h2>
-
-      <p
-        data-fr="Vous n’avez pas besoin d’être un expert reconnu. Si votre parcours peut aider quelqu’un, il a sa place ici."
-        data-en="You don’t need to be a recognized expert. If your journey can help someone, it belongs here."
-      ></p>
-
-      <a href="devenir-expert.html" target="_blank" rel="noopener noreferrer"
-         class="btn btn-primary"
-         data-fr="Partager votre expérience sur RunCall"
-         data-en="Share your experience on RunCall"
-      ></a>
-    </div>
-
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer class="site-footer">
-  <div class="container footer-inner">
-    <span data-fr="© RunCall – 2025" data-en="© RunCall – 2025"></span>
-    <span data-fr="Conçu avec 🏃‍♂️ et ☕" data-en="Built with 🏃‍♂️ and ☕"></span>
-  </div>
-</footer>
-
-<!-- SCRIPT LANGUE -->
-<script>
-(function () {
-  const buttons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-
-  if (!lang) {
-    const browserLang = navigator.language || navigator.userLanguage;
-    lang = browserLang.toLowerCase().startsWith('fr') ? 'fr' : 'en';
-  }
-
-  function applyLanguage(lang) {
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-
-    buttons.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.lang === lang);
-    });
-
-    localStorage.setItem('runcall_lang', lang);
-  }
-
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => applyLanguage(btn.dataset.lang));
-  });
-
-  applyLanguage(lang);
-})();
-</script>
-
 </body>
 </html>
-

@@ -2,9 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>RunCall – Devenir intervenant</title>
+  <title>RunCall – Créer mon profil</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     /* Scoped to this page only */
@@ -56,7 +57,7 @@
       background:#fff;
     }
 
-    /* Premium form styling (page-scoped) */
+    /* Form styling */
     .join-form .form-row{ margin: 0 0 14px; }
     .join-form label{
       display:block;
@@ -95,6 +96,7 @@
       padding-left: 18px;
       color:#475569;
       line-height:1.7;
+      font-size: 0.95rem;
     }
     .join-steps li{ margin: 7px 0; }
 
@@ -126,26 +128,6 @@
       cursor:not-allowed;
       transform:none !important;
       box-shadow:none !important;
-    }
-
-    .join-secondary{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      width:100%;
-      padding: 11px 14px;
-      border-radius: 16px;
-      border:1px solid #e5e7eb;
-      background:#fff;
-      color:#0f172a;
-      text-decoration:none;
-      transition: transform 140ms ease, border-color 160ms ease, background-color 160ms ease;
-      cursor:pointer;
-    }
-    .join-secondary:hover{
-      transform: translateY(-1px);
-      border-color:#1677ff;
-      background: rgba(22,119,255,.06);
     }
 
     .join-muted{
@@ -229,14 +211,13 @@
             data-en="Share your experience on RunCall"></h1>
 
         <p class="join-subtitle"
-           data-fr="Écris une présentation pour ton profil RunCall. Ensuite, connecte ton Google Calendar pour ouvrir tes disponibilités. Chaque échange est planifié automatiquement avec un lien Google Meet."
-           data-en="Write a presentation for your RunCall profile. Next, connect Google Calendar to open your availability. Each session is scheduled automatically with a Google Meet link."></p>
+           data-fr="Écris une présentation pour ton profil RunCall. Ensuite, tu accèderas à ton dashboard pour connecter ton agenda."
+           data-en="Write a presentation for your RunCall profile. Next, you'll access your dashboard to connect your calendar."></p>
       </div>
 
       <div class="join-body">
         <div class="join-grid">
 
-          <!-- FORM -->
           <div class="join-panel">
             <form id="joinForm" class="join-form contact-form" novalidate>
               <div class="form-row">
@@ -254,26 +235,13 @@
                   data-fr-placeholder="Explique qui tu es, ton parcours, tes spécialités, ta vision..."
                   data-en-placeholder="Explain who you are, your background, your specialties, your approach..."
                 ></textarea>
-
-                <!-- Photo (placeholder) -->
-                <label class="join-secondary" style="cursor:pointer; margin-top:10px;"
-                  data-fr="Ajouter une photo de profil"
-                  data-en="Add a profile photo">
-                  <span data-fr="Ajouter une photo de profil" data-en="Add a profile photo"></span>
-                  <input id="photo" type="file" accept="image/*" style="display:none;" disabled />
-                </label>
-
-                <small class="join-small"
-                  data-fr="(Tu pourras la changer depuis ton dashboard)"
-                  data-en="(You can change it from your dashboard)"
-                ></small>
               </div>
 
               <div class="join-alert">
                 <strong data-fr="Étape suivante :" data-en="Next step:"></strong>
                 <span
-                  data-fr=" connecter Google Calendar pour ouvrir tes disponibilités."
-                  data-en=" connect Google Calendar to open your availability."
+                  data-fr=" Accès au Dashboard pour connecter ton calendrier."
+                  data-en=" Access Dashboard to connect your calendar."
                 ></span>
               </div>
 
@@ -281,8 +249,8 @@
               <div id="joinError" class="join-error"></div>
 
               <button id="continueBtn" type="submit" class="join-btn"
-                data-fr="Continuer"
-                data-en="Continue"></button>
+                data-fr="Continuer vers mon Dashboard"
+                data-en="Continue to Dashboard"></button>
 
               <div class="join-muted"
                 data-fr="(Tu pourras modifier ton profil plus tard.)"
@@ -290,17 +258,16 @@
             </form>
           </div>
 
-          <!-- SIDE INFO -->
           <div class="join-panel">
             <ol class="join-steps">
               <li data-fr="Créer ton profil RunCall." data-en="Create your RunCall profile."></li>
-              <li data-fr="Connecter Google Calendar." data-en="Connect Google Calendar."></li>
+              <li data-fr="Connecter Google Calendar (via Dashboard)." data-en="Connect Google Calendar (via Dashboard)."></li>
               <li data-fr="Ouvrir tes disponibilités." data-en="Open your availability."></li>
             </ol>
 
             <p class="join-small"
-              data-fr="Partage ta page RunCall pour recevoir tes premières réservations 🚀"
-              data-en="Share your RunCall page to get your first bookings 🚀"
+              data-fr="Une fois ton agenda connecté, ta page sera prête à être partagée ! 🚀"
+              data-en="Once your calendar is connected, your page will be ready to share! 🚀"
             ></p>
           </div>
 
@@ -311,47 +278,41 @@
   </div>
 </section>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
 
 <script>
 (function () {
-  // ---------- Supabase ----------
+  
+  // --- Init Supabase Localement (Pour l'instant, pour garder la logique isolée) ---
   const SUPABASE_URL = "https://bflptoazeqfcultpukkh.supabase.co";
+  // Utilisation de la clé publique (anon key)
   const SUPABASE_ANON_KEY = "sb_publishable__ZleRKOics4yZv3UwIUPiA_22xmqUM4";
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
+  // Vérification basique
+  if (typeof window.supabase === 'undefined') return;
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // ---------- Language ----------
-  const buttons = document.querySelectorAll('.lang-switch button');
-  let lang = localStorage.getItem('runcall_lang');
-
-  if (!lang) {
-    const browserLang = navigator.language || navigator.userLanguage;
-    lang = (browserLang || "").toLowerCase().startsWith('fr') ? 'fr' : 'en';
-  }
-
-  function applyLanguage(nextLang) {
-    lang = nextLang;
-
-    document.querySelectorAll('[data-fr][data-en]').forEach(el => {
-      el.textContent = el.dataset[lang];
-    });
-
-    document
-      .querySelectorAll('[data-fr-placeholder][data-en-placeholder]')
-      .forEach(el => {
+  // --- Gestion Langue (récupérée de localStorage via app.js mais appliquée ici pour les placeholders) ---
+  let lang = localStorage.getItem('runcall_lang') || 'fr';
+  
+  function updatePlaceholders() {
+    document.querySelectorAll('[data-fr-placeholder][data-en-placeholder]').forEach(el => {
         el.placeholder = lang === 'fr' ? el.dataset.frPlaceholder : el.dataset.enPlaceholder;
-      });
-
-    buttons.forEach(btn => btn.classList.toggle('active', btn.dataset.lang === lang));
-    localStorage.setItem('runcall_lang', lang);
+    });
   }
+  // On écoute les changements de langue faits par app.js
+  const buttons = document.querySelectorAll('.lang-switch button');
+  buttons.forEach(btn => btn.addEventListener('click', () => {
+      lang = btn.dataset.lang;
+      updatePlaceholders();
+  }));
+  updatePlaceholders();
 
-  buttons.forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
-  applyLanguage(lang);
 
-  // ---------- Helpers ----------
-  const qs = new URLSearchParams(window.location.search);
-  const expertId = qs.get("expert_id");
+  // --- Logique Métier ---
+  // On récupère l'expert_id depuis l'URL (mis par landing-expert)
+  const expertId = getQueryParam("expert_id"); // getQueryParam vient de js/config.js
 
   const form = document.getElementById('joinForm');
   const btn = document.getElementById('continueBtn');
@@ -379,65 +340,51 @@
     btn.disabled = isLoading;
     btn.textContent = isLoading
       ? (lang === 'fr' ? "Enregistrement..." : "Saving...")
-      : (lang === 'fr' ? "Continuer" : "Continue");
+      : (lang === 'fr' ? btn.dataset.fr : btn.dataset.en);
   }
 
-  async function requireAuthAndExpert() {
+  // 1. Vérification Sécurité et Pré-remplissage
+  async function initForm() {
     if (!expertId) {
-      showError(lang === 'fr'
-        ? "expert_id manquant dans l'URL."
-        : "Missing expert_id in URL.");
-      return null;
+      showError("Erreur critique : expert_id manquant. Recommence depuis le début.");
+      return;
     }
 
+    // On vérifie la session
     const { data: { session }, error: sErr } = await sb.auth.getSession();
-    if (sErr) {
-      showError((lang === 'fr' ? "Erreur session: " : "Session error: ") + (sErr.message || "unknown"));
-      return null;
-    }
     if (!session?.user) {
-      showError(lang === 'fr'
-        ? "Tu dois être connecté. Reviens sur la page démarrer."
-        : "You must be signed in. Go back to the start page.");
-      return null;
+        // Pas connecté ? Retour case départ
+        window.location.href = CONFIG.URLS.login || "login.html"; 
+        return;
     }
 
+    // On charge les infos existantes
     const { data: expert, error: eErr } = await sb
       .from("experts")
-      .select("id,name,email,presentation,auth_user_id,photo_url,status")
+      .select("name, presentation, auth_user_id")
       .eq("id", expertId)
       .single();
 
     if (eErr || !expert) {
-      showError(lang === 'fr'
-        ? "Impossible de charger ton profil."
-        : "Unable to load your profile.");
-      return null;
+      showError("Impossible de charger le profil expert.");
+      return;
     }
 
-    if ((expert.auth_user_id || "") !== session.user.id) {
-      showError(lang === 'fr'
-        ? "Accès refusé (ce profil ne correspond pas à ton compte)."
-        : "Access denied (this profile does not match your account).");
-      return null;
+    // Sécurité : On vérifie que c'est bien LUI
+    if (expert.auth_user_id !== session.user.id) {
+       showError("Accès interdit : Ce profil ne vous appartient pas.");
+       return;
     }
 
-    return expert;
+    // Pré-remplissage
+    if (expert.name) document.getElementById('name').value = expert.name;
+    if (expert.presentation) document.getElementById('presentation').value = expert.presentation;
   }
 
-  async function prefillForm() {
-    clearError();
-    clearOk();
+  initForm();
 
-    const expert = await requireAuthAndExpert();
-    if (!expert) return;
 
-    document.getElementById('name').value = expert.name || "";
-    document.getElementById('presentation').value = expert.presentation || "";
-  }
-
-  prefillForm();
-
+  // 2. Sauvegarde
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearError();
@@ -447,52 +394,45 @@
     const presentation = document.getElementById('presentation').value.trim();
 
     if (!name || !presentation) {
-      showError(lang === 'fr'
-        ? "Merci de remplir le nom et la présentation."
-        : "Please fill in name and presentation.");
+      showError(lang === 'fr' ? "Merci de tout remplir." : "Please fill in all fields.");
       return;
     }
 
-    // light guardrail
-    if (presentation.length < 40) {
-      showError(lang === 'fr'
-        ? "Ta présentation est un peu courte — vise au moins 2-3 phrases."
-        : "Your presentation is a bit short — aim for at least 2–3 sentences.");
+    if (presentation.length < 20) {
+      showError(lang === 'fr' ? "Présentation un peu courte..." : "Presentation too short...");
       return;
     }
 
     setLoading(true);
 
     try {
-      const expert = await requireAuthAndExpert();
-      if (!expert) throw new Error(lang === 'fr' ? "Non autorisé." : "Not authorized.");
-
       const { error: uErr } = await sb
         .from("experts")
         .update({
           name,
           presentation,
-          status: "draft",
+          status: "draft", // Reste en draft tant que le calendrier n'est pas lié
           updated_at: new Date().toISOString()
         })
         .eq("id", expertId);
 
       if (uErr) throw uErr;
 
-      showOk(lang === 'fr'
-        ? "Profil enregistré. Redirection vers Google Calendar…"
-        : "Profile saved. Redirecting to Google Calendar…");
+      showOk(lang === 'fr' ? "Profil sauvé ! Redirection..." : "Saved! Redirecting...");
 
-      window.location.href = `connect-calendar.html?expert_id=${encodeURIComponent(expertId)}`;
+      // REDIRECTION VERS LE DASHBOARD (via config.js)
+      // On passe l'expert_id pour faciliter la vie au dashboard
+      setTimeout(() => {
+          window.location.href = `${CONFIG.URLS.dashboard}?expert_id=${expertId}`;
+      }, 800);
+
     } catch (err) {
       console.error(err);
-      showError(err?.message || (lang === 'fr'
-        ? "Une erreur est survenue. Réessaie."
-        : "Something went wrong. Please try again."));
-    } finally {
+      showError(err.message || "Erreur lors de la sauvegarde.");
       setLoading(false);
     }
   });
+
 })();
 </script>
 

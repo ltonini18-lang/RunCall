@@ -4,115 +4,139 @@ const { supabaseAdmin } = require("../_lib/supabase");
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Prefer env BASE_URL, fallback to prod
 const BASE_URL = process.env.BASE_URL || "https://run-call.vercel.app";
 
-const PRICE_MAP = {
-  29: { amount: 2900, label: "RunCall support" },
-  49: { amount: 4900, label: "RunCall support" },
-  79: { amount: 7900, label: "RunCall support" },
-};
-
 module.exports = async function handler(req, res) {
+  // Headers CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method === 'OPTIONS') { res.statusCode = 200; return res.end(); }
   if (req.method !== "POST") {
     res.statusCode = 405;
-    res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ error: "Method not allowed" }));
   }
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
     const booking_id = body.booking_id;
-    const tier = Number(body.price_tier);
+    const tier = body.price_tier ? Number(body.price_tier) : null; 
 
-    if (!booking_id || !PRICE_MAP[tier]) {
+    if (!booking_id) {
       res.statusCode = 400;
-      res.setHeader("Content-Type", "application/json");
-      return res.end(JSON.stringify({ error: "Invalid booking_id or price_tier" }));
+      return res.end(JSON.stringify({ error: "Invalid booking_id" }));
     }
 
     const sb = supabaseAdmin();
 
-    // 1) Load booking (added expert_id for metadata/debug)
-    const { data: booking, error: readErr } = await sb
+    // ÉTAPE 1 : Récupérer la RÉSERVATION
+    const { data: booking, error: bookingErr } = await sb
       .from("bookings")
-      .select("id,expert_id,status,expires_at,user_email")
+      .select("*")
       .eq("id", booking_id)
       .single();
 
-    if (readErr || !booking) {
+    if (bookingErr || !booking) {
+      console.error("Booking Error:", bookingErr);
       res.statusCode = 404;
-      res.setHeader("Content-Type", "application/json");
       return res.end(JSON.stringify({ error: "Booking not found" }));
     }
 
-    // 2) Validate status & expiry
+    // ÉTAPE 2 : Récupérer l'EXPERT (Avec son NOM)
+    const { data: expert, error: expertErr } = await sb
+        .from("experts")
+        .select("id, stripe_account_id, price, currency, name") 
+        .eq("id", booking.expert_id)
+        .single();
+
+    if (expertErr || !expert) {
+        console.error("Expert Error:", expertErr);
+        res.statusCode = 404;
+        return res.end(JSON.stringify({ error: "Expert not found linked to this booking" }));
+    }
+
+    if (!expert.stripe_account_id) {
+        res.statusCode = 400;
+        return res.end(JSON.stringify({ error: "Cet expert n'a pas configuré ses paiements (Stripe manquants)." }));
+    }
+
+    // ÉTAPE 3 : Vérifs logiques
     const expiresAt = new Date(booking.expires_at).getTime();
-    if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) {
+    if (Number.isNaN(expiresAt) || expiresAt <= Date.now() - 120000) { 
       res.statusCode = 410;
-      res.setHeader("Content-Type", "application/json");
       return res.end(JSON.stringify({ error: "This hold expired. Please pick another slot." }));
     }
 
     if (booking.status !== "hold") {
       res.statusCode = 409;
-      res.setHeader("Content-Type", "application/json");
       return res.end(JSON.stringify({ error: `Booking is not payable (status: ${booking.status})` }));
     }
 
-    // 3) Create Stripe Checkout session
+    // ÉTAPE 4 : Calculs Prix & Devise
+    const currency = expert.currency || 'usd'; 
+    let finalAmount = expert.price; 
+    
+    if (!finalAmount) {
+        finalAmount = tier || 49; 
+    }
+
+    const amountCents = Math.round(finalAmount * 100);
+    const platformFee = Math.round(amountCents * 0.20); 
+
+    // ÉTAPE 5 : Session Stripe
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-
-      // helps in Stripe dashboard search + linking
       client_reference_id: booking_id,
-
       customer_email: booking.user_email || undefined,
-
+      
       line_items: [
         {
           price_data: {
-            currency: "usd",
-            product_data: { name: PRICE_MAP[tier].label },
-            unit_amount: PRICE_MAP[tier].amount,
+            currency: currency,
+            product_data: { 
+                // ✅ TES NOUVEAUX TEXTES ICI :
+                name: "Visio RunCall", 
+                description: `W ${expert.name || 'un membre RunCall'}` 
+            },
+            unit_amount: amountCents,
           },
           quantity: 1,
         },
       ],
 
-      // ✅ IMPORTANT: webhook will use this to reconcile
-      metadata: {
-        booking_id,
-        expert_id: booking.expert_id || "",
-        price_tier: String(tier),
+      payment_intent_data: {
+        application_fee_amount: platformFee,
+        transfer_data: {
+            destination: expert.stripe_account_id,
+        },
       },
 
-      // ✅ use BASE_URL so preview/prod both work
-      success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      metadata: {
+        booking_id,
+        expert_id: expert.id || "",
+        price_tier: String(finalAmount),
+      },
+
+      success_url: `${BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}&booking_id=${booking_id}`,
       cancel_url: `${BASE_URL}/support.html?booking_id=${encodeURIComponent(booking_id)}&canceled=1`,
     });
 
-    // 4) Persist session + status
-    const { error: updErr } = await sb
+    // ÉTAPE 6 : Sauvegarde
+    await sb
       .from("bookings")
       .update({
-        price_tier: tier,
+        price_tier: finalAmount,
         stripe_session_id: session.id,
         status: "pending_payment",
       })
       .eq("id", booking_id);
 
-    if (updErr) {
-      // If DB update fails, still return the session URL (user can pay),
-      // webhook will finalize using metadata.booking_id anyway.
-      console.error("Supabase update failed:", updErr);
-    }
+    return res.json({ checkout_url: session.url, session_id: session.id });
 
-    res.setHeader("Content-Type", "application/json");
-    return res.end(JSON.stringify({ checkout_url: session.url, session_id: session.id }));
   } catch (e) {
+    console.error("Stripe Handler Error:", e);
     res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json");
     return res.end(JSON.stringify({ error: e?.message || "Stripe error" }));
   }
 };
